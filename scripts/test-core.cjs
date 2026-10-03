@@ -1,0 +1,17 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const ts = require('typescript');
+const source = fs.readFileSync('src/lib/compare.ts', 'utf8');
+const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+const moduleShim = { exports: {} };
+new Function('module', 'exports', output)(moduleShim, moduleShim.exports);
+const { compareRankings } = moduleShim.exports;
+const items = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id, title: id, artist: 'Example', kind: 'song' }));
+assert.equal(compareRankings(items, items).agreement, 100);
+assert.equal(compareRankings(items, items).biggest, null);
+assert.equal(compareRankings(items, [...items].reverse()).agreement, 0);
+assert.equal(compareRankings(items, []).agreement, 0);
+assert.equal(compareRankings(items, [items[0], items[1]]).agreement, 100);
+assert.equal(compareRankings(items, [items[1], items[0]]).agreement, 0);
+assert.equal(compareRankings(items, [...items.slice(0, 3), { id: 'other' }]).common, 3);
+console.log('Comparison checks passed: identical, reversed, empty, and partial-overlap rankings.');
