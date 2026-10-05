@@ -14,7 +14,6 @@
     },
     "ios": {
       "bundleIdentifier": "com.marginmusic.app",
-      "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -22,7 +21,6 @@
     },
     "android": {
       "package": "com.marginmusic.app",
-      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#F3F0E8",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -69,6 +67,19 @@
         }
       ],
       "expo-build-properties"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a7542a50-9223-4585-9221-02c18e4a3751"
+      }
+    },
+    "owner": "gaurang22",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a7542a50-9223-4585-9221-02c18e4a3751"
+    }
   }
 }
