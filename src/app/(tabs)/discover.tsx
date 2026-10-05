@@ -5,19 +5,22 @@ import { useMemo, useState } from 'react';
 import { useApp } from '../../store/AppContext';
 import { Eyebrow, Page, RankingPreview } from '../../ui/components';
 import { C } from '../../ui/theme';
+import { useTask } from '../../ui/forms';
 
 export default function DiscoverScreen() {
-  const { allRankings, following, toggleFollow } = useApp();
+  const { allRankings, following, toggleFollow, people, user } = useApp();
+  const { busy, run } = useTask();
   const [query, setQuery] = useState('');
-  const rankings = useMemo(() => allRankings.filter((ranking) => `${ranking.title} ${ranking.subtitle} ${ranking.items.map((item) => item.artist).join(' ')}`.toLowerCase().includes(query.toLowerCase())), [allRankings, query]);
+  const rankings = useMemo(() => allRankings.filter((ranking) => ranking.visibility !== 'private' && `${ranking.title} ${ranking.subtitle} ${ranking.items.map((item) => item.artist).join(' ')}`.toLowerCase().includes(query.toLowerCase())), [allRankings, query]);
   return <Page>
     <View style={styles.top}><Eyebrow>PEOPLE, NOT ALGORITHMS</Eyebrow><Text style={styles.title}>Find your next <Text style={{ color: C.accent }}>argument.</Text></Text></View>
     <View style={styles.search}><MaterialCommunityIcons name="magnify" size={24} color={C.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search rankings or artists" placeholderTextColor={C.muted} style={styles.input} returnKeyType="search" /></View>
     <Text style={styles.section}>MUSIC PEOPLE</Text>
-    {[{ name: 'Mandi', handle: '@mandi', note: 'Deep cuts, strong opinions.', initial: 'M' }, { name: 'Ayush', handle: '@ayush', note: 'An album person, always.', initial: 'A' }].map((person) => <View key={person.handle} style={styles.person}>
-      <View style={styles.avatar}><Text style={styles.avatarText}>{person.initial}</Text></View><View style={{ flex: 1 }}><Text style={styles.personName}>{person.name} <Text style={styles.handle}>{person.handle}</Text></Text><Text style={styles.note}>{person.note} · Example profile</Text></View>
-      <Pressable accessibilityRole="button" onPress={() => toggleFollow(person.handle)} style={[styles.follow, following.includes(person.handle) && styles.following]}><Text style={[styles.followText, following.includes(person.handle) && { color: C.ink }]}>{following.includes(person.handle) ? 'Following' : 'Follow'}</Text></Pressable>
+    {people.filter((p) => p.id !== user?.id && `${p.name} ${p.handle}`.toLowerCase().includes(query.toLowerCase())).map((person) => <View key={person.id} style={styles.person}>
+      <View style={styles.avatar}><Text style={styles.avatarText}>{person.name[0]}</Text></View><Pressable accessibilityRole="button" style={{ flex: 1 }} onPress={() => router.push(`/person/${person.handle.slice(1)}`)}><Text style={styles.personName}>{person.name} <Text style={styles.handle}>{person.handle}</Text></Text><Text style={styles.note}>{person.bio || 'Music in their own order.'}</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={busy} onPress={() => user ? void run(() => toggleFollow(person.handle)) : router.push('/auth')} style={[styles.follow, following.includes(person.handle) && styles.following]}><Text style={[styles.followText, following.includes(person.handle) && { color: C.ink }]}>{following.includes(person.handle) ? 'Following' : 'Follow'}</Text></Pressable>
     </View>)}
+    {!people.some((p) => p.id !== user?.id) && <Text style={styles.noResults}>Invite a friend to join. Their profile and public posts will appear here.</Text>}
     <View style={styles.row}><Text style={styles.section}>RANKINGS TO REMIX</Text><Text style={styles.count}>{rankings.length} FOUND</Text></View>
     {rankings.length ? rankings.map((ranking) => <RankingPreview key={ranking.id} ranking={ranking} />) : <Text style={styles.noResults}>No rankings match yet. Try another artist, or make one yourself.</Text>}
     <Pressable accessibilityRole="button" style={styles.createPrompt} onPress={() => router.push('/builder')}><Text style={styles.createText}>Have a take nobody’s posted?</Text><MaterialCommunityIcons name="arrow-right" size={24} color={C.accent} /></Pressable>

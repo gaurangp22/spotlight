@@ -6,15 +6,17 @@ import { Action, Eyebrow, Page, RankingPreview } from '../../ui/components';
 import { C } from '../../ui/theme';
 
 export default function ProfileScreen() {
-  const { rankings, draft, archivedDrafts, openDraft } = useApp();
+  const { rankings, draft, moodDraft, archivedDrafts, openDraft, user } = useApp();
   return <Page>
     <View style={styles.cover}><Text style={styles.coverWord}>M</Text><View style={styles.coverBottom}><Eyebrow light>YOUR RECORD SHELF</Eyebrow><Text style={styles.name}>You, in music.</Text></View></View>
-    <View style={styles.identity}><View style={styles.avatar}><Text style={styles.avatarText}>Y</Text></View><View><Text style={styles.handle}>@you</Text><Text style={styles.note}>Your taste is taking shape.</Text></View></View>
-    <View style={styles.divider}><Text style={styles.section}>YOUR RANKINGS</Text><Text style={styles.count}>{String(rankings.length).padStart(2, '0')}</Text></View>
+    <View style={styles.identity}><View style={styles.avatar}><Text style={styles.avatarText}>{user?.name[0] || 'Y'}</Text></View><View style={{ flex: 1 }}><Text style={styles.handle}>{user?.name || 'Your profile'}</Text>{user && <Text style={styles.note}>{user.handle}</Text>}<Text style={styles.note}>{user?.bio || 'Your taste is taking shape.'}</Text></View></View>
+    <View style={{ gap: 10, marginBottom: 20 }}><Action label={user ? 'Edit profile & Spotify' : 'Sign in or create account'} secondary onPress={() => router.push(user ? '/settings' : '/auth')} icon={user ? 'cog-outline' : 'account-plus-outline'} />{user && <Action label="Activity" secondary onPress={() => router.push('/notifications')} icon="bell-outline" />}</View>
+    <View style={styles.divider}><Text style={styles.section}>YOUR POSTS</Text><Text style={styles.count}>{String(rankings.length).padStart(2, '0')}</Text></View>
     {rankings.length ? rankings.map((ranking) => <RankingPreview ranking={ranking} key={ranking.id} />) : <View style={styles.empty}><MaterialCommunityIcons name="format-list-numbered" size={31} color={C.accent} /><Text style={styles.emptyTitle}>Your shelf starts here.</Text><Text style={styles.emptyText}>Rank five songs you love. Even a private ranking belongs to you.</Text><Action label="Create your first ranking" onPress={() => router.push('/builder')} /></View>}
     {(draft.items.length > 0 || !!draft.title.trim()) && <Pressable accessibilityRole="button" style={styles.draft} onPress={() => router.push('/builder')}><Text style={styles.draftText}>DRAFT · {draft.title || 'Untitled ranking'}</Text><MaterialCommunityIcons name="arrow-right" size={20} color={C.accent} /></Pressable>}
     {archivedDrafts.map((entry) => <Pressable accessibilityRole="button" key={entry.id} style={styles.draft} onPress={() => { openDraft(entry.id); router.push('/builder'); }}><Text style={[styles.draftText, { flex: 1 }]} numberOfLines={2}>DRAFT · {entry.draft.title || 'Untitled ranking'}</Text><MaterialCommunityIcons name="arrow-right" size={20} color={C.accent} /></Pressable>)}
-    <Text style={styles.localNote}>PROTOTYPE · Your rankings are stored on this device.</Text>
+    {(moodDraft.title || moodDraft.tiles.length || moodDraft.items.length) ? <Pressable accessibilityRole="button" style={styles.draft} onPress={() => router.push('/moodboard')}><Text style={styles.draftText}>MOOD BOARD DRAFT · {moodDraft.title || 'Untitled'}</Text><MaterialCommunityIcons name="arrow-right" size={20} color={C.accent} /></Pressable> : null}
+    <Text style={styles.localNote}>{user ? 'Published posts sync with your account. Drafts save on this device.' : 'Explore the examples, then join to publish your own music.'}</Text>
   </Page>;
 }
 

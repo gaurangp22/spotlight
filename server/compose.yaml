@@ -1,0 +1,11 @@
+services:
+  api:
+    build: .
+    env_file: .env
+    ports:
+      - "127.0.0.1:8787:8787"
+    restart: unless-stopped
+    volumes:
+      - margin-data:/app/data
+volumes:
+  margin-data:

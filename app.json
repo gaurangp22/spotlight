@@ -29,7 +29,18 @@
     },
     "plugins": [
       "expo-router",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose photos for your music mood boards.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "expo-build-properties"
     ]
   }
 }

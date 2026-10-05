@@ -1,0 +1,4 @@
+# Replace this hostname with your API domain. Caddy provisions HTTPS automatically.
+api.your-domain.com {
+    reverse_proxy 127.0.0.1:8787
+}

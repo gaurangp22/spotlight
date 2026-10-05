@@ -1,18 +1,20 @@
 import { MusicItem, MusicKind } from './types';
+import { api } from './api';
 
 type ItunesResult = {
   trackId?: number; collectionId?: number; trackName?: string; collectionName?: string;
   artistName: string; artworkUrl100?: string;
 };
 
-export async function searchMusic(query: string, kind: MusicKind): Promise<MusicItem[]> {
+export async function searchMusic(query: string, kind: MusicKind, spotifyConnected = false, signal?: AbortSignal): Promise<MusicItem[]> {
   const term = query.trim();
   if (!term) return [];
+  if (spotifyConnected) return (await api<{ items: MusicItem[] }>(`/spotify/search?${new URLSearchParams({ q: term, kind })}`, { signal })).items;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
   try {
     const entity = kind === 'song' ? 'song' : 'album';
-    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=${entity}&media=music&limit=35`, { signal: controller.signal });
+    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=${entity}&media=music&limit=35`, { signal: signal || controller.signal });
     if (!response.ok) throw new Error('Music search is unavailable. Try again.');
     const payload = await response.json() as { results: ItunesResult[] };
     const seen = new Set<string>();

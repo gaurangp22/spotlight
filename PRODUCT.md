@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-React Native with Expo, requested by the user as the likely approach. This first build is a local prototype.
+React Native with Expo SDK 57 and a Node 24 API. The local build uses persistent SQLite; a server-side adapter supports Turso libSQL when configured.
 
 ## Users
 
@@ -24,11 +24,11 @@ The primary social action is making your own order of someone else's music selec
 
 ## Operating Context
 
-Android phones. The app sits beside existing music services; it does not stream music. Public music search supplies metadata and artwork, while prototype posts and account-like data remain on device.
+Android phones are the primary surface. The app sits beside music services and does not stream music. Spotify supplies account connection, search, and playlist imports when configured; public catalog search provides a metadata fallback. Published posts and social data live on the API; drafts remain on the device.
 
 ## Capabilities and Constraints
 
-First prototype: music search, manual rankings, Battle Mode, saved drafts, publishing locally, a sample following feed, reactions, comments, remixing, comparisons, profile, and native sharing. Sample people and posts must be labeled as examples. Accounts, actual following, music account connection, and shared backend are later decisions.
+Local version: accounts, profiles, music search, manual rankings, Battle Mode, device drafts, server publishing, following, reactions, comments, remixing, comparison, mood boards with photos/notes/music, in-app activity, privacy enforcement, blocking/reporting, moderation, and PNG sharing. Visitor examples are labeled. Live Turso, Spotify, and email delivery require owner configuration. Native device QA and public-release operations remain necessary.
 
 ## Brand Commitments
 

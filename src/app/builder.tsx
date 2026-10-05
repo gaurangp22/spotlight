@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { searchMusic } from '../lib/music';
@@ -8,9 +8,13 @@ import { MusicItem, MusicKind, Ranking } from '../lib/types';
 import { useApp } from '../store/AppContext';
 import { Action, Artwork, Eyebrow, Header, MusicRow, Page } from '../ui/components';
 import { C } from '../ui/theme';
+import { useTask } from '../ui/forms';
+import { errorMessage } from '../lib/api';
 
 export default function BuilderScreen() {
-  const { draft, setDraft, addMusic, removeMusic, moveMusic, publish, allRankings } = useApp();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const { draft, setDraft, addMusic, removeMusic, moveMusic, publish, allRankings, user, spotifyConnected } = useApp();
+  const { busy, run } = useTask();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<MusicKind>('song');
@@ -22,19 +26,20 @@ export default function BuilderScreen() {
   useEffect(() => {
     if (!searchOpen || query.trim().length < 2) return;
     let active = true;
+    const controller = new AbortController();
     const timer = setTimeout(() => {
       setLoading(true);
-      searchMusic(query, kind).then((items) => { if (active) { setResults(items); setError(''); } })
-        .catch(() => { if (active) { setResults([]); setError('Search needs an internet connection. Try again or use the starter picks.'); } })
+      searchMusic(query, kind, spotifyConnected, controller.signal).then((items) => { if (active) { setResults(items); setError(''); } })
+        .catch((e) => { if (active) { setResults([]); setError(errorMessage(e)); } })
         .finally(() => { if (active) setLoading(false); });
     }, 400);
-    return () => { active = false; clearTimeout(timer); };
-  }, [query, kind, searchOpen]);
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  }, [query, kind, searchOpen, spotifyConnected]);
 
-  const onPublish = () => {
+  const onPublish = async () => {
     if (!draft.title.trim()) { Alert.alert('Name this ranking', 'Give your ranking a title before publishing.'); return; }
     if (draft.items.length < 2) { Alert.alert('Add more music', 'Rank at least two songs or albums.'); return; }
-    const ranking = publish();
+    const ranking = await publish();
     if (ranking) router.replace(`/ranking/${ranking.id}`);
   };
 
@@ -42,29 +47,31 @@ export default function BuilderScreen() {
   const suggestions = query.trim().length < 2 ? starter : results;
 
   return <Page>
-    <Header title="Make a ranking" back right={<Text style={styles.saved}>AUTO-SAVED</Text>} />
+    <Header title={draft.editingId ? 'Edit ranking' : mode === 'battle' ? 'Pick your contenders' : 'Make a ranking'} back right={<Text style={styles.saved}>DRAFT</Text>} />
+    {mode === 'battle' && <Text style={[styles.emptyText, { marginTop: 16 }]}>Add at least two picks, then start Battle Mode. Choose between two songs at a time to find your order.</Text>}
+    <View style={{ gap: 10, paddingTop: 14 }}><Action label={spotifyConnected ? 'Import a Spotify playlist' : 'Connect Spotify'} secondary icon="spotify" onPress={() => router.push(spotifyConnected ? '/spotify' : '/settings')} /></View>
     {origin && <View style={styles.remix}><MaterialCommunityIcons name="source-branch" size={16} color={C.accent} /><Text style={styles.remixText}>Making your version of {origin.author}’s ranking</Text></View>}
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.form}>
         <Eyebrow>THE HEADLINE</Eyebrow>
-        <TextInput value={draft.title} onChangeText={(title) => setDraft((current) => ({ ...current, title }))} placeholder="e.g. Radiohead songs I keep returning to" placeholderTextColor="#96938A" style={styles.titleInput} multiline maxLength={100} />
-        <TextInput value={draft.subtitle} onChangeText={(subtitle) => setDraft((current) => ({ ...current, subtitle }))} placeholder="Add a little context (optional)" placeholderTextColor="#96938A" style={styles.subtitleInput} maxLength={140} />
+        <TextInput accessibilityLabel="Ranking title" value={draft.title} onChangeText={(title) => setDraft((current) => ({ ...current, title }))} placeholder="e.g. Radiohead songs I keep returning to" placeholderTextColor={C.muted} selectionColor={C.accent} style={styles.titleInput} multiline maxLength={100} />
+        <TextInput accessibilityLabel="Ranking description" value={draft.subtitle} onChangeText={(subtitle) => setDraft((current) => ({ ...current, subtitle }))} placeholder="Add a little context (optional)" placeholderTextColor={C.muted} selectionColor={C.accent} style={styles.subtitleInput} maxLength={140} />
       </View>
-      <View style={styles.sectionHead}><View><Eyebrow>YOUR ORDER</Eyebrow><Text style={styles.sectionTitle}>{draft.items.length} picks</Text></View><Pressable accessibilityRole="button" onPress={() => setSearchOpen((value) => !value)} style={styles.addButton}><MaterialCommunityIcons name={searchOpen ? 'close' : 'plus'} size={21} color={C.white} /><Text style={styles.addText}>{searchOpen ? 'Done' : 'Add music'}</Text></Pressable></View>
+      <View style={styles.sectionHead}><View><Eyebrow>YOUR ORDER</Eyebrow><Text style={styles.sectionTitle}>{draft.items.length} picks</Text></View><Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? 'Done' : 'Add music'} onPress={() => setSearchOpen((value) => !value)} style={styles.addButton}><MaterialCommunityIcons name={searchOpen ? 'close' : 'plus'} size={21} color={C.white} /><Text style={styles.addText}>{searchOpen ? 'Done' : 'Add music'}</Text></Pressable></View>
       {searchOpen && <View style={styles.searchPanel}>
         <View style={styles.kindRow}>{(['song', 'album'] as MusicKind[]).map((value) => <Pressable accessibilityRole="button" key={value} onPress={() => { setKind(value); setResults([]); setError(''); setLoading(false); }} style={[styles.kind, kind === value && styles.kindActive]}><Text style={[styles.kindText, kind === value && { color: C.white }]}>{value === 'song' ? 'Songs' : 'Albums'}</Text></Pressable>)}</View>
         <View style={styles.searchBox}><MaterialCommunityIcons name="magnify" size={22} color={C.muted} /><TextInput value={query} onChangeText={(value) => { setQuery(value); setResults([]); setError(''); setLoading(false); }} placeholder={`Search ${kind}s`} placeholderTextColor={C.muted} style={styles.searchInput} autoCorrect={false} /></View>
         {loading && <ActivityIndicator color={C.accent} style={{ marginTop: 16 }} />}
         {!!error && <Text style={styles.error}>{error}</Text>}
-        <Text style={styles.resultLabel}>{query.trim().length < 2 ? 'STARTER PICKS · EXAMPLES' : `${results.length} RESULTS`}</Text>
+        <Text style={styles.resultLabel}>{query.trim().length < 2 ? 'STARTER PICKS · EXAMPLES' : `${results.length} RESULTS · ${spotifyConnected ? 'SPOTIFY' : 'CATALOG'}`}</Text>
         {suggestions.slice(0, 20).map((item) => <MusicRow key={item.id} item={item} onPress={() => addMusic(item)} trailing={<MaterialCommunityIcons name={draft.items.some((chosen) => chosen.id === item.id) ? 'check' : 'plus'} size={22} color={C.accent} />} />)}
         {query.trim().length >= 2 && !loading && !error && !results.length && <Text style={styles.noResult}>Nothing found. Try the artist name or a shorter title.</Text>}
       </View>}
       {draft.items.length ? <View>{draft.items.map((item, index) => <View key={item.id} style={styles.editRow}><Text style={styles.rankNumber}>{String(index + 1).padStart(2, '0')}</Text><Artwork item={item} size={48} /><View style={{ flex: 1, gap: 3 }}><Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text><Text style={styles.itemArtist} numberOfLines={1}>{item.artist}</Text></View><View style={styles.reorder}><Pressable accessibilityRole="button" accessibilityLabel={`Move ${item.title} up`} disabled={index === 0} onPress={() => moveMusic(index, -1)} style={[styles.smallButton, index === 0 && { opacity: 0.25 }]}><MaterialCommunityIcons name="chevron-up" size={22} color={C.ink} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Move ${item.title} down`} disabled={index === draft.items.length - 1} onPress={() => moveMusic(index, 1)} style={[styles.smallButton, index === draft.items.length - 1 && { opacity: 0.25 }]}><MaterialCommunityIcons name="chevron-down" size={22} color={C.ink} /></Pressable></View><Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} onPress={() => removeMusic(item.id)} style={styles.remove}><MaterialCommunityIcons name="close" size={19} color={C.muted} /></Pressable></View>)}</View>
         : <View style={styles.empty}><MaterialCommunityIcons name="format-list-numbered" size={30} color={C.accent} /><Text style={styles.emptyTitle}>Every list starts somewhere.</Text><Text style={styles.emptyText}>Add a few songs or albums, then put them in your order.</Text><Action label="Find music" onPress={() => setSearchOpen(true)} /></View>}
       {draft.items.length >= 2 && <Pressable accessibilityRole="button" style={styles.battle} onPress={() => router.push('/battle')}><MaterialCommunityIcons name="sword-cross" size={22} color={C.accent} /><View style={{ flex: 1 }}><Text style={styles.battleTitle}>Sort by Battle Mode</Text><Text style={styles.battleSub}>Pick your favourites head to head.</Text></View><MaterialCommunityIcons name="arrow-right" size={21} color={C.ink} /></Pressable>}
-      <View style={styles.visibility}><Eyebrow>WHO CAN SEE IT?</Eyebrow><View style={styles.visibilityRow}>{(['public', 'followers', 'private'] as Ranking['visibility'][]).map((value) => <Pressable accessibilityRole="button" onPress={() => setDraft((current) => ({ ...current, visibility: value }))} key={value} style={[styles.visibilityOption, draft.visibility === value && styles.visibilityActive]}><Text style={[styles.visibilityText, draft.visibility === value && { color: C.white }]}>{value}</Text></Pressable>)}</View><Text style={styles.visibilityNote}>This prototype stores every ranking only on this device.</Text></View>
-      <Action label="Publish ranking" onPress={onPublish} icon="arrow-right" disabled={draft.items.length < 2 || !draft.title.trim()} />
+      <View style={styles.visibility}><Eyebrow>WHO CAN SEE IT?</Eyebrow><View style={styles.visibilityRow}>{(['public', 'followers', 'private'] as Ranking['visibility'][]).map((value) => <Pressable accessibilityRole="button" onPress={() => setDraft((current) => ({ ...current, visibility: value }))} key={value} style={[styles.visibilityOption, draft.visibility === value && styles.visibilityActive]}><Text style={[styles.visibilityText, draft.visibility === value && { color: C.white }]}>{value}</Text></Pressable>)}</View><Text style={styles.visibilityNote}>{draft.visibility === 'private' ? 'Only you can view this ranking.' : draft.visibility === 'followers' ? 'Only your followers can view this ranking.' : 'Anyone can view this ranking.'}</Text></View>
+      <Action label={!user ? 'Sign in to publish' : busy ? 'Publishing…' : draft.editingId ? 'Save changes' : 'Publish ranking'} onPress={() => user ? void run(onPublish) : router.push('/auth')} icon="arrow-right" disabled={busy || draft.items.length < 2 || !draft.title.trim()} />
       <Text style={styles.footnote}>Your work saves automatically while you edit.</Text>
     </KeyboardAvoidingView>
   </Page>;

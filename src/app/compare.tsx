@@ -5,13 +5,17 @@ import { compareRankings } from '../lib/compare';
 import { useApp } from '../store/AppContext';
 import { Artwork, Eyebrow, Header, Page } from '../ui/components';
 import { C } from '../ui/theme';
+import { useEffect, useState } from 'react';
+import { errorMessage } from '../lib/api';
 
 export default function CompareScreen() {
   const { left, right } = useLocalSearchParams<{ left: string; right: string }>();
-  const { allRankings } = useApp();
+  const { allRankings, loadPost } = useApp();
+  const [error, setError] = useState('');
+  useEffect(() => { let active = true; Promise.all([loadPost(left), loadPost(right)]).catch((e) => { if (active) setError(errorMessage(e)); }); return () => { active = false; }; }, [left, right, loadPost]);
   const mine = allRankings.find((entry) => entry.id === left);
   const theirs = allRankings.find((entry) => entry.id === right);
-  if (!mine || !theirs) return <Page><Header title="Taste comparison" back /><Text style={styles.missing}>Both rankings need to be on this device.</Text></Page>;
+  if (!mine || !theirs) return <Page><Header title="Taste comparison" back /><Text style={styles.missing}>{error || 'Loading both rankings…'}</Text></Page>;
   const comparison = compareRankings(mine.items, theirs.items);
   return <Page>
     <Header title="Taste comparison" back />

@@ -6,15 +6,15 @@ import { Action, Eyebrow, Page, RankingPreview } from '../../ui/components';
 import { C } from '../../ui/theme';
 
 export default function FollowingScreen() {
-  const { allRankings, draft, following } = useApp();
-  const feed = allRankings.filter((ranking) => ranking.handle === '@you' && ranking.visibility !== 'private' || following.includes(ranking.handle));
+  const { allRankings, draft, following, user, refresh, refreshing } = useApp();
+  const feed = allRankings.filter((ranking) => !user || ranking.userId === user.id || following.includes(ranking.handle));
   return <Page>
     <View style={styles.masthead}><Text style={styles.logo}>MARGIN<Text style={{ color: C.accent }}>.</Text></Text><Text style={styles.edition}>MUSIC, IN YOUR OWN ORDER</Text></View>
-    <View style={styles.intro}><Eyebrow>YOUR CORNER OF MUSIC</Eyebrow><Text style={styles.headline}>Good taste is a <Text style={{ color: C.accent }}>conversation.</Text></Text><Text style={styles.introText}>See what friends love. Put it in your own order.</Text></View>
+    <View style={styles.intro}><Eyebrow>YOUR CORNER OF MUSIC</Eyebrow><Text style={styles.headline}>Good taste is a <Text style={{ color: C.accent }}>conversation.</Text></Text><Text style={styles.introText}>See what friends love. Put it in your own order.</Text><View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}><Action label={user ? 'Activity' : 'Join MARGIN'} onPress={() => router.push(user ? '/notifications' : '/auth')} icon={user ? 'bell-outline' : 'account-plus-outline'} /><Action label={refreshing ? 'Refreshing…' : 'Refresh'} secondary disabled={refreshing} onPress={() => void refresh()} /></View></View>
     {(draft.items.length > 0 || !!draft.title.trim()) && <Pressable accessibilityRole="button" style={styles.draft} onPress={() => router.push('/builder')}><MaterialCommunityIcons name="content-save-outline" color={C.accent} size={22} /><View style={{ flex: 1 }}><Text style={styles.draftTitle}>Your ranking is waiting</Text><Text style={styles.draftSub}>{draft.items.length} picks saved on this device</Text></View><MaterialCommunityIcons name="arrow-right" size={22} color={C.ink} /></Pressable>}
     <View style={styles.section}><Text style={styles.sectionTitle}>In rotation</Text><Text style={styles.sectionCount}>{String(feed.length).padStart(2, '0')} STORIES</Text></View>
     {feed.length ? feed.map((ranking, index) => <RankingPreview key={ranking.id} ranking={ranking} featured={index === 0} />)
-      : <View style={styles.empty}><Text style={styles.emptyTitle}>Your feed is quiet.</Text><Text style={styles.emptyText}>Follow a sample music fan in Discover or make the first ranking.</Text><Action label="Make a ranking" onPress={() => router.push('/builder')} /></View>}
+      : <View style={styles.empty}><Text style={styles.emptyTitle}>Your feed is quiet.</Text><Text style={styles.emptyText}>Find people in Discover, or publish your first ranking.</Text><Action label="Find music people" onPress={() => router.push('/(tabs)/discover')} /></View>}
     <Pressable accessibilityRole="button" style={styles.prompt} onPress={() => { router.push('/builder'); }}><Eyebrow>START WITH A PROMPT</Eyebrow><Text style={styles.promptTitle}>Five songs you would play for someone who’s never met you.</Text><View style={styles.promptFoot}><Text style={styles.promptLink}>MAKE YOURS</Text><MaterialCommunityIcons name="arrow-right" size={21} color={C.accent} /></View></Pressable>
   </Page>;
 }
