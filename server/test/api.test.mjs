@@ -22,7 +22,7 @@ async function fixture(t, fetcher) {
     const r = await request('/auth/register', { method: 'POST', body: { email: `${name}@example.com`, name, handle: name, password: 'a-long-password-123' } });
     assert.equal(r.status, 201, JSON.stringify(r.data)); return r.data;
   }
-  return { db, key, request, account };
+  return { db, key, request, account, base };
 }
 const picks = [{ id: 'song-a', title: 'Everything in Its Right Place', artist: 'Radiohead', kind: 'song' }, { id: 'song-b', title: 'Reckoner', artist: 'Radiohead', kind: 'song' }];
 const postBody = (visibility = 'public') => ({ kind: 'ranking', title: 'Radiohead, ranked', subtitle: 'My favourites', items: picks, visibility });
@@ -201,4 +201,21 @@ test('moderation is admin-only and can resolve a report by removing the post', a
   assert.equal(reports.status, 200); assert.equal(reports.data.reports.length, 1);
   assert.equal((await request(`/admin/reports/${reports.data.reports[0].id}`, { token: process.env.ADMIN_TOKEN, method: 'PATCH', body: { removePost: true } })).status, 200);
   assert.equal((await request(`/posts/${post.id}`)).status, 404);
+});
+
+test('profile counts and public store pages', async (t) => {
+  const { request, account, base } = await fixture(t);
+  const alice = await account('alice'), bob = await account('bob');
+  assert.equal((await request('/people/alice/follow', { token: bob.token, method: 'PUT' })).status, 200);
+  const me = (await request('/me', { token: alice.token })).data.user;
+  assert.deepEqual([me.followers, me.following], [1, 0]);
+  assert.equal((await request('/me', { token: bob.token })).data.user.following, 1);
+  for (const [path, heading] of [['/privacy', 'Privacy Policy'], ['/terms', 'Terms of Service'], ['/delete-account', 'Delete your MARGIN account']]) {
+    const response = await fetch(`${base}${path}`);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /text\/html/);
+    assert.match(response.headers.get('content-security-policy'), /default-src 'none'/);
+    assert.match(await response.text(), new RegExp(`<h1>${heading}</h1>`));
+  }
+  assert.equal((await fetch(`${base}/privacy`, { method: 'POST' })).status, 404);
 });

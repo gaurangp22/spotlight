@@ -1,165 +1,119 @@
 ---
 name: MARGIN
-description: Music opinions expressed as an editorial program log.
+description: Music opinions, presented with first-party polish.
 colors:
-  paper: "#F3F0E8"
-  ink: "#1A1A18"
-  muted: "#66655F"
-  line: "#CECBC2"
-  accent: "#C3432E"
-  accent-dark: "#A33323"
-  white: "#FFFDF7"
-  soft: "#E8E4DA"
-  night: "#282C2C"
-  cream: "#E8D5B8"
+  light:
+    bg: "#F7F5F1"
+    surface: "#FFFFFF"
+    fill: "#EFECE6"
+    text: "#121211"
+    secondary: "#6B6862"
+    tertiary: "#A3A09A"
+    accent: "#C63A22"
+    accent-fill: "#C63A22"
+    danger: "#C4281C"
+  dark:
+    bg: "#0E0E0F"
+    surface: "#1A1A1C"
+    fill: "#262628"
+    text: "#F5F3EE"
+    secondary: "#A09D97"
+    tertiary: "#6C6A66"
+    accent: "#FF6B4A"
+    accent-fill: "#D44129"
+    danger: "#FF5B4F"
 typography:
-  headline:
-    fontSize: "38px"
-    fontWeight: 900
-    lineHeight: "40px"
-    letterSpacing: "-1.8px"
-  featured-title:
-    fontSize: "31px"
-    fontWeight: 900
-    lineHeight: "34px"
-    letterSpacing: "-0.8px"
-  title:
-    fontSize: "22px"
-    fontWeight: 900
-    letterSpacing: "-0.7px"
-  music-title:
-    fontSize: "15px"
-    fontWeight: 800
-  body:
-    fontSize: "14px"
-    fontWeight: 400
-  metadata:
-    fontSize: "12px"
-    fontWeight: 400
-  label:
-    fontSize: "11px"
-    fontWeight: 800
-    letterSpacing: "1.8px"
-  action:
-    fontSize: "14px"
-    fontWeight: 800
-    letterSpacing: "0.3px"
+  family: "Inter"
+  display: { fontSize: "40px", fontWeight: 800, lineHeight: "44px", letterSpacing: "-1.4px" }
+  large-title: { fontSize: "34px", fontWeight: 700, lineHeight: "40px", letterSpacing: "-1px" }
+  title1: { fontSize: "28px", fontWeight: 700, lineHeight: "34px", letterSpacing: "-0.7px" }
+  title2: { fontSize: "22px", fontWeight: 700, lineHeight: "28px", letterSpacing: "-0.45px" }
+  title3: { fontSize: "19px", fontWeight: 600, lineHeight: "25px", letterSpacing: "-0.3px" }
+  headline: { fontSize: "16px", fontWeight: 600, lineHeight: "21px" }
+  body: { fontSize: "16px", fontWeight: 400, lineHeight: "23px" }
+  subhead: { fontSize: "14px", fontWeight: 400, lineHeight: "19px" }
+  footnote: { fontSize: "13px", fontWeight: 400, lineHeight: "18px" }
+  caption: { fontSize: "12px", fontWeight: 500, lineHeight: "16px" }
+  overline: { fontSize: "11px", fontWeight: 600, letterSpacing: "0.9px", textTransform: "uppercase" }
 rounded:
-  square: "0px"
+  xs: "6px"
+  sm: "10px"
+  md: "14px"
+  lg: "20px"
+  xl: "28px"
+  pill: "999px"
 spacing:
-  gap-small: "8px"
-  gap-action: "10px"
-  gap-row: "12px"
-  panel: "18px"
-  page: "20px"
-  scroll-end: "28px"
-components:
-  button-primary:
-    backgroundColor: "{colors.accent}"
-    textColor: "{colors.white}"
-    typography: "{typography.action}"
-    rounded: "{rounded.square}"
-    padding: "0px 18px"
-  button-secondary:
-    textColor: "{colors.ink}"
-    typography: "{typography.action}"
-    rounded: "{rounded.square}"
-    padding: "0px 18px"
-  search-field:
-    backgroundColor: "{colors.white}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.square}"
-    padding: "0px 14px"
-    height: "52px"
-  ranking-preview:
-    backgroundColor: "{colors.white}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.square}"
-    padding: "{spacing.panel}"
-  ranking-featured:
-    backgroundColor: "{colors.night}"
-    textColor: "{colors.white}"
-    rounded: "{rounded.square}"
-    padding: "{spacing.page}"
-  choice-selected:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.white}"
-    rounded: "{rounded.square}"
-  navigation:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.white}"
+  xxs: "4px"
+  xs: "6px"
+  sm: "8px"
+  md: "12px"
+  lg: "16px"
+  xl: "20px"
+  xxl: "28px"
+  xxxl: "40px"
+  gutter: "20px"
+  max-content: "680px"
 ---
 
-## Overview
+## North star
 
-**Creative North Star: "The Radio Program Log"**
+**Feels first-party.** MARGIN should sit on a home screen next to the system’s own apps and not look out of place: calm surfaces, confident type, generous spacing, and motion that responds to touch rather than decorating it. Music artwork supplies the colour; the interface stays quiet so opinions stand out.
 
-MARGIN is a working identity for an Android-first local music prototype. The visual world borrows the order, numbering, and confident typography of a radio track sheet. Warm paper and dark listening surfaces frame music artwork; expressive headlines invite people to put their own taste into words and order.
+The implementation lives in `src/ui/`: tokens in `theme.ts`, primitives in `primitives.tsx`, screen scaffolding in `components.tsx`. Screens compose these and never hard-code colours.
 
-**Key Characteristics:**
-- Editorial and culture-driven.
-- Artwork supplies the changing color.
-- Indexed choices make the opinion legible.
-- Flat, square, confident controls.
+## Colour
 
-This documents the implemented prototype, not a claim of user approval or production readiness. Sources: `src/ui/theme.ts`, `src/ui/components.tsx`, and `src/app/`. Phone-size web smoke evidence showed ranking detail and editor rendering; no emulator or Android hardware screenshots were available. System Back, insets, keyboard behavior, font scaling, accessibility, motion settings, performance, and native image sharing still require device verification.
-
-## Colors
-
-Primary: **accent**, a burnt radio-orange, marks main actions, ranking numbers, selected outlines, and occasional headline emphasis. **accent-dark** supports search error copy.
-
-Neutral: **paper** is the page canvas; **white** is the lighter preview/input surface; **soft** groups prompts and editing areas. **ink** carries primary text and strong rules; **muted** carries context; **line** separates rows. **night** creates a listening surface, with **white** titles and **cream** secondary text. Artwork colors and its fallback color belong to the music item.
-
-**The Artwork Color Rule.** Let cover art carry variety. Keep interface color anchored to the established palette.
-
-Night panels and the Night share template are composed variants of the light interface. They are not evidence of a complete Android system dark theme or Dynamic Color support.
+- **Warm neutrals, one red.** The canvas is warm off-white (dark: near-black); content sits on white (dark: charcoal) cards. The brand red is reserved for primary actions, selection, and the top of a ranking.
+- **Two accent tokens.** `accent` is for text and icons; `accentFill` is for filled controls. In dark mode they differ, so red text stays legible on dark surfaces while white-on-red buttons keep their contrast.
+- **Contrast is checked, not guessed.** Body text pairs meet WCAG AA (≥ 4.5:1) in both themes. `tertiary` is for placeholders and decoration only.
+- **Artwork leads.** Hero areas use the cover art itself, blurred, under a dark scrim — so every post looks different without any new interface colours.
 
 ## Typography
 
-Use the native default sans-serif; no custom font family is configured. On Android, preserve the system text behavior. The frontmatter records reusable observed roles, expressed as CSS lengths for portable tooling; implementation values are React Native logical units, with font sizes following native text scaling.
-
-Headlines use heavy weight and tight tracking. Their observed screen range is (33–42), with close line heights. Preview titles are compact (23/26); featured previews expand to (31/34). Titles and music names stay bold; artist/context copy stays smaller and quieter. Uppercase, tracked eyebrows and metadata provide the track-sheet cadence. Keep long titles flexible and retain the source's truncation only in compact music rows and share previews.
+Inter, loaded at launch behind the splash screen, at five weights. Use the named variants on `<T v="…">`, never raw font sizes. Large sizes carry negative tracking; numbers that line up (ranks, counts, scores) use tabular figures. Text respects the system font size up to a 1.6× cap so layouts don’t break.
 
 ## Layout
 
-Compact Android phones are the shipped target. Pages use one scrolling column, page gutters (20), and bottom content padding (28). Headers are (58) tall. Common row gaps are (8–12); preview padding is (18), featured padding (20). Full-width dark hero panels deliberately extend through the page gutters.
+- One column, 20 pt gutters, content capped at 680 pt and centred on wide screens; tabs move to a side rail at tablet widths.
+- **Large titles** sit at the top of tab roots and list screens and collapse into the navigation bar as you scroll; a hairline appears under the bar only once content scrolls beneath it.
+- **Inset grouped lists** (`ListGroup` + `ListRow`) for settings-like content, with coloured icon tiles and inset separators.
+- Primary actions that complete a flow (Publish, Share, Send) are pinned in a footer above the keyboard and safe area.
 
-Rankings are ruled lists: position, square artwork, title/artist, then a trailing action. Standard music rows have minimum height (70); editor rows use (108) to accommodate two stacked reorder controls. Comparison uses two equal columns; share cards cap at width (340) and show up to five picks.
+## Shape & depth
 
-Keep interactive targets at least (48×48 dp) and separate adjacent targets by (8 dp). Source controls mostly use this geometry; the web smoke pass does not certify native target bounds. Tablet navigation and expanded layouts are not established. Verify status/navigation bars, display cutouts, IME, system Back, and font scale on Android before extending the target list.
+Continuous-curve corners (`borderCurve: continuous` on iOS): 20 pt cards, 14 pt buttons and fields, 28 pt hero panels and dialogs. In light mode cards float on a soft, low shadow; in dark mode shadows are replaced by a hairline border. No glass, no decorative gradients — the only gradient is the scrim that keeps text readable over artwork.
 
-## Elevation & Depth
+## Motion & feedback
 
-**The Ruled Surface Rule.** Establish hierarchy with tonal blocks and horizontal rules, without decorative shadows.
-
-The implementation has no shadow vocabulary. Thin rules (1) divide items; heavier rules (2) establish sections and preview tops. A dark featured preview starts with an accent rule. Tonal contrast supplies depth without gradients or glass.
-
-## Shapes
-
-Buttons, fields, artwork, preview containers, and share cards are square. Circular initial avatars are the intentional exception, with radius half their size. Preserve actual cover-art framing; do not add rounded artwork tiles as decoration.
+- Every tappable surface springs down slightly on press (`Tap`) and gives a light haptic tick; primary actions use a firmer one, successes a success notification, errors a warning.
+- Segmented controls slide their thumb with a spring; list reorders animate with layout transitions; feeds fade up in a short stagger.
+- Animation is short (150–400 ms) and never blocks input.
 
 ## Components
 
-- **Actions:** Primary uses accent/white; secondary uses an ink outline and ink text. Minimum height (50), horizontal padding (18), icon gap (10). Pressed opacity is (0.75); disabled opacity is (0.4). No custom hover/focus treatment is implemented for native.
-- **Header:** Heavy screen title, optional back action, optional trailing action; a thin bottom rule provides context. Navigation uses Expo Router.
-- **Navigation:** Four labeled destinations—Following, Discover, Create, You—on a dark bottom bar. Active labels/icons are white; inactive color is subdued. Icons are MaterialCommunityIcons. Source bar minimum height is (66); native inset handling remains to be verified.
-- **Search and editor fields:** White rectangular search field with leading magnifier and muted placeholder. The editor's headline is a large multiline input on paper; optional context ends with a thin rule. Source has no custom focus/error border state.
-- **Choice controls:** Outlined Songs/Albums and visibility choices become ink-filled with white text when selected. Share template selection uses an accent outline. Agree becomes accent-filled and shows a check plus “Agreed”. Selection must remain legible through text/icon changes where implemented.
-- **Ranking preview:** Author/date and example marker, heavy title, a few numbered artwork rows, then picks/reactions and a directional arrow. Regular previews show two items; the dark featured preview shows three. This is an editorial ranking excerpt, not a generic social card.
-- **Music row:** Two-digit orange position, square cover, bold title, muted artist/context, and optional trailing control. Artwork failure produces a title-based fallback on the music item's color or night surface.
-- **Battle and comparison:** Battle choices are dark artwork-led surfaces; progress is a flat accent bar. Comparison aligns the two ordered lists and reports the largest split. Preserve the informational role of each number.
-- **Share card:** Paper and Night variants retain masthead, title, indexed music, artwork, and footer. Native capture/share is implemented but unverified on Android hardware.
+| Component | Use |
+|---|---|
+| `Screen` | Every route. Safe areas, collapsing large title, pull-to-refresh, pinned footer, keyboard avoidance. |
+| `Button` | `primary`, `secondary`, `tinted`, `plain`, `danger`, `inverse`; `lg` / `md` / `sm`; loading state built in. |
+| `IconButton` | Circular icon actions with optional badge and a guaranteed 44 pt hit target. |
+| `Card` | The grouping surface. Pressable cards scale on touch. |
+| `Segmented` | Mutually exclusive choices (visibility, Songs/Albums, share template, Posts/Drafts). |
+| `TextField`, `SearchField` | Labelled inputs with focus and error states. |
+| `ListGroup`, `ListRow` | Settings-style lists and secondary actions. |
+| `Sheet`, `Dialog` | Full-height pickers and confirmations; destructive confirmations use the solid danger button. |
+| `RankingCard` | The feed unit: author, title, and a podium of the top three covers. |
+| `MusicRow`, `Artwork` | Indexed music with cover art and a typographic fallback when art is missing. |
+| `Toast` | App-wide notices, announced to screen readers, dismiss on tap or after five seconds. |
 
-## Do's and Don'ts
+## Do
 
-### Do:
-- **Do** let artwork lead the changing color and music identity.
-- **Do** use positions, rules, and typography to make rankings immediately readable.
-- **Do** preserve native text scaling, system Back, window insets, and Android touch targets.
-- **Do** visibly label sample people/posts and device-local prototype behavior.
+- Let artwork carry colour; keep chrome neutral.
+- Say what’s blocking a disabled action (e.g. “Add at least two picks to publish”).
+- Label examples and device-only drafts honestly.
+- Keep touch targets ≥ 44 pt and every icon-only control labelled.
 
-### Don't:
-- **Don't** add gradients, glass, decorative shadows, or generic rounded-card feeds.
-- **Don't** copy the visual identity of an existing music or ranking app.
-- **Don't** treat web phone-size screenshots as Android device evidence.
-- **Don't** claim a complete dark theme, tablet system, or accessible native experience without verification.
+## Don’t
+
+- Hard-code colours or font sizes in screens.
+- Add new accent colours for UI state — use the existing tokens.
+- Copy another music or ranking app’s visual identity.

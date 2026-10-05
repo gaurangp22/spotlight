@@ -10,13 +10,13 @@ function contains(x, y, polygon) {
   }
   return inside;
 }
-function draw(file, size, transparent = false, mono = false) {
+function draw(file, size, transparent = false, mono = false, ink = [26, 26, 24, 255]) {
   const png = new PNG({ width: size, height: size });
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const sx = x * 1024 / size, sy = y * 1024 / size;
     let rgba = transparent ? [0, 0, 0, 0] : [243, 240, 232, 255];
-    if (contains(sx, sy, shape)) rgba = [26, 26, 24, 255];
-    if (sx >= 725 && sx < 810 && sy >= 640 && sy < 725) rgba = mono ? [26, 26, 24, 255] : [195, 67, 46, 255];
+    if (contains(sx, sy, shape)) rgba = ink;
+    if (sx >= 725 && sx < 810 && sy >= 640 && sy < 725) rgba = mono ? ink : [198, 58, 34, 255];
     const offset = (y * size + x) * 4;
     rgba.forEach((channel, i) => { png.data[offset + i] = channel; });
   }
@@ -26,4 +26,7 @@ draw('assets/icon.png', 1024);
 draw('assets/android-icon-foreground.png', 1024, true);
 draw('assets/android-icon-monochrome.png', 1024, true, true);
 draw('assets/favicon.png', 64);
+// Splash marks: ink on the light launch background, paper on the dark one.
+draw('assets/splash-icon.png', 1024, true);
+draw('assets/splash-icon-dark.png', 1024, true, false, [245, 243, 238, 255]);
 console.log('MARGIN icons generated.');

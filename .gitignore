@@ -46,3 +46,8 @@ server/data/
 # generated native folders
 /ios
 /android
+scripts/.native-tools/
+artifacts/
+
+# local tooling
+.claude/

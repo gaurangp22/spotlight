@@ -5,5 +5,6 @@ module.exports = ({ config }) => ({
   plugins: [
     ...(config.plugins || []).filter((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) !== 'expo-build-properties'),
     ['expo-build-properties', { android: { usesCleartextTraffic: process.env.MARGIN_LOCAL_PREVIEW === '1' } }],
+    './scripts/with-windows-build-tools',
   ],
 });

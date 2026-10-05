@@ -1,11 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { api, errorMessage } from '../../lib/api';
 import { Profile, Ranking } from '../../lib/types';
 import { useApp } from '../../store/AppContext';
-import { Action, Header, Page, RankingPreview } from '../../ui/components';
-import { Confirm, F, useTask } from '../../ui/forms';
+import { Loading, RankingCard, Screen } from '../../ui/components';
+import { useTask } from '../../ui/forms';
+import { haptic } from '../../ui/haptics';
+import { Avatar, Button, Card, Dialog, EmptyState, ListGroup, ListRow, SectionHeader, T } from '../../ui/primitives';
+import { space } from '../../ui/theme';
 
 export default function Person() {
   const { handle } = useLocalSearchParams<{ handle: string }>();
@@ -14,5 +17,35 @@ export default function Person() {
   const [blocking, setBlocking] = useState(false);
   const { busy, run } = useTask();
   useEffect(() => { let active = true; api<{ user: Profile; posts: Ranking[] }>(`/people/${encodeURIComponent(handle)}`).then((v) => { if (active) setData(v); }).catch((e) => { if (active) setError(errorMessage(e)); }); return () => { active = false; }; }, [handle, following]);
-  return <Page><Header title="Music person" back />{error ? <Text style={[F.note, { marginTop: 30 }]}>{error}</Text> : !data ? <Text style={[F.note, { marginTop: 30 }]}>Loading profile…</Text> : <><Text style={F.title}>{data.user.name}</Text><Text style={F.label}>{data.user.handle}</Text><Text style={[F.note, { marginTop: 15 }]}>{data.user.bio || 'Music, in their own order.'}</Text><Text style={[F.note, { marginVertical: 18 }]}>{data.user.followers} followers · {data.user.following} following</Text>{user?.id !== data.user.id && <View style={{ gap: 10, marginBottom: 24 }}><Action label={following.includes(data.user.handle) ? 'Following · unfollow' : 'Follow'} disabled={busy} onPress={() => user ? void run(() => toggleFollow(data.user.handle)) : router.push('/auth')} /><Action label="Block this person" secondary onPress={() => user ? setBlocking(true) : router.push('/auth')} /></View>}{data.posts.map((p) => <RankingPreview key={p.id} ranking={p} />)}{!data.posts.length && <Text style={F.note}>No posts you can view yet.</Text>}<Confirm visible={blocking} title="Block this person?" description="You’ll stop following each other and won’t see each other’s posts or comments. You can unblock them in Settings." busy={busy} onCancel={() => setBlocking(false)} onConfirm={() => void run(async () => { await blockUser(data.user.handle); setBlocking(false); router.replace('/(tabs)/discover'); })} /></>}</Page>;
+
+  if (error) return <Screen back title="Profile"><Card style={{ marginTop: space.xl }}><EmptyState icon="person-outline" title="Profile unavailable" text={error} /></Card></Screen>;
+  if (!data) return <Screen back title="Profile"><Loading label="Loading profile…" /></Screen>;
+  const person = data.user;
+  const followed = following.includes(person.handle);
+  const me = user?.id === person.id;
+
+  return <Screen back title={person.name} fadeTitle>
+    <View style={{ alignItems: 'center', paddingTop: space.sm }}>
+      <Avatar name={person.name} seed={person.handle} size={92} />
+      <T v="title1" center style={{ marginTop: space.md }}>{person.name}</T>
+      <T v="subhead" tone="secondary">{person.handle}</T>
+      {!!person.bio && <T v="body" center style={{ marginTop: space.sm, maxWidth: 360 }}>{person.bio}</T>}
+      <View style={{ flexDirection: 'row', gap: space.xl, marginTop: space.lg }}>
+        {[[data.posts.length, 'Posts'], [person.followers ?? 0, 'Followers'], [person.following ?? 0, 'Following']].map(([value, label]) =>
+          <View key={label} style={{ alignItems: 'center' }}><T v="headline" tabular>{value}</T><T v="caption" tone="secondary">{label}</T></View>)}
+      </View>
+    </View>
+    {!me && <Button label={followed ? 'Following' : 'Follow'} icon={followed ? 'checkmark' : 'add'} variant={followed ? 'secondary' : 'primary'} loading={busy} style={{ marginTop: space.xl }}
+      onPress={() => user ? void run(async () => { await toggleFollow(person.handle); haptic.success(); }) : router.push('/auth')} />}
+
+    <SectionHeader title="Posts" detail={data.posts.length ? `${data.posts.length}` : undefined} />
+    {data.posts.length ? data.posts.map((p) => <RankingCard key={p.id} ranking={p} />)
+      : <Card><EmptyState icon="list" title="Nothing to see yet" text={`${person.name} hasn’t posted anything you can view.`} /></Card>}
+
+    {!me && user && <ListGroup footer="Blocking stops you following each other and hides each other’s posts and comments. You can unblock in Settings.">
+      <ListRow title={`Block ${person.name}`} destructive chevron={false} onPress={() => setBlocking(true)} />
+    </ListGroup>}
+    <Dialog visible={blocking} title={`Block ${person.name}?`} description="You’ll stop following each other and won’t see each other’s posts or comments. You can unblock them in Settings." confirmLabel="Block" destructive busy={busy}
+      onCancel={() => setBlocking(false)} onConfirm={() => void run(async () => { await blockUser(person.handle); setBlocking(false); router.replace('/(tabs)/discover'); })} />
+  </Screen>;
 }

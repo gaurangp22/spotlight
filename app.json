@@ -4,38 +4,66 @@
     "slug": "margin-music",
     "scheme": "marginmusic",
     "version": "1.0.0",
+    "description": "Rank the music you love, remix your friends’ lists, and see exactly where your taste agrees.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "backgroundColor": "#F3F0E8",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F7F5F1",
     "experiments": {
       "typedRoutes": true
     },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.marginmusic.app",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.marginmusic.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#F3F0E8",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
+      ],
       "predictiveBackGestureEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "MARGIN",
+      "themeColor": "#C63A22"
     },
     "plugins": [
       "expo-router",
       "expo-sharing",
       "expo-secure-store",
       "expo-web-browser",
+      "expo-image",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F5F1",
+          "dark": {
+            "image": "./assets/splash-icon-dark.png",
+            "backgroundColor": "#0E0E0F"
+          }
+        }
+      ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Choose photos for your music mood boards.",
+          "photosPermission": "MARGIN uses your photos only when you choose one for a mood board.",
           "cameraPermission": false,
           "microphonePermission": false
         }

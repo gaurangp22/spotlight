@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Text, View } from 'react-native';
-import { Draft, MoodDraft, MusicItem, Profile, Ranking } from '../lib/types';
+import * as SplashScreen from 'expo-splash-screen';
+import { AppState, View } from 'react-native';
+import { AppNotification, Draft, MoodDraft, MusicItem, Profile, Ranking } from '../lib/types';
 import { sampleRankings } from '../lib/sample';
 import { api, ApiError, errorMessage, readToken, setApiToken, storeToken } from '../lib/api';
-import { C } from '../ui/theme';
+import { useTheme } from '../ui/theme';
 
 const emptyDraft: Draft = { title: '', subtitle: '', items: [], visibility: 'public' };
 const emptyMood: MoodDraft = { title: '', subtitle: '', items: [], tiles: [], theme: 'night', visibility: 'public' };
@@ -12,7 +13,8 @@ type LocalState = { draft: Draft; moodDraft: MoodDraft; archivedDrafts: { id: st
 type SyncData = { posts: Ranking[]; people: Profile[]; following: string[]; blocks: Profile[] };
 type AppValue = LocalState & SyncData & {
   hydrated: boolean; user: Profile | null; allRankings: Ranking[]; rankings: Ranking[]; reactions: string[];
-  spotifyConnected: boolean; refreshing: boolean; connected: boolean; notice: string;
+  spotifyConnected: boolean; refreshing: boolean; connected: boolean; notice: string; unread: number;
+  setUnread: (value: number) => void;
   setNotice: (value: string) => void;
   setDraft: React.Dispatch<React.SetStateAction<Draft>>;
   setMoodDraft: React.Dispatch<React.SetStateAction<MoodDraft>>;
@@ -46,13 +48,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const [connected, setConnected] = useState(false);
   const [notice, setNotice] = useState('');
+  const [unread, setUnread] = useState(0);
   const generation = useRef(0);
   const persistQueue = useRef(Promise.resolve());
   const refreshPromise = useRef<Promise<void> | null>(null);
   const guestDraft = useRef<LocalState | null>(null);
   const userId = user?.id;
 
-  const resetRemote = useCallback(() => { setPosts([]); setPeople([]); setFollowing([]); setBlocks([]); setSpotifyConnected(false); }, []);
+  const resetRemote = useCallback(() => { setPosts([]); setPeople([]); setFollowing([]); setBlocks([]); setSpotifyConnected(false); setUnread(0); }, []);
   const clearSession = useCallback(async () => {
     generation.current++; refreshPromise.current = null;
     await storeToken(null); setUser(null); resetRemote(); setRefreshing(false); setNotice('');
@@ -68,8 +71,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (current !== generation.current) return;
         setPosts(data.posts); setPeople(data.people); setFollowing(data.following); setBlocks(data.blocks); setConnected(true);
         if (userId) {
-          const me = await api<{ user: Profile; spotifyConnected: boolean }>('/me');
-          if (current === generation.current) { setUser(me.user); setSpotifyConnected(me.spotifyConnected); }
+          const [me, activity] = await Promise.all([
+            api<{ user: Profile; spotifyConnected: boolean }>('/me'),
+            api<{ notifications: AppNotification[] }>('/notifications').catch(() => null),
+          ]);
+          if (current === generation.current) {
+            setUser(me.user); setSpotifyConnected(me.spotifyConnected);
+            if (activity) setUnread(activity.notifications.filter((n) => !n.seen).length);
+          }
         }
       } catch (error) {
         if (current !== generation.current) return;
@@ -184,10 +193,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const reactions = useMemo(() => posts.filter((p) => p.reacted).map((p) => p.id), [posts]);
   const commentsFor = useCallback((id: string) => allRankings.find((p) => p.id === id)?.comments || [], [allRankings]);
   const value: AppValue = { user, posts, people, following, blocks, draft, moodDraft, archivedDrafts, hydrated,
-    rankings, reactions, allRankings, spotifyConnected, refreshing, connected, notice, setNotice, setDraft, setMoodDraft,
+    rankings, reactions, allRankings, spotifyConnected, refreshing, connected, notice, unread, setUnread, setNotice, setDraft, setMoodDraft,
     startDraft, editRanking, startMood, openDraft, addMusic, removeMusic, moveMusic, publish, publishMood, refresh, loadPost,
     deletePost, toggleReaction, addComment, deleteComment, commentsFor, toggleFollow, blockUser, login, register, logout, updateProfile, deleteAccount,
   };
-  return <Context.Provider value={value}>{hydrated && loadedScope === (user?.id || 'guest') ? children : <View style={{ flex: 1, backgroundColor: C.paper, alignItems: 'center', justifyContent: 'center', gap: 18 }}><Text style={{ fontSize: 28, fontWeight: '900', color: C.ink }}>MARGIN.</Text><ActivityIndicator color={C.accent} /></View>}</Context.Provider>;
+  const ready = hydrated && loadedScope === (user?.id || 'guest');
+  const { c } = useTheme();
+  // Hold the native splash until the session and drafts are known, so launch never flashes a spinner.
+  useEffect(() => { if (ready) SplashScreen.hideAsync().catch(() => {}); }, [ready]);
+  return <Context.Provider value={value}>{ready ? children : <View style={{ flex: 1, backgroundColor: c.bg }} />}</Context.Provider>;
 }
 export function useApp() { const value = useContext(Context); if (!value) throw new Error('AppProvider is missing'); return value; }

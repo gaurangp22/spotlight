@@ -1,0 +1,68 @@
+{
+  "updated": "5 October 2026",
+  "privacy": {
+    "title": "Privacy Policy",
+    "intro": "MARGIN is a place to rank, remix, and discuss music with friends. This policy explains what we collect, why, and the control you have. We don’t sell your data, we don’t show ads, and we don’t use third-party analytics or tracking.",
+    "sections": [
+      { "heading": "What we collect", "body": [
+        "Account details: your email address, display name, username, optional bio, and a salted, hashed version of your password. We never store your password itself.",
+        "What you create: rankings, mood boards (including any photos and notes you add), comments, reactions, follows, blocks, and reports you submit.",
+        "Spotify, only if you connect it: an encrypted access token that lets MARGIN read your playlists and search Spotify on your behalf. We never post to Spotify.",
+        "Drafts stay on your device and are not sent to our servers until you publish."
+      ] },
+      { "heading": "How we use it", "body": [
+        "To run the service: show your posts to the people you choose, deliver activity such as comments and new followers, and keep you signed in.",
+        "To keep MARGIN safe: enforce visibility settings and blocks, review reports, and limit repeated sign-in attempts. Your network address is used briefly in memory for rate limiting and is not stored.",
+        "To send account email, such as a password reset link you request."
+      ] },
+      { "heading": "Who can see your content", "body": [
+        "Public posts can be seen by anyone, including people who aren’t signed in. Followers-only posts are visible to people who follow you. Private posts are visible only to you.",
+        "Your name, username, and bio are visible on your profile. Images you export and share outside MARGIN are no longer covered by your visibility setting."
+      ] },
+      { "heading": "Services we rely on", "body": [
+        "Music search without Spotify uses Apple’s public iTunes Search API; your search terms are sent directly from your device to Apple.",
+        "If you connect Spotify, Spotify’s own privacy policy applies to your Spotify account.",
+        "Password reset emails are delivered through our email provider. Our database and servers are operated by our hosting providers, who process data only on our instructions."
+      ] },
+      { "heading": "Retention and deletion", "body": [
+        "You can delete any post or comment at any time. You can delete your account from Settings → Delete account. This immediately and permanently removes your profile, posts, comments, reactions, follows, and Spotify connection.",
+        "Server backups, if any, are overwritten on a rolling basis. Reports you filed about other people’s posts may be kept while they are reviewed."
+      ] },
+      { "heading": "Your rights", "body": [
+        "Depending on where you live, you may have the right to access, correct, export, or delete your personal data, and to object to or restrict its processing. Most of this can be done directly in the app. For anything else, contact us using the details below."
+      ] },
+      { "heading": "Children", "body": [
+        "MARGIN is not intended for children under 13, or the minimum age required in your country. We do not knowingly collect data from them."
+      ] },
+      { "heading": "Changes and contact", "body": [
+        "If we make material changes to this policy, we’ll update the date above and let you know in the app. Questions or requests can be sent to the support contact listed in the app’s Settings or on our store listing."
+      ] }
+    ]
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "intro": "These terms apply when you use MARGIN. By creating an account or using the app, you agree to them.",
+    "sections": [
+      { "heading": "Your account", "body": [
+        "You must be at least 13 years old, or the minimum age in your country, to use MARGIN. Keep your password safe; you’re responsible for activity on your account.",
+        "Choose a username that doesn’t impersonate someone else or reveal personal information you’d rather keep private."
+      ] },
+      { "heading": "Your content", "body": [
+        "You own what you post. You grant MARGIN a limited licence to store, display, and distribute it within the service according to the visibility you choose, and to let others remix your rankings into their own versions.",
+        "Only upload photos and text you have the right to share."
+      ] },
+      { "heading": "Community rules", "body": [
+        "Disagree about music as loudly as you like — but don’t harass, threaten, or impersonate people, post hateful or sexual content, spam, or break the law.",
+        "We may remove content or suspend accounts that break these rules. You can report posts and block people at any time."
+      ] },
+      { "heading": "Music and third-party services", "body": [
+        "MARGIN does not stream music. Song and album names and artwork belong to their respective owners and are shown for identification. Spotify is a trademark of Spotify AB; MARGIN is not affiliated with or endorsed by Spotify or Apple.",
+        "When you connect Spotify, you also agree to Spotify’s terms."
+      ] },
+      { "heading": "The service", "body": [
+        "We work hard to keep MARGIN available and your data safe, but the service is provided “as is” without warranties. To the extent the law allows, we aren’t liable for indirect or consequential losses.",
+        "You can stop using MARGIN and delete your account at any time. We may update these terms; continuing to use the app after changes means you accept them."
+      ] }
+    ]
+  }
+}

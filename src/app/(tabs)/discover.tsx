@@ -1,39 +1,43 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useMemo, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import { useApp } from '../../store/AppContext';
-import { Eyebrow, Page, RankingPreview } from '../../ui/components';
-import { C } from '../../ui/theme';
+import { RankingCard, Screen } from '../../ui/components';
 import { useTask } from '../../ui/forms';
+import { Avatar, Button, Card, EmptyState, SearchField, SectionHeader, T } from '../../ui/primitives';
+import { gutter, space } from '../../ui/theme';
 
 export default function DiscoverScreen() {
-  const { allRankings, following, toggleFollow, people, user } = useApp();
+  const { allRankings, following, toggleFollow, people, user, refresh, refreshing } = useApp();
   const { busy, run } = useTask();
   const [query, setQuery] = useState('');
-  const rankings = useMemo(() => allRankings.filter((ranking) => ranking.visibility !== 'private' && `${ranking.title} ${ranking.subtitle} ${ranking.items.map((item) => item.artist).join(' ')}`.toLowerCase().includes(query.toLowerCase())), [allRankings, query]);
-  return <Page>
-    <View style={styles.top}><Eyebrow>PEOPLE, NOT ALGORITHMS</Eyebrow><Text style={styles.title}>Find your next <Text style={{ color: C.accent }}>argument.</Text></Text></View>
-    <View style={styles.search}><MaterialCommunityIcons name="magnify" size={24} color={C.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search rankings or artists" placeholderTextColor={C.muted} style={styles.input} returnKeyType="search" /></View>
-    <Text style={styles.section}>MUSIC PEOPLE</Text>
-    {people.filter((p) => p.id !== user?.id && `${p.name} ${p.handle}`.toLowerCase().includes(query.toLowerCase())).map((person) => <View key={person.id} style={styles.person}>
-      <View style={styles.avatar}><Text style={styles.avatarText}>{person.name[0]}</Text></View><Pressable accessibilityRole="button" style={{ flex: 1 }} onPress={() => router.push(`/person/${person.handle.slice(1)}`)}><Text style={styles.personName}>{person.name} <Text style={styles.handle}>{person.handle}</Text></Text><Text style={styles.note}>{person.bio || 'Music in their own order.'}</Text></Pressable>
-      <Pressable accessibilityRole="button" disabled={busy} onPress={() => user ? void run(() => toggleFollow(person.handle)) : router.push('/auth')} style={[styles.follow, following.includes(person.handle) && styles.following]}><Text style={[styles.followText, following.includes(person.handle) && { color: C.ink }]}>{following.includes(person.handle) ? 'Following' : 'Follow'}</Text></Pressable>
-    </View>)}
-    {!people.some((p) => p.id !== user?.id) && <Text style={styles.noResults}>Invite a friend to join. Their profile and public posts will appear here.</Text>}
-    <View style={styles.row}><Text style={styles.section}>RANKINGS TO REMIX</Text><Text style={styles.count}>{rankings.length} FOUND</Text></View>
-    {rankings.length ? rankings.map((ranking) => <RankingPreview key={ranking.id} ranking={ranking} />) : <Text style={styles.noResults}>No rankings match yet. Try another artist, or make one yourself.</Text>}
-    <Pressable accessibilityRole="button" style={styles.createPrompt} onPress={() => router.push('/builder')}><Text style={styles.createText}>Have a take nobody’s posted?</Text><MaterialCommunityIcons name="arrow-right" size={24} color={C.accent} /></Pressable>
-  </Page>;
-}
+  const q = query.trim().toLowerCase();
+  const rankings = useMemo(() => allRankings.filter((ranking) => ranking.visibility !== 'private'
+    && `${ranking.title} ${ranking.subtitle} ${ranking.author} ${ranking.items.map((item) => `${item.artist} ${item.title}`).join(' ')}`.toLowerCase().includes(q)), [allRankings, q]);
+  const others = people.filter((p) => p.id !== user?.id);
+  const matches = others.filter((p) => `${p.name} ${p.handle}`.toLowerCase().includes(q));
 
-const styles = StyleSheet.create({
-  top: { paddingTop: 27 }, title: { color: C.ink, fontSize: 38, lineHeight: 40, letterSpacing: -1.7, fontWeight: '900', marginTop: 10, marginBottom: 25 },
-  search: { height: 52, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8 }, input: { flex: 1, fontSize: 15, color: C.ink },
-  section: { color: C.ink, fontWeight: '900', fontSize: 12, letterSpacing: 1.1, marginTop: 30, marginBottom: 13 },
-  person: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 11, borderTopWidth: 1, borderColor: C.line }, avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }, avatarText: { color: C.white, fontSize: 19, fontWeight: '900' },
-  personName: { color: C.ink, fontSize: 14, fontWeight: '900' }, handle: { color: C.muted, fontSize: 11, fontWeight: '500' }, note: { color: C.muted, fontSize: 11, marginTop: 3 },
-  follow: { minWidth: 72, minHeight: 48, justifyContent: 'center', alignItems: 'center', backgroundColor: C.ink, paddingHorizontal: 8 }, following: { borderWidth: 1, backgroundColor: 'transparent', borderColor: C.line }, followText: { color: C.white, fontSize: 11, fontWeight: '800' },
-  row: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }, count: { fontSize: 10, color: C.muted, fontWeight: '800', letterSpacing: 1 }, noResults: { color: C.muted, paddingVertical: 20 },
-  createPrompt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 22, borderTopWidth: 1, borderColor: C.ink }, createText: { color: C.ink, fontSize: 17, fontWeight: '800' },
-});
+  return <Screen tab title="Discover" large onRefresh={() => void refresh()} refreshing={refreshing}>
+    <SearchField value={query} onChangeText={setQuery} placeholder="People, rankings, artists" />
+
+    <SectionHeader title="People" detail={matches.length ? `${matches.length}` : undefined} />
+    {matches.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -gutter }} contentContainerStyle={{ paddingHorizontal: gutter, gap: space.md, paddingBottom: space.xs }}>
+      {matches.map((person) => {
+        const followed = following.includes(person.handle);
+        return <Card key={person.id} onPress={() => router.push(`/person/${person.handle.slice(1)}`)} style={{ width: 156, alignItems: 'center', gap: space.xs }}>
+          <Avatar name={person.name} seed={person.handle} size={60} />
+          <T v="headline" numberOfLines={1} center style={{ marginTop: space.xs }}>{person.name}</T>
+          <T v="footnote" tone="secondary" numberOfLines={1}>{person.handle}</T>
+          <Button label={followed ? 'Following' : 'Follow'} size="sm" variant={followed ? 'secondary' : 'primary'} icon={followed ? 'checkmark' : 'add'} disabled={busy}
+            style={{ marginTop: space.sm, alignSelf: 'stretch' }} onPress={() => user ? void run(() => toggleFollow(person.handle)) : router.push('/auth')} />
+        </Card>;
+      })}
+    </ScrollView> : <Card><T v="subhead" tone="secondary">{others.length ? 'No people match that search.' : 'Invite a friend to join. Their profile and public posts will appear here.'}</T></Card>}
+
+    <SectionHeader title="Rankings to remix" detail={`${rankings.length}`} />
+    {rankings.length ? rankings.map((ranking) => <RankingCard key={ranking.id} ranking={ranking} />)
+      : <Card><EmptyState icon="search" title="No rankings match" text="Try another artist, or be the first to post this take."
+        action={<Button label="Make a ranking" variant="tinted" inline onPress={() => router.push('/builder')} />} /></Card>}
+    <View style={{ height: space.md }} />
+  </Screen>;
+}

@@ -3,6 +3,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { isIP } from 'node:net';
 import { digest, randomToken, hashPassword, verifyPassword, fail, text, password } from './security.mjs';
 import { spotifyService } from './spotify.mjs';
+import { pages } from './pages.mjs';
 
 const now = () => new Date().toISOString();
 const MAX_BODY = 14 * 1024 * 1024;
@@ -148,6 +149,10 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
         if (forwarded && isIP(forwarded)) peer = forwarded;
       }
       rate(`requests:${peer}`, production ? 1200 : 10000, 60000);
+      if (method === 'GET' && Object.hasOwn(pages, path)) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'" });
+        res.end(pages[path]); return;
+      }
       if (path === '/api/health') { await db.get('SELECT 1'); return send({ ok: true, database: db.mode }); }
       if (path === '/api/config') return send({ spotify: spotify.configured, passwordRecovery: !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM) });
       if (path === '/api/spotify/callback' && method === 'GET') {
@@ -221,7 +226,11 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
         return send({ ok: true });
       }
       if (path === '/api/auth/logout' && method === 'POST') { if (user) await db.run('DELETE FROM sessions WHERE token_hash=?', digest(req.headers.authorization.slice(7))); return send({ ok: true }); }
-      if (path === '/api/me' && method === 'GET') { requireUser(user); return send({ user: profile(user), spotifyConnected: !!await db.get('SELECT user_id FROM spotify WHERE user_id=?', user.id) }); }
+      if (path === '/api/me' && method === 'GET') {
+        requireUser(user);
+        const counts = await db.get('SELECT (SELECT COUNT(*) FROM follows WHERE followed_id=?) AS followers, (SELECT COUNT(*) FROM follows WHERE follower_id=?) AS following', user.id, user.id);
+        return send({ user: profile({ ...user, ...counts }), spotifyConnected: !!await db.get('SELECT user_id FROM spotify WHERE user_id=?', user.id) });
+      }
       if (path === '/api/me' && method === 'PATCH') {
         requireUser(user); await db.run('UPDATE users SET name=?, bio=? WHERE id=?', text(body.name, 'Display name', 1, 50), text(body.bio || '', 'Bio', 0, 160), user.id);
         return send({ user: profile(await db.get('SELECT * FROM users WHERE id=?', user.id)) });

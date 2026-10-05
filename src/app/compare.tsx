@@ -1,37 +1,94 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
+import { errorMessage } from '../lib/api';
 import { compareRankings } from '../lib/compare';
 import { useApp } from '../store/AppContext';
-import { Artwork, Eyebrow, Header, Page } from '../ui/components';
-import { C } from '../ui/theme';
-import { useEffect, useState } from 'react';
-import { errorMessage } from '../lib/api';
+import { Loading, Screen } from '../ui/components';
+import { Artwork, Avatar, Button, Card, SectionHeader, T } from '../ui/primitives';
+import { curve, makeStyles, radius, space, useTheme } from '../ui/theme';
+
+function verdict(score: number, common: number) {
+  if (common < 2) return 'Not enough overlap to compare yet.';
+  if (score >= 85) return 'Practically the same brain.';
+  if (score >= 60) return 'Mostly in sync, with a few fights.';
+  if (score >= 35) return 'Plenty to argue about.';
+  return 'Opposite ends of the room.';
+}
 
 export default function CompareScreen() {
+  const s = useStyles();
+  const { c } = useTheme();
   const { left, right } = useLocalSearchParams<{ left: string; right: string }>();
   const { allRankings, loadPost } = useApp();
   const [error, setError] = useState('');
+  const meter = useSharedValue(0);
   useEffect(() => { let active = true; Promise.all([loadPost(left), loadPost(right)]).catch((e) => { if (active) setError(errorMessage(e)); }); return () => { active = false; }; }, [left, right, loadPost]);
   const mine = allRankings.find((entry) => entry.id === left);
   const theirs = allRankings.find((entry) => entry.id === right);
-  if (!mine || !theirs) return <Page><Header title="Taste comparison" back /><Text style={styles.missing}>{error || 'Loading both rankings…'}</Text></Page>;
-  const comparison = compareRankings(mine.items, theirs.items);
-  return <Page>
-    <Header title="Taste comparison" back />
-    <View style={styles.hero}><Eyebrow light>YOUR TWO TAKES</Eyebrow><Text style={styles.names}>{mine.author} <Text style={{ color: C.accent }}>×</Text> {theirs.author}</Text><View style={styles.scoreRow}><Text style={styles.score}>{comparison.agreement}%</Text><Text style={styles.scoreLabel}>IN THE SAME ORDER</Text></View><Text style={styles.heroNote}>A playful measure of how closely your shared picks line up.</Text></View>
-    <View style={styles.titleBlock}><Text style={styles.title}>{mine.title}</Text><Text style={styles.overlap}>{comparison.common} SHARED PICKS</Text></View>
-    <View style={styles.columns}><Text style={styles.columnLabel}>{mine.author.toUpperCase()}</Text><Text style={styles.columnLabel}>{theirs.author.toUpperCase()}</Text></View>
-    {Array.from({ length: Math.max(mine.items.length, theirs.items.length) }, (_, index) => <View key={index} style={styles.row}>{[mine.items[index], theirs.items[index]].map((item, side) => <View key={side} style={styles.cell}>{item && <><Text style={styles.number}>{String(index + 1).padStart(2, '0')}</Text><Artwork item={item} size={33} /><Text style={styles.item} numberOfLines={2}>{item.title}</Text></>}</View>)}</View>)}
-    {comparison.biggest && <View style={styles.disagreement}><Eyebrow>YOUR BIGGEST SPLIT</Eyebrow><Text style={styles.disagreeTitle}>{comparison.biggest.title}</Text><Text style={styles.disagreeDetail}>{mine.author}: #{mine.items.findIndex((item) => item.id === comparison.biggest?.id) + 1}  ·  {theirs.author}: #{theirs.items.findIndex((item) => item.id === comparison.biggest?.id) + 1}</Text></View>}
-    <Pressable accessibilityRole="button" onPress={() => router.push(`/share/${mine.id}`)} style={styles.share}><Text style={styles.shareText}>Share your ranking card</Text><MaterialCommunityIcons name="arrow-right" size={22} color={C.white} /></Pressable>
-  </Page>;
+  const comparison = mine && theirs ? compareRankings(mine.items, theirs.items) : null;
+  const agreement = comparison?.agreement;
+  useEffect(() => { if (agreement !== undefined) meter.set(withDelay(200, withTiming(agreement / 100, { duration: 700 }))); }, [agreement, meter]);
+  const fill = useAnimatedStyle(() => ({ width: `${meter.value * 100}%` }));
+
+  if (!mine || !theirs || !comparison) return <Screen back title="Compare">{error ? <Card style={{ marginTop: space.xl }}><T v="subhead" tone="secondary">{error}</T></Card> : <Loading label="Lining up both rankings…" />}</Screen>;
+  const shared = new Set(mine.items.filter((item) => theirs.items.some((other) => other.id === item.id)).map((item) => item.id));
+  const rows = Math.max(mine.items.length, theirs.items.length);
+  const biggest = comparison.biggest;
+
+  return <Screen back title="Compare" footer={<Button label="Share my ranking" icon="share-outline" onPress={() => router.push(`/share/${mine.id}`)} />}>
+    <View style={s.hero}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Avatar name={mine.author} seed={mine.handle} size={40} />
+        <View style={{ marginLeft: -10, borderRadius: 22, borderWidth: 2, borderColor: '#161514' }}><Avatar name={theirs.author} seed={theirs.handle} size={40} /></View>
+        <T v="callout" weight="semibold" style={{ color: '#FFFFFF', marginLeft: space.md, flex: 1 }} numberOfLines={1}>{mine.author} × {theirs.author}</T>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: space.xl }}>
+        <T v="display" tabular style={{ color: '#FFFFFF', fontSize: 76, lineHeight: 80, letterSpacing: -3 }}>{comparison.agreement}</T>
+        <T v="title2" style={{ color: '#FFFFFF99', marginBottom: 12, marginLeft: 2 }}>%</T>
+      </View>
+      <T v="headline" style={{ color: '#FFFFFF' }}>{verdict(comparison.agreement, comparison.common)}</T>
+      <View style={s.meter}><Animated.View style={[s.meterFill, fill]} /></View>
+      <T v="footnote" style={{ color: '#FFFFFFA6', marginTop: space.sm }}>{comparison.common} shared {comparison.common === 1 ? 'pick' : 'picks'} · a playful measure of how closely your orders line up</T>
+    </View>
+
+    {biggest && <>
+      <SectionHeader title="Biggest split" />
+      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
+        <Artwork item={biggest} size={64} />
+        <View style={{ flex: 1, gap: 4 }}>
+          <T v="headline" numberOfLines={2}>{biggest.title}</T>
+          <T v="footnote" tone="secondary">{mine.author} #{mine.items.findIndex((item) => item.id === biggest.id) + 1} · {theirs.author} #{theirs.items.findIndex((item) => item.id === biggest.id) + 1}</T>
+        </View>
+      </Card>
+    </>}
+
+    <SectionHeader title="Side by side" />
+    <Card padded={false} style={{ overflow: 'hidden' }}>
+      <View style={[s.row, { backgroundColor: c.fill }]}>
+        <T v="overline" tone="secondary" style={s.cell} numberOfLines={1}>{mine.author}</T>
+        <T v="overline" tone="secondary" style={s.cell} numberOfLines={1}>{theirs.author}</T>
+      </View>
+      {Array.from({ length: rows }, (_, index) => <View key={index} style={[s.row, { borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.hairline }]}>
+        {[mine.items[index], theirs.items[index]].map((item, side) => <View key={side} style={[s.cell, s.cellRow]}>
+          {item && <>
+            <T v="footnote" weight="bold" tabular tone="secondary" style={{ width: 18 }}>{index + 1}</T>
+            <Artwork item={item} size={30} rounded={6} />
+            <T v="footnote" weight={shared.has(item.id) ? 'semibold' : 'regular'} tone={shared.has(item.id) ? 'primary' : 'secondary'} numberOfLines={2} style={{ flex: 1 }}>{item.title}</T>
+          </>}
+        </View>)}
+      </View>)}
+    </Card>
+    <T v="footnote" tone="secondary" style={{ marginTop: space.sm, marginLeft: 4 }}>Picks you both chose are shown in bold.</T>
+  </Screen>;
 }
 
-const styles = StyleSheet.create({
-  missing: { marginTop: 25, color: C.muted }, hero: { backgroundColor: C.night, marginHorizontal: -20, paddingHorizontal: 22, paddingTop: 31, paddingBottom: 28 }, names: { color: C.white, fontSize: 34, fontWeight: '900', letterSpacing: -1.3, marginTop: 10 }, scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12, marginTop: 27 }, score: { color: C.white, fontSize: 74, fontWeight: '900', letterSpacing: -3.5 }, scoreLabel: { color: C.cream, fontSize: 11, fontWeight: '900', letterSpacing: 1, flex: 1 }, heroNote: { color: C.cream, fontSize: 12, lineHeight: 17, marginTop: 4 },
-  titleBlock: { paddingTop: 24, paddingBottom: 22 }, title: { color: C.ink, fontSize: 25, fontWeight: '900', letterSpacing: -0.7 }, overlap: { color: C.muted, marginTop: 9, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  columns: { flexDirection: 'row', borderTopWidth: 2, borderColor: C.ink, paddingVertical: 13 }, columnLabel: { width: '50%', color: C.ink, fontSize: 11, fontWeight: '900', letterSpacing: 1 }, row: { flexDirection: 'row', borderTopWidth: 1, borderColor: C.line, minHeight: 55 }, cell: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: 5, paddingRight: 6 }, number: { color: C.accent, fontSize: 11, fontWeight: '900' }, item: { flex: 1, color: C.ink, fontSize: 11, fontWeight: '800' },
-  disagreement: { backgroundColor: C.soft, padding: 18, marginTop: 27 }, disagreeTitle: { color: C.ink, fontSize: 24, fontWeight: '900', marginTop: 10 }, disagreeDetail: { color: C.muted, marginTop: 7, fontSize: 13 },
-  share: { minHeight: 52, backgroundColor: C.accent, marginTop: 25, paddingHorizontal: 17, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, shareText: { color: C.white, fontSize: 14, fontWeight: '900' },
-});
+const useStyles = makeStyles(() => ({
+  hero: { backgroundColor: '#161514', borderRadius: radius.xl, padding: space.xl, marginTop: space.xs, ...curve },
+  meter: { height: 6, borderRadius: 3, backgroundColor: '#FFFFFF26', marginTop: space.lg, overflow: 'hidden' },
+  meterFill: { height: 6, borderRadius: 3, backgroundColor: '#FF6B4A' },
+  row: { flexDirection: 'row', paddingHorizontal: space.md, minHeight: 50, alignItems: 'center' },
+  cell: { flex: 1, paddingRight: space.sm },
+  cellRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+}));

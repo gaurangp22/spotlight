@@ -5,6 +5,11 @@ const expoConfig = require("eslint-config-expo/flat");
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ["dist/*"],
-  }
+    ignores: ["dist/*", ".expo/*", "android/*", "ios/*"],
+  },
+  {
+    // The API server and build scripts run in Node, not React Native.
+    files: ["server/**/*.mjs", "scripts/**/*.{js,cjs}"],
+    languageOptions: { globals: { Buffer: "readonly", process: "readonly", __dirname: "readonly", __filename: "readonly" } },
+  },
 ]);

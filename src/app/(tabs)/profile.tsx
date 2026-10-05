@@ -1,30 +1,62 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 import { useApp } from '../../store/AppContext';
-import { Action, Eyebrow, Page, RankingPreview } from '../../ui/components';
-import { C } from '../../ui/theme';
+import { RankingCard, Screen } from '../../ui/components';
+import { Avatar, Button, Card, EmptyState, IconButton, ListGroup, ListRow, Segmented, T } from '../../ui/primitives';
+import { space, useTheme } from '../../ui/theme';
 
-export default function ProfileScreen() {
-  const { rankings, draft, moodDraft, archivedDrafts, openDraft, user } = useApp();
-  return <Page>
-    <View style={styles.cover}><Text style={styles.coverWord}>M</Text><View style={styles.coverBottom}><Eyebrow light>YOUR RECORD SHELF</Eyebrow><Text style={styles.name}>You, in music.</Text></View></View>
-    <View style={styles.identity}><View style={styles.avatar}><Text style={styles.avatarText}>{user?.name[0] || 'Y'}</Text></View><View style={{ flex: 1 }}><Text style={styles.handle}>{user?.name || 'Your profile'}</Text>{user && <Text style={styles.note}>{user.handle}</Text>}<Text style={styles.note}>{user?.bio || 'Your taste is taking shape.'}</Text></View></View>
-    <View style={{ gap: 10, marginBottom: 20 }}><Action label={user ? 'Edit profile & Spotify' : 'Sign in or create account'} secondary onPress={() => router.push(user ? '/settings' : '/auth')} icon={user ? 'cog-outline' : 'account-plus-outline'} />{user && <Action label="Activity" secondary onPress={() => router.push('/notifications')} icon="bell-outline" />}</View>
-    <View style={styles.divider}><Text style={styles.section}>YOUR POSTS</Text><Text style={styles.count}>{String(rankings.length).padStart(2, '0')}</Text></View>
-    {rankings.length ? rankings.map((ranking) => <RankingPreview ranking={ranking} key={ranking.id} />) : <View style={styles.empty}><MaterialCommunityIcons name="format-list-numbered" size={31} color={C.accent} /><Text style={styles.emptyTitle}>Your shelf starts here.</Text><Text style={styles.emptyText}>Rank five songs you love. Even a private ranking belongs to you.</Text><Action label="Create your first ranking" onPress={() => router.push('/builder')} /></View>}
-    {(draft.items.length > 0 || !!draft.title.trim()) && <Pressable accessibilityRole="button" style={styles.draft} onPress={() => router.push('/builder')}><Text style={styles.draftText}>DRAFT · {draft.title || 'Untitled ranking'}</Text><MaterialCommunityIcons name="arrow-right" size={20} color={C.accent} /></Pressable>}
-    {archivedDrafts.map((entry) => <Pressable accessibilityRole="button" key={entry.id} style={styles.draft} onPress={() => { openDraft(entry.id); router.push('/builder'); }}><Text style={[styles.draftText, { flex: 1 }]} numberOfLines={2}>DRAFT · {entry.draft.title || 'Untitled ranking'}</Text><MaterialCommunityIcons name="arrow-right" size={20} color={C.accent} /></Pressable>)}
-    {(moodDraft.title || moodDraft.tiles.length || moodDraft.items.length) ? <Pressable accessibilityRole="button" style={styles.draft} onPress={() => router.push('/moodboard')}><Text style={styles.draftText}>MOOD BOARD DRAFT · {moodDraft.title || 'Untitled'}</Text><MaterialCommunityIcons name="arrow-right" size={20} color={C.accent} /></Pressable> : null}
-    <Text style={styles.localNote}>{user ? 'Published posts sync with your account. Drafts save on this device.' : 'Explore the examples, then join to publish your own music.'}</Text>
-  </Page>;
+function Stat({ value, label }: { value: number; label: string }) {
+  return <View style={{ flex: 1, alignItems: 'center', gap: 1 }} accessible accessibilityLabel={`${value} ${label}`}>
+    <T v="title3" tabular>{value}</T><T v="caption" tone="secondary">{label}</T>
+  </View>;
 }
 
-const styles = StyleSheet.create({
-  cover: { height: 210, backgroundColor: C.night, marginHorizontal: -20, paddingHorizontal: 22, overflow: 'hidden', justifyContent: 'flex-end' }, coverWord: { position: 'absolute', right: -12, top: -90, color: '#3E4544', fontSize: 310, fontWeight: '900', letterSpacing: -25 }, coverBottom: { paddingBottom: 23 }, name: { color: C.white, fontSize: 35, lineHeight: 38, fontWeight: '900', letterSpacing: -1.4, marginTop: 8 },
-  identity: { flexDirection: 'row', alignItems: 'center', gap: 15, paddingVertical: 20 }, avatar: { width: 56, height: 56, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', borderRadius: 28 }, avatarText: { color: C.white, fontSize: 25, fontWeight: '900' }, handle: { color: C.ink, fontSize: 17, fontWeight: '900' }, note: { color: C.muted, fontSize: 12, marginTop: 4 },
-  divider: { borderTopWidth: 2, borderColor: C.ink, paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', marginTop: 14, marginBottom: 18 }, section: { color: C.ink, fontSize: 12, fontWeight: '900', letterSpacing: 1.2 }, count: { color: C.accent, fontWeight: '900' },
-  empty: { backgroundColor: C.soft, padding: 22, gap: 13 }, emptyTitle: { color: C.ink, fontSize: 23, fontWeight: '900', letterSpacing: -0.5 }, emptyText: { color: C.muted, fontSize: 13, lineHeight: 19 },
-  draft: { paddingVertical: 19, borderTopWidth: 1, borderColor: C.line, flexDirection: 'row', justifyContent: 'space-between' }, draftText: { color: C.ink, fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
-  localNote: { color: C.muted, fontSize: 10, letterSpacing: 0.7, fontWeight: '700', marginTop: 30, marginBottom: 16 },
-});
+export default function ProfileScreen() {
+  const { c } = useTheme();
+  const { rankings, draft, moodDraft, archivedDrafts, openDraft, user, refresh, refreshing, unread } = useApp();
+  const [tab, setTab] = useState<'posts' | 'drafts'>('posts');
+  const hasDraft = draft.items.length > 0 || !!draft.title.trim();
+  const hasMood = !!(moodDraft.title || moodDraft.tiles.length || moodDraft.items.length);
+  const draftCount = (hasDraft ? 1 : 0) + (hasMood ? 1 : 0) + archivedDrafts.length;
+
+  if (!user) return <Screen tab title="Profile" large right={<IconButton icon="settings-outline" label="Settings" onPress={() => router.push('/settings')} />}>
+    <Card><EmptyState icon="person-circle-outline" title="Your taste, on record" text="Create an account to publish rankings, follow friends, and keep your music opinions in one place."
+      action={<View style={{ gap: space.sm, alignSelf: 'stretch' }}><Button label="Create account" onPress={() => router.push('/auth')} /><Button label="Sign in" variant="plain" onPress={() => router.push({ pathname: '/auth', params: { mode: 'login' } })} /></View>} /></Card>
+    {hasDraft && <ListGroup header="On this device"><ListRow icon="create-outline" title={draft.title.trim() || 'Untitled ranking'} subtitle="Draft" onPress={() => router.push('/builder')} /></ListGroup>}
+  </Screen>;
+
+  return <Screen tab title={user.name} fadeTitle onRefresh={() => void refresh()} refreshing={refreshing}
+    left={<IconButton icon="notifications-outline" label="Activity" badge={unread > 0} onPress={() => router.push('/notifications')} />}
+    right={<IconButton icon="settings-outline" label="Settings" onPress={() => router.push('/settings')} />}>
+    <View style={{ alignItems: 'center', paddingTop: space.sm }}>
+      <Avatar name={user.name} seed={user.handle} size={92} />
+      <T v="title1" center style={{ marginTop: space.md }}>{user.name}</T>
+      <T v="subhead" tone="secondary">{user.handle}</T>
+      {!!user.bio && <T v="body" center style={{ marginTop: space.sm, maxWidth: 360 }}>{user.bio}</T>}
+    </View>
+    <Card style={{ flexDirection: 'row', marginTop: space.xl, paddingVertical: space.md }}>
+      <Stat value={rankings.length} label="Posts" />
+      <View style={{ width: 1, backgroundColor: c.separator }} />
+      <Stat value={user.followers ?? 0} label="Followers" />
+      <View style={{ width: 1, backgroundColor: c.separator }} />
+      <Stat value={user.following ?? 0} label="Following" />
+    </Card>
+    <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
+      <Button label="Edit profile" variant="secondary" size="md" style={{ flex: 1 }} onPress={() => router.push('/settings')} />
+      <Button label="New ranking" variant="tinted" size="md" icon="add" style={{ flex: 1 }} onPress={() => router.push('/(tabs)/create')} />
+    </View>
+
+    <Segmented value={tab} onChange={setTab} style={{ marginTop: space.xxl, marginBottom: space.lg }}
+      options={[{ value: 'posts', label: `Posts${rankings.length ? ` · ${rankings.length}` : ''}` }, { value: 'drafts', label: `Drafts${draftCount ? ` · ${draftCount}` : ''}` }]} />
+
+    {tab === 'posts' ? (rankings.length ? rankings.map((ranking) => <RankingCard ranking={ranking} key={ranking.id} />)
+      : <Card><EmptyState icon="list" title="Your shelf starts here" text="Rank five songs you love. Even a private ranking belongs to you."
+        action={<Button label="Create your first ranking" inline onPress={() => router.push('/builder')} />} /></Card>)
+      : draftCount ? <ListGroup style={{ marginTop: 0 }} footer="Drafts save automatically on this device and aren’t visible to anyone else.">
+        {hasDraft && <ListRow icon="create-outline" title={draft.title.trim() || 'Untitled ranking'} subtitle={`Current draft · ${draft.items.length} picks`} onPress={() => router.push('/builder')} />}
+        {hasMood && <ListRow icon="images-outline" iconColor="#4E3A78" title={moodDraft.title.trim() || 'Untitled mood board'} subtitle="Mood board draft" onPress={() => router.push('/moodboard')} />}
+        {archivedDrafts.map((entry) => <ListRow key={entry.id} icon="document-text-outline" iconColor="#6B6862" title={entry.draft.title.trim() || 'Untitled ranking'} subtitle={`${entry.draft.items.length} picks`} onPress={() => { openDraft(entry.id); router.push('/builder'); }} />)}
+      </ListGroup> : <Card><EmptyState icon="document-text-outline" title="No drafts" text="Anything you start but don’t publish is kept here." /></Card>}
+  </Screen>;
+}

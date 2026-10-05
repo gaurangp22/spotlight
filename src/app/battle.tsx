@@ -1,49 +1,89 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withTiming, ZoomIn } from 'react-native-reanimated';
 import { MusicItem } from '../lib/types';
 import { useApp } from '../store/AppContext';
-import { Artwork, Eyebrow, Header, Page } from '../ui/components';
-import { C } from '../ui/theme';
+import { goBack, MusicRow, Screen } from '../ui/components';
+import { haptic } from '../ui/haptics';
+import { Artwork, Button, Card, EmptyState, IconButton, Ionicons, T, Tap } from '../ui/primitives';
+import { curve, makeStyles, radius, shadow, space, useTheme } from '../ui/theme';
 
 export default function BattleScreen() {
+  const s = useStyles();
+  const { c } = useTheme();
   const { draft, setDraft } = useApp();
   const [items] = useState(() => [...draft.items]);
-  const pairs = items.flatMap((_, i) => items.slice(i + 1).map((__, offset) => [i, i + offset + 1] as const));
+  // Shuffle matchup order once so the same song isn't on screen for several rounds in a row.
+  const [pairs] = useState(() => {
+    const all = items.flatMap((_, i) => items.slice(i + 1).map((__, offset) => [i, i + offset + 1] as const));
+    for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+    return all;
+  });
   const [round, setRound] = useState(0);
   const [wins, setWins] = useState<Record<string, number>>({});
-  const [done, setDone] = useState(false);
+  const [result, setResult] = useState<MusicItem[] | null>(null);
+  const progress = useSharedValue(0);
+  useEffect(() => { progress.set(withTiming(pairs.length ? (result ? 1 : round / pairs.length) : 0, { duration: 260 })); }, [round, result, pairs.length, progress]);
+  const bar = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
 
-  if (items.length < 2) return <Page><Header title="Battle Mode" back /><Text style={styles.noItems}>Add at least two picks to start a battle.</Text></Page>;
+  if (items.length < 2) return <Screen back title="Battle Mode"><Card><EmptyState icon="flash-outline" title="Add some contenders" text="Battle Mode needs at least two picks in your draft." action={<Button label="Back to draft" inline onPress={goBack} />} /></Card></Screen>;
 
   const finish = (scores: Record<string, number>) => {
+    // Win count decides the order; ties keep their previous relative order.
     const sorted = [...items].sort((a, b) => (scores[b.id] ?? 0) - (scores[a.id] ?? 0) || items.indexOf(a) - items.indexOf(b));
     setDraft((current) => ({ ...current, items: sorted }));
-    setDone(true);
+    setResult(sorted);
+    haptic.success();
   };
-
   const pick = (winner: MusicItem) => {
     const next = { ...wins, [winner.id]: (wins[winner.id] ?? 0) + 1 };
     setWins(next);
-    if (round + 1 >= pairs.length) finish(next);
-    else setRound(round + 1);
+    if (round + 1 >= pairs.length) finish(next); else setRound(round + 1);
   };
+  const pair = pairs[Math.min(round, pairs.length - 1)];
+  const close = () => router.canGoBack() ? router.back() : router.replace('/builder');
 
-  const pair = pairs[round] ?? pairs[pairs.length - 1];
-  return <Page>
-    <Header title="Battle Mode" back />
-    {done ? <View style={styles.complete}><MaterialCommunityIcons name="check-circle-outline" size={42} color={C.accent} /><Eyebrow>THE RESULTS ARE IN</Eyebrow><Text style={styles.completeTitle}>Your order is ready.</Text><Text style={styles.completeText}>Your choices shaped this order. Picks with equal wins kept their previous order. Fine tune the result before publishing.</Text><Pressable accessibilityRole="button" accessibilityLabel="See my ranking" style={styles.finish} onPress={() => router.replace('/builder')}><Text style={styles.finishText}>See my ranking</Text><MaterialCommunityIcons name="arrow-right" size={21} color={C.white} /></Pressable></View>
-      : <><View style={styles.intro}><Eyebrow>GO WITH YOUR GUT</Eyebrow><Text style={styles.title}>Which one wins?</Text><Text style={styles.subtitle}>Tap the music you would keep.</Text><View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.round((round / pairs.length) * 100)}%` }]} /></View><Text style={styles.progressText}>{round + 1} OF {pairs.length} MATCHUPS</Text></View>
-        <View style={styles.choices}>{pair.map((index, slot) => { const item = items[index]; return <Pressable accessibilityRole="button" key={item.id} onPress={() => pick(item)} style={({ pressed }) => [styles.choice, pressed && { opacity: 0.78 }]}><View style={styles.choiceTop}><Text style={styles.choiceLabel}>PICK {slot === 0 ? 'A' : 'B'}</Text><MaterialCommunityIcons name="arrow-top-right" size={24} color={C.cream} /></View><Artwork item={item} size={106} /><Text style={styles.songTitle}>{item.title}</Text><Text style={styles.artist}>{item.artist}</Text></Pressable>; })}</View>
-        {round > 0 && <Pressable accessibilityRole="button" onPress={() => finish(wins)} style={styles.stop}><Text style={styles.stopText}>Use my choices so far</Text><MaterialCommunityIcons name="arrow-right" size={20} color={C.ink} /></Pressable>}
-        <Text style={styles.tip}>You can stop anytime and refine the order manually.</Text></>}
-  </Page>;
+  return <Screen title={result ? 'Results' : `${round + 1} of ${pairs.length}`}
+    left={<IconButton icon="close" label="Close Battle Mode" onPress={close} size={36} />}
+    right={!result && round > 0 ? <Button label="Finish" variant="plain" size="sm" inline onPress={() => finish(wins)} /> : undefined}
+    footer={result ? <Button label="Review my ranking" iconRight="arrow-forward" onPress={() => router.replace('/builder')} /> : undefined}>
+    <View style={s.track}><Animated.View style={[s.fill, bar]} /></View>
+
+    {result ? <Animated.View entering={FadeInDown.duration(380)}>
+      <View style={{ alignItems: 'center', paddingVertical: space.xxl, gap: space.sm }}>
+        <Animated.View entering={ZoomIn.springify().damping(12)} style={s.done}><Ionicons name="checkmark" size={34} color={c.onAccent} /></Animated.View>
+        <T v="title1" center style={{ marginTop: space.md }}>Your order is ready.</T>
+        <T v="subhead" tone="secondary" center style={{ maxWidth: 320 }}>Picks with equal wins kept their earlier order. Fine-tune anything before you publish.</T>
+      </View>
+      <Card padded={false} style={{ paddingHorizontal: space.lg }}>
+        {result.map((item, index) => <MusicRow key={item.id} item={item} index={index} size={44} separator={index < result.length - 1}
+          trailing={<T v="footnote" tone="secondary" tabular>{wins[item.id] ?? 0} {(wins[item.id] ?? 0) === 1 ? 'win' : 'wins'}</T>} />)}
+      </Card>
+    </Animated.View> : <>
+      <T v="title1" center style={{ marginTop: space.xxl }}>Which one wins?</T>
+      <T v="subhead" tone="secondary" center style={{ marginTop: space.xs }}>Go with your gut. Tap the one you’d keep.</T>
+      <Animated.View key={round} entering={FadeIn.duration(220)} style={s.arena}>
+        {pair.map((index) => {
+          const item = items[index];
+          return <Tap key={item.id} onPress={() => pick(item)} feedback="press" scaleTo={0.95} accessibilityLabel={`Choose ${item.title} by ${item.artist}`} style={s.choice}>
+            <Artwork item={item} fill rounded={radius.md} />
+            <T v="headline" numberOfLines={2} style={{ marginTop: space.md }}>{item.title}</T>
+            <T v="footnote" tone="secondary" numberOfLines={1}>{item.artist}</T>
+          </Tap>;
+        })}
+        <View style={s.vs} pointerEvents="none"><T v="caption" weight="heavy" style={{ color: c.onInverse, letterSpacing: 0.5 }}>VS</T></View>
+      </Animated.View>
+      <T v="footnote" tone="tertiary" center style={{ marginTop: space.xl }}>You can finish early and fine-tune the order by hand.</T>
+    </>}
+  </Screen>;
 }
 
-const styles = StyleSheet.create({
-  noItems: { color: C.muted, fontSize: 15, marginTop: 30 }, intro: { paddingTop: 30 }, title: { color: C.ink, fontSize: 37, fontWeight: '900', letterSpacing: -1.3, marginTop: 8 }, subtitle: { color: C.muted, fontSize: 14, marginTop: 8 }, progressTrack: { marginTop: 28, height: 3, backgroundColor: C.line }, progressFill: { height: 3, backgroundColor: C.accent }, progressText: { color: C.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1, marginTop: 10 },
-  choices: { marginTop: 34, gap: 13 }, choice: { backgroundColor: C.night, minHeight: 211, padding: 18 }, choiceTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }, choiceLabel: { color: C.cream, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 }, songTitle: { color: C.white, fontWeight: '900', fontSize: 21, letterSpacing: -0.5, marginTop: 10 }, artist: { color: C.cream, fontSize: 12, marginTop: 3 }, tip: { color: C.muted, textAlign: 'center', fontSize: 12, marginTop: 28 },
-  complete: { paddingTop: 65, gap: 14 }, completeTitle: { fontSize: 38, fontWeight: '900', color: C.ink, letterSpacing: -1.3 }, completeText: { color: C.muted, fontSize: 15, lineHeight: 22 }, finish: { marginTop: 20, backgroundColor: C.accent, minHeight: 52, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, finishText: { color: C.white, fontSize: 14, fontWeight: '900' },
-  stop: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: C.ink, paddingHorizontal: 14, marginTop: 20 }, stopText: { color: C.ink, fontWeight: '800', fontSize: 13 },
-});
+const useStyles = makeStyles((c) => ({
+  track: { height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden', marginTop: space.xs },
+  fill: { height: 4, borderRadius: 2, backgroundColor: c.accent },
+  arena: { flexDirection: 'row', gap: space.md, marginTop: space.xxl, alignItems: 'stretch' },
+  choice: { flex: 1, backgroundColor: c.surface, borderRadius: radius.lg, padding: space.md, ...curve, ...shadow(c, 2) },
+  vs: { position: 'absolute', left: '50%', top: '34%', marginLeft: -22, width: 44, height: 44, borderRadius: 22, backgroundColor: c.inverse, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: c.bg },
+  done: { width: 72, height: 72, borderRadius: 36, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' },
+}));

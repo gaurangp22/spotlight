@@ -1,89 +1,89 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { searchMusic } from '../lib/music';
-import { sampleMusic } from '../lib/sample';
-import { MusicItem, MusicKind, Ranking } from '../lib/types';
+import { useState } from 'react';
+import { StyleSheet, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { useApp } from '../store/AppContext';
-import { Action, Artwork, Eyebrow, Header, MusicRow, Page } from '../ui/components';
-import { C } from '../ui/theme';
-import { useTask } from '../ui/forms';
-import { errorMessage } from '../lib/api';
+import { Screen } from '../ui/components';
+import { useTask, Visibility } from '../ui/forms';
+import { haptic } from '../ui/haptics';
+import { MusicPicker } from '../ui/MusicPicker';
+import { Artwork, Button, Card, EmptyState, IconButton, Ionicons, ListGroup, ListRow, SectionHeader, T } from '../ui/primitives';
+import { makeStyles, noOutline, space, type, useTheme } from '../ui/theme';
 
 export default function BuilderScreen() {
+  const s = useStyles();
+  const { c } = useTheme();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const { draft, setDraft, addMusic, removeMusic, moveMusic, publish, allRankings, user, spotifyConnected } = useApp();
   const { busy, run } = useTask();
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [kind, setKind] = useState<MusicKind>('song');
-  const [results, setResults] = useState<MusicItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [picking, setPicking] = useState(false);
   const origin = allRankings.find((ranking) => ranking.id === draft.originId);
-
-  useEffect(() => {
-    if (!searchOpen || query.trim().length < 2) return;
-    let active = true;
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      setLoading(true);
-      searchMusic(query, kind, spotifyConnected, controller.signal).then((items) => { if (active) { setResults(items); setError(''); } })
-        .catch((e) => { if (active) { setResults([]); setError(errorMessage(e)); } })
-        .finally(() => { if (active) setLoading(false); });
-    }, 400);
-    return () => { active = false; clearTimeout(timer); controller.abort(); };
-  }, [query, kind, searchOpen, spotifyConnected]);
+  const battle = mode === 'battle';
+  const missing = !draft.title.trim() ? 'Give your ranking a title to publish.' : draft.items.length < 2 ? 'Add at least two picks to publish.' : '';
 
   const onPublish = async () => {
-    if (!draft.title.trim()) { Alert.alert('Name this ranking', 'Give your ranking a title before publishing.'); return; }
-    if (draft.items.length < 2) { Alert.alert('Add more music', 'Rank at least two songs or albums.'); return; }
     const ranking = await publish();
-    if (ranking) router.replace(`/ranking/${ranking.id}`);
+    haptic.success();
+    router.replace(`/ranking/${ranking.id}`);
   };
+  const title = draft.editingId ? 'Edit ranking' : battle ? 'Battle Mode' : 'New ranking';
 
-  const starter = sampleMusic.filter((item) => item.kind === kind && !draft.items.some((selected) => selected.id === item.id));
-  const suggestions = query.trim().length < 2 ? starter : results;
+  return <Screen back title={title}
+    right={<T v="caption" tone="tertiary">{draft.items.length || draft.title ? 'Saved' : ''}</T>}
+    footer={<View style={{ gap: space.sm }}>
+      {!!user && !!missing && <T v="footnote" tone="secondary" center>{missing}</T>}
+      {user ? battle && draft.items.length >= 2 && !draft.editingId
+        ? <Button label="Start the battle" icon="flash" onPress={() => router.push('/battle')} />
+        : <Button label={draft.editingId ? 'Save changes' : 'Publish'} iconRight="arrow-up" loading={busy} disabled={!!missing} onPress={() => void run(onPublish)} />
+        : <Button label="Sign in to publish" onPress={() => router.push('/auth')} />}
+    </View>}>
 
-  return <Page>
-    <Header title={draft.editingId ? 'Edit ranking' : mode === 'battle' ? 'Pick your contenders' : 'Make a ranking'} back right={<Text style={styles.saved}>DRAFT</Text>} />
-    {mode === 'battle' && <Text style={[styles.emptyText, { marginTop: 16 }]}>Add at least two picks, then start Battle Mode. Choose between two songs at a time to find your order.</Text>}
-    <View style={{ gap: 10, paddingTop: 14 }}><Action label={spotifyConnected ? 'Import a Spotify playlist' : 'Connect Spotify'} secondary icon="spotify" onPress={() => router.push(spotifyConnected ? '/spotify' : '/settings')} /></View>
-    {origin && <View style={styles.remix}><MaterialCommunityIcons name="source-branch" size={16} color={C.accent} /><Text style={styles.remixText}>Making your version of {origin.author}’s ranking</Text></View>}
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.form}>
-        <Eyebrow>THE HEADLINE</Eyebrow>
-        <TextInput accessibilityLabel="Ranking title" value={draft.title} onChangeText={(title) => setDraft((current) => ({ ...current, title }))} placeholder="e.g. Radiohead songs I keep returning to" placeholderTextColor={C.muted} selectionColor={C.accent} style={styles.titleInput} multiline maxLength={100} />
-        <TextInput accessibilityLabel="Ranking description" value={draft.subtitle} onChangeText={(subtitle) => setDraft((current) => ({ ...current, subtitle }))} placeholder="Add a little context (optional)" placeholderTextColor={C.muted} selectionColor={C.accent} style={styles.subtitleInput} maxLength={140} />
-      </View>
-      <View style={styles.sectionHead}><View><Eyebrow>YOUR ORDER</Eyebrow><Text style={styles.sectionTitle}>{draft.items.length} picks</Text></View><Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? 'Done' : 'Add music'} onPress={() => setSearchOpen((value) => !value)} style={styles.addButton}><MaterialCommunityIcons name={searchOpen ? 'close' : 'plus'} size={21} color={C.white} /><Text style={styles.addText}>{searchOpen ? 'Done' : 'Add music'}</Text></Pressable></View>
-      {searchOpen && <View style={styles.searchPanel}>
-        <View style={styles.kindRow}>{(['song', 'album'] as MusicKind[]).map((value) => <Pressable accessibilityRole="button" key={value} onPress={() => { setKind(value); setResults([]); setError(''); setLoading(false); }} style={[styles.kind, kind === value && styles.kindActive]}><Text style={[styles.kindText, kind === value && { color: C.white }]}>{value === 'song' ? 'Songs' : 'Albums'}</Text></Pressable>)}</View>
-        <View style={styles.searchBox}><MaterialCommunityIcons name="magnify" size={22} color={C.muted} /><TextInput value={query} onChangeText={(value) => { setQuery(value); setResults([]); setError(''); setLoading(false); }} placeholder={`Search ${kind}s`} placeholderTextColor={C.muted} style={styles.searchInput} autoCorrect={false} /></View>
-        {loading && <ActivityIndicator color={C.accent} style={{ marginTop: 16 }} />}
-        {!!error && <Text style={styles.error}>{error}</Text>}
-        <Text style={styles.resultLabel}>{query.trim().length < 2 ? 'STARTER PICKS · EXAMPLES' : `${results.length} RESULTS · ${spotifyConnected ? 'SPOTIFY' : 'CATALOG'}`}</Text>
-        {suggestions.slice(0, 20).map((item) => <MusicRow key={item.id} item={item} onPress={() => addMusic(item)} trailing={<MaterialCommunityIcons name={draft.items.some((chosen) => chosen.id === item.id) ? 'check' : 'plus'} size={22} color={C.accent} />} />)}
-        {query.trim().length >= 2 && !loading && !error && !results.length && <Text style={styles.noResult}>Nothing found. Try the artist name or a shorter title.</Text>}
-      </View>}
-      {draft.items.length ? <View>{draft.items.map((item, index) => <View key={item.id} style={styles.editRow}><Text style={styles.rankNumber}>{String(index + 1).padStart(2, '0')}</Text><Artwork item={item} size={48} /><View style={{ flex: 1, gap: 3 }}><Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text><Text style={styles.itemArtist} numberOfLines={1}>{item.artist}</Text></View><View style={styles.reorder}><Pressable accessibilityRole="button" accessibilityLabel={`Move ${item.title} up`} disabled={index === 0} onPress={() => moveMusic(index, -1)} style={[styles.smallButton, index === 0 && { opacity: 0.25 }]}><MaterialCommunityIcons name="chevron-up" size={22} color={C.ink} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Move ${item.title} down`} disabled={index === draft.items.length - 1} onPress={() => moveMusic(index, 1)} style={[styles.smallButton, index === draft.items.length - 1 && { opacity: 0.25 }]}><MaterialCommunityIcons name="chevron-down" size={22} color={C.ink} /></Pressable></View><Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} onPress={() => removeMusic(item.id)} style={styles.remove}><MaterialCommunityIcons name="close" size={19} color={C.muted} /></Pressable></View>)}</View>
-        : <View style={styles.empty}><MaterialCommunityIcons name="format-list-numbered" size={30} color={C.accent} /><Text style={styles.emptyTitle}>Every list starts somewhere.</Text><Text style={styles.emptyText}>Add a few songs or albums, then put them in your order.</Text><Action label="Find music" onPress={() => setSearchOpen(true)} /></View>}
-      {draft.items.length >= 2 && <Pressable accessibilityRole="button" style={styles.battle} onPress={() => router.push('/battle')}><MaterialCommunityIcons name="sword-cross" size={22} color={C.accent} /><View style={{ flex: 1 }}><Text style={styles.battleTitle}>Sort by Battle Mode</Text><Text style={styles.battleSub}>Pick your favourites head to head.</Text></View><MaterialCommunityIcons name="arrow-right" size={21} color={C.ink} /></Pressable>}
-      <View style={styles.visibility}><Eyebrow>WHO CAN SEE IT?</Eyebrow><View style={styles.visibilityRow}>{(['public', 'followers', 'private'] as Ranking['visibility'][]).map((value) => <Pressable accessibilityRole="button" onPress={() => setDraft((current) => ({ ...current, visibility: value }))} key={value} style={[styles.visibilityOption, draft.visibility === value && styles.visibilityActive]}><Text style={[styles.visibilityText, draft.visibility === value && { color: C.white }]}>{value}</Text></Pressable>)}</View><Text style={styles.visibilityNote}>{draft.visibility === 'private' ? 'Only you can view this ranking.' : draft.visibility === 'followers' ? 'Only your followers can view this ranking.' : 'Anyone can view this ranking.'}</Text></View>
-      <Action label={!user ? 'Sign in to publish' : busy ? 'Publishing…' : draft.editingId ? 'Save changes' : 'Publish ranking'} onPress={() => user ? void run(onPublish) : router.push('/auth')} icon="arrow-right" disabled={busy || draft.items.length < 2 || !draft.title.trim()} />
-      <Text style={styles.footnote}>Your work saves automatically while you edit.</Text>
-    </KeyboardAvoidingView>
-  </Page>;
+    {origin && <View style={s.remix}><Ionicons name="git-branch-outline" size={15} color={c.accent} /><T v="footnote" weight="semibold" tone="accent">Your version of {origin.author}’s ranking</T></View>}
+    {battle && !draft.editingId && <Card style={{ marginTop: space.sm, flexDirection: 'row', gap: space.md }}>
+      <Ionicons name="flash" size={20} color={c.accent} />
+      <T v="subhead" tone="secondary" style={{ flex: 1 }}>Add the contenders, then go head-to-head two at a time. Your picks decide the order.</T>
+    </Card>}
+
+    <TextInput accessibilityLabel="Ranking title" value={draft.title} onChangeText={(value) => setDraft((current) => ({ ...current, title: value }))}
+      placeholder="Name your ranking" placeholderTextColor={c.tertiary} selectionColor={c.accent} multiline maxLength={100} maxFontSizeMultiplier={1.4}
+      style={[type.title1, s.titleInput, { color: c.text }, noOutline]} />
+    <TextInput accessibilityLabel="Ranking description" value={draft.subtitle} onChangeText={(value) => setDraft((current) => ({ ...current, subtitle: value }))}
+      placeholder="Add some context (optional)" placeholderTextColor={c.tertiary} selectionColor={c.accent} maxLength={140} maxFontSizeMultiplier={1.4}
+      style={[type.body, s.subtitleInput, { color: c.secondary }, noOutline]} />
+
+    <SectionHeader title={battle ? 'Contenders' : 'Your order'} action={draft.items.length ? { label: 'Add music', onPress: () => setPicking(true) } : undefined} />
+    {draft.items.length ? <Card padded={false} style={{ overflow: 'hidden' }}>
+      {draft.items.map((item, index) => <Animated.View key={item.id} layout={LinearTransition.springify().damping(18)} entering={FadeIn} exiting={FadeOut.duration(150)}
+        style={[s.row, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.hairline }]}>
+        <T v="headline" tabular center tone={index < 3 ? 'accent' : 'secondary'} style={{ width: 24 }}>{index + 1}</T>
+        <Artwork item={item} size={40} />
+        <View style={{ flex: 1, gap: 1 }}><T v="callout" weight="semibold" numberOfLines={1}>{item.title}</T><T v="footnote" tone="secondary" numberOfLines={1}>{item.artist}</T></View>
+        <View style={{ flexDirection: 'row' }}>
+          <IconButton icon="chevron-up" label={`Move ${item.title} up`} filled={false} size={30} tone="secondary" disabled={index === 0} onPress={() => moveMusic(index, -1)} />
+          <IconButton icon="chevron-down" label={`Move ${item.title} down`} filled={false} size={30} tone="secondary" disabled={index === draft.items.length - 1} onPress={() => moveMusic(index, 1)} />
+          <IconButton icon="close" label={`Remove ${item.title}`} filled={false} size={30} tone="tertiary" onPress={() => removeMusic(item.id)} />
+        </View>
+      </Animated.View>)}
+    </Card> : <Card><EmptyState icon="musical-notes" title="Every list starts somewhere" text="Add a few songs or albums, then put them in your order."
+      action={<Button label="Add music" icon="add" inline onPress={() => setPicking(true)} />} /></Card>}
+    {draft.items.length > 0 && <T v="footnote" tone="secondary" style={{ marginTop: space.sm, marginLeft: 4 }}>{draft.items.length} of 100 picks</T>}
+
+    <ListGroup>
+      <ListRow icon="musical-notes" iconColor="#1F9D55" title={spotifyConnected ? 'Import a Spotify playlist' : 'Connect Spotify'} subtitle={spotifyConnected ? 'Replaces the picks in this draft' : 'Import playlists and search your library'} onPress={() => router.push(spotifyConnected ? '/spotify' : '/settings')} />
+      {draft.items.length >= 2 && !battle && <ListRow icon="flash" iconColor="#2F5F7A" title="Sort with Battle Mode" subtitle="Pick favourites head-to-head" onPress={() => router.push('/battle')} />}
+    </ListGroup>
+
+    <SectionHeader title="Who can see it" />
+    <Visibility value={draft.visibility} onChange={(visibility) => setDraft((current) => ({ ...current, visibility }))} />
+
+    <MusicPicker visible={picking} onClose={() => setPicking(false)} selected={draft.items} limit={100} spotifyConnected={spotifyConnected}
+      onToggle={(item) => draft.items.some((chosen) => chosen.id === item.id) ? removeMusic(item.id) : addMusic(item)} />
+  </Screen>;
 }
 
-const styles = StyleSheet.create({
-  saved: { color: C.muted, fontSize: 9, letterSpacing: 1, fontWeight: '900' }, remix: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 }, remixText: { color: C.accent, fontSize: 12, fontWeight: '800' },
-  form: { paddingTop: 27, paddingBottom: 28 }, titleInput: { fontSize: 29, lineHeight: 32, minHeight: 110, color: C.ink, fontWeight: '900', letterSpacing: -1, marginTop: 11, textAlignVertical: 'top' }, subtitleInput: { borderBottomWidth: 1, borderColor: C.line, paddingVertical: 12, fontSize: 14, color: C.ink },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 2, borderColor: C.ink, paddingTop: 17, marginBottom: 13 }, sectionTitle: { fontSize: 23, color: C.ink, fontWeight: '900', marginTop: 5 }, addButton: { minHeight: 48, backgroundColor: C.ink, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12 }, addText: { color: C.white, fontSize: 12, fontWeight: '800' },
-  searchPanel: { backgroundColor: C.soft, padding: 14, marginBottom: 17 }, kindRow: { flexDirection: 'row', gap: 7, marginBottom: 12 }, kind: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 16, borderWidth: 1, borderColor: C.ink }, kindActive: { backgroundColor: C.ink }, kindText: { color: C.ink, fontSize: 12, fontWeight: '800' }, searchBox: { height: 48, backgroundColor: C.white, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }, searchInput: { flex: 1, color: C.ink, fontSize: 14 }, resultLabel: { fontSize: 10, letterSpacing: 1.2, fontWeight: '900', color: C.muted, marginTop: 19, marginBottom: 5 }, error: { color: C.accentDark, fontSize: 12, marginTop: 10 }, noResult: { color: C.muted, padding: 15 },
-  editRow: { minHeight: 108, flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderColor: C.line }, rankNumber: { width: 27, color: C.accent, fontSize: 17, fontWeight: '900' }, itemTitle: { color: C.ink, fontSize: 13, fontWeight: '800' }, itemArtist: { color: C.muted, fontSize: 11 }, reorder: { flexDirection: 'column', gap: 8 }, smallButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }, remove: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center' },
-  empty: { gap: 12, padding: 20, backgroundColor: C.soft }, emptyTitle: { fontSize: 20, color: C.ink, fontWeight: '900' }, emptyText: { color: C.muted, lineHeight: 19, fontSize: 13 },
-  battle: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderWidth: 1, borderColor: C.accent, marginTop: 22 }, battleTitle: { color: C.ink, fontWeight: '900', fontSize: 14 }, battleSub: { color: C.muted, fontSize: 11, marginTop: 3 },
-  visibility: { paddingTop: 32, paddingBottom: 24 }, visibilityRow: { flexDirection: 'row', gap: 8, marginTop: 12 }, visibilityOption: { paddingHorizontal: 13, minHeight: 48, borderWidth: 1, borderColor: C.line, justifyContent: 'center' }, visibilityActive: { backgroundColor: C.ink, borderColor: C.ink }, visibilityText: { textTransform: 'capitalize', color: C.ink, fontWeight: '800', fontSize: 12 }, visibilityNote: { color: C.muted, fontSize: 11, marginTop: 11 }, footnote: { textAlign: 'center', color: C.muted, fontSize: 11, marginTop: 14, marginBottom: 15 },
-});
+const useStyles = makeStyles((c) => ({
+  remix: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: c.accentSoft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, marginTop: space.sm },
+  titleInput: { marginTop: space.xl, paddingVertical: 0, textAlignVertical: 'top', minHeight: 40 },
+  subtitleInput: { marginTop: space.sm, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: c.hairline },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: space.md, paddingRight: 2, minHeight: 64 },
+}));

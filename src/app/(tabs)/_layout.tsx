@@ -1,23 +1,31 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router';
-import { useWindowDimensions } from 'react-native';
-import { C } from '../../ui/theme';
+import { ColorValue, StyleSheet, useWindowDimensions } from 'react-native';
+import { haptic } from '../../ui/haptics';
+import { IconName, Ionicons } from '../../ui/primitives';
+import { font, useTheme } from '../../ui/theme';
+
+const icon = (outline: IconName, filled: IconName) => function TabIcon({ color, focused }: { color: ColorValue; focused: boolean }) {
+  return <Ionicons name={focused ? filled : outline} size={24} color={color as string} />;
+};
 
 export default function TabsLayout() {
+  const { c } = useTheme();
   const expanded = useWindowDimensions().width >= 768;
-  return <Tabs screenOptions={{
+  return <Tabs screenListeners={{ tabPress: () => haptic.select() }} screenOptions={{
     headerShown: false,
     tabBarPosition: expanded ? 'left' : 'bottom',
     tabBarVariant: expanded ? 'material' : 'uikit',
     tabBarLabelPosition: 'below-icon',
-    tabBarStyle: { backgroundColor: C.ink, borderTopWidth: 0, minHeight: 66, paddingTop: expanded ? 24 : 6, ...(expanded ? { width: 96 } : {}) },
-    tabBarItemStyle: expanded ? { minHeight: 80, marginBottom: 12 } : undefined,
-    tabBarActiveTintColor: C.white, tabBarInactiveTintColor: '#A5A39C',
-    tabBarLabelStyle: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 5 },
+    tabBarActiveTintColor: c.accent,
+    tabBarInactiveTintColor: c.tertiary,
+    tabBarStyle: { backgroundColor: c.tabBar, borderTopColor: c.hairline, borderTopWidth: StyleSheet.hairlineWidth, elevation: 0, ...(expanded ? { width: 92, paddingTop: 24, borderRightColor: c.hairline, borderRightWidth: StyleSheet.hairlineWidth } : {}) },
+    tabBarItemStyle: expanded ? { minHeight: 72, marginBottom: 8 } : undefined,
+    tabBarLabelStyle: { fontFamily: font.medium, fontSize: 10.5, letterSpacing: 0.1 },
+    sceneStyle: { backgroundColor: c.bg },
   }}>
-    <Tabs.Screen name="index" options={{ title: 'Following', tabBarIcon: ({ color }) => <MaterialCommunityIcons name="home-outline" size={23} color={color} /> }} />
-    <Tabs.Screen name="discover" options={{ title: 'Discover', tabBarIcon: ({ color }) => <MaterialCommunityIcons name="compass-outline" size={23} color={color} /> }} />
-    <Tabs.Screen name="create" options={{ title: 'Create', tabBarIcon: ({ color }) => <MaterialCommunityIcons name="plus-box-outline" size={24} color={color} /> }} />
-    <Tabs.Screen name="profile" options={{ title: 'You', tabBarIcon: ({ color }) => <MaterialCommunityIcons name="account-outline" size={23} color={color} /> }} />
+    <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: icon('home-outline', 'home') }} />
+    <Tabs.Screen name="discover" options={{ title: 'Discover', tabBarIcon: icon('compass-outline', 'compass') }} />
+    <Tabs.Screen name="create" options={{ title: 'Create', tabBarIcon: icon('add-circle-outline', 'add-circle') }} />
+    <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('person-circle-outline', 'person-circle') }} />
   </Tabs>;
 }

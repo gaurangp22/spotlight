@@ -1,90 +1,254 @@
+<div align="center">
+
+<img src="assets/icon.png" width="96" height="96" alt="MARGIN app icon" />
+
 # MARGIN
 
-An Android-first social music app built with Expo SDK 57, React Native, TypeScript, and a Node 24 API. Phones are the primary design target. No Supabase: local persistence uses SQLite, with a server-side adapter for Turso **libSQL**.
+**Music, in your own order.**
 
-## Run locally
+Rank the songs and albums you love, remix your friends’ lists, and see exactly where your taste agrees — and where it splits.
 
-Use Node 24 or newer. From this folder:
+![Expo SDK 57](https://img.shields.io/badge/Expo_SDK-57-000020?logo=expo&logoColor=white)
+![React Native 0.86](https://img.shields.io/badge/React_Native-0.86-087EA4?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+![Node 24](https://img.shields.io/badge/Node-24-5FA04E?logo=nodedotjs&logoColor=white)
+![Platforms](https://img.shields.io/badge/platforms-Android_·_iOS_·_Web-C63A22)
 
-```sh
-npm ci
-npm --prefix server ci
-npm run api
+<br />
+
+<img src="docs/screenshots/home.png" width="200" alt="Home feed" />&nbsp;
+<img src="docs/screenshots/ranking.png" width="200" alt="A ranking with its artwork-led hero" />&nbsp;
+<img src="docs/screenshots/compare.png" width="200" alt="Taste comparison between two rankings" />&nbsp;
+<img src="docs/screenshots/share.png" width="200" alt="Designed share card" />
+
+</div>
+
+---
+
+## Why MARGIN
+
+Most music apps tell you what to listen to. MARGIN is about what you *think*. The core loop is simple:
+
+1. **Rank** five songs, ten albums, or a whole playlist — by hand, or head-to-head in Battle Mode.
+2. **Remix** a friend’s ranking into your own order with one tap.
+3. **Compare** the two and get an agreement score, your biggest split, and a side-by-side view worth arguing about.
+4. **Share** a designed card anywhere, or a link that respects your privacy settings.
+
+## Features
+
+| | |
+|---|---|
+| **Rankings** | Up to 100 unique songs or albums, reorderable, with title and context. Drafts autosave on the device. |
+| **Battle Mode** | Shuffled head-to-head matchups decide the order; finish early at any time and fine-tune by hand. |
+| **Remix & Compare** | “Make mine” copies a ranking into your draft. A Spearman-footrule score measures how closely shared picks line up. |
+| **Mood boards** | Songs, photos, and notes on one of four colour stories. Photos are resized and compressed on the device. |
+| **Social** | Follow people, agree with posts, comment on a post or on an individual pick, and get an in-app activity feed with unread badges. |
+| **Privacy controls** | Public, followers-only, or private posts — enforced on the server, not just hidden in the UI. Block and report built in. |
+| **Share cards** | Night, Paper, and Red templates exported as PNG through the native share sheet (or downloaded on web). |
+| **Music sources** | Public catalog search works out of the box. Connect Spotify to search its catalog and import playlists. |
+| **Account control** | Change password, password recovery by email, and full in-app account deletion. |
+
+## Design
+
+MARGIN is designed to feel at home next to first-party apps: large collapsing titles, inset grouped lists, spring-based press feedback, haptics on every meaningful action, and a full light and dark theme that follows the system.
+
+<div align="center">
+<img src="docs/screenshots/home-dark.png" width="200" alt="Home in dark mode" />&nbsp;
+<img src="docs/screenshots/ranking-dark.png" width="200" alt="A remix in dark mode" />&nbsp;
+<img src="docs/screenshots/discover-dark.png" width="200" alt="Discover in dark mode" />&nbsp;
+<img src="docs/screenshots/create-dark.png" width="200" alt="Create in dark mode" />
+</div>
+
+- **Type:** Inter, on a single type scale modelled on platform text styles (`src/ui/theme.ts`).
+- **Colour:** warm neutrals with one brand red. Every text/background pair is contrast-checked to WCAG AA in both themes.
+- **Components:** one set of primitives (`src/ui/primitives.tsx`) — buttons, segmented controls, sheets, dialogs, list groups — so every screen behaves the same way.
+- **Accessibility:** labelled controls, 44 pt minimum touch targets, Dynamic Type support with sensible caps, and screen-reader announcements for notices.
+
+See [DESIGN.md](DESIGN.md) for tokens and principles.
+
+## Architecture
+
+```
+┌──────────────────────────┐        HTTPS / JSON        ┌───────────────────────────┐
+│  Expo app (src/)         │ ─────────────────────────▶ │  Node 24 API (server/)    │
+│  Expo Router screens     │                            │  node:http, no framework  │
+│  AppContext state        │ ◀───────────────────────── │  SQLite  ⇄  Turso libSQL  │
+│  Drafts in AsyncStorage  │                            │  Spotify PKCE · Resend    │
+│  Session in SecureStore  │                            │  /privacy /terms pages    │
+└──────────────────────────┘                            └───────────────────────────┘
 ```
 
-Keep that terminal open. In another terminal, run `npm start` for Android development, or `npm run web` for http://localhost:8081. Create accounts in separate browser profiles to test social interactions. Visitors see labeled examples; signed-in feeds contain actual account posts.
+| Layer | Stack |
+|---|---|
+| App | Expo SDK 57, React Native 0.86, React 19, Expo Router (typed routes), Reanimated 4, expo-image, expo-haptics |
+| API | Node 24 `node:http`, `node:sqlite` locally, `@libsql/client` for Turso, scrypt password hashing, AES-256-GCM token encryption |
+| Tooling | TypeScript (strict), ESLint (`eslint-config-expo` + React Compiler rules), `node:test`, EAS Build |
 
-The API listens on port 8787. Database files and the automatically generated token encryption key are in `server/data/`, excluded from Git. Preserve both for backups. Published posts sync through the API; drafts save separately for each account on its device.
+## Getting started
 
-## Android phone
+**Requirements:** Node 24+, npm, and for native builds Android Studio (SDK 36, JDK 21) or an [Expo account](https://expo.dev) for cloud builds.
 
-Keep the computer and phone on the same Wi-Fi. Development discovers the Metro host automatically. If needed, copy `.env.example` to `.env`, set `EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_LAN_IP:8787`, and restart Metro. Allow connections to ports 8787 and 8081 on the computer.
+```bash
+npm ci
+npm --prefix server ci
+npm run api            # API on http://localhost:8787 — keep this running
+```
 
-Spotify requires an installed development or preview build to receive its callback. Expo Go can preview other screens, subject to SDK 57 support. With Android Studio, SDK 36, and JDK 21 installed, run `npm run android`.
+In a second terminal:
 
-To build an internal APK in Windows PowerShell:
+```bash
+npm start              # Expo dev server (Android dev build / emulator)
+npm run web            # or run in the browser at http://localhost:8081
+```
+
+Visitors see clearly labelled example rankings; signed-in feeds show real posts. To test social features, create two accounts in separate browser profiles.
+
+The local database and the auto-generated token encryption key live in `server/data/` (git-ignored). Back up both.
+
+### Running on an Android phone
+
+Keep the phone and computer on the same Wi-Fi. Development discovers the Metro host automatically; if it can’t, copy `.env.example` to `.env`, set `EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:8787`, and restart Metro. Allow inbound connections on ports 8787 and 8081.
+
+MARGIN uses native modules (haptics, secure storage, image picking), so use a development build rather than Expo Go: `npm run android` with Android Studio installed, or `npx eas-cli@latest build --profile development`.
+
+<details>
+<summary><b>Building a local test APK on Windows</b></summary>
 
 ```powershell
 $env:MARGIN_LOCAL_PREVIEW='1'
-$env:EXPO_PUBLIC_API_URL='http://YOUR_COMPUTER_LAN_IP:8787'
+$env:EXPO_PUBLIC_API_URL='http://YOUR_LAN_IP:8787'
 $env:JAVA_HOME='C:/Program Files/Android/Android Studio/jbr'
 $env:ANDROID_HOME="$env:LOCALAPPDATA/Android/Sdk"
-npx expo prebuild --platform android --no-install
+npx expo prebuild --platform android --clean --no-install
 Set-Location android
 ./gradlew.bat assembleRelease --no-daemon
 ```
 
-Output: `android/app/build/outputs/apk/release/app-release.apk`. This local APK permits HTTP, embeds your computer's address, and uses a testing signing key. The API must remain running. For production, use HTTPS, omit `MARGIN_LOCAL_PREVIEW`, regenerate native configuration, and configure release signing. Native directories are generated and excluded from Git. `eas.json` also includes development, preview APK, and production app-bundle profiles; EAS requires an Expo account/project.
+Output: `android/app/build/outputs/apk/release/app-release.apk`. This APK allows plain HTTP, embeds your computer’s address, and is signed with a test key — it is for local testing only.
 
-## Functional flows
+If an older Windows SDK hits Ninja’s path-length limit, install [Ninja 1.12+](https://github.com/ninja-build/ninja/releases) and set `MARGIN_NINJA_PATH` to its executable before prebuild. To serve the APK to a phone, place it at `artifacts/margin-local.apk` and run `node scripts/serve-apk.cjs`, then open `http://YOUR_LAN_IP:8790` on the phone.
 
-- Register, sign in/out, edit profile, change password, and delete account.
-- Search music and import Spotify playlists when configured; manually rank up to 100 unique picks or use Battle Mode.
-- Save device drafts, recover earlier ranking drafts, edit/delete posts, remix, and compare shared-pick order.
-- Make mood boards with songs, compressed photos, notes, and four color stories.
-- Discover people, follow/unfollow, react, comment on posts or individual songs, and view in-app activity.
-- Enforce public/followers/private access on the server; block people, report posts, and moderate reports.
-- Export designed PNG cards through Android's share sheet or browser download.
+</details>
 
-The app does not stream music or connect to Apple Music. Before Spotify is connected, search uses public iTunes catalog metadata and is labeled Catalog. Starter examples work without search access. Battle results use win counts, with ties preserving starting order; early results remain editable.
+## Configuration
 
-## Live configuration later
+### App (`.env`, public values only)
 
-Copy `server/.env.example` to `server/.env`. Database tokens, encryption keys, email credentials, and admin tokens belong **only on the server**. The mobile environment contains only the API URL and optional public web URL.
+| Variable | Purpose |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | **Required for release builds.** The HTTPS URL of your API. |
+| `EXPO_PUBLIC_WEB_URL` | Optional. Web app URL used for shared links; otherwise links open the installed app. |
+| `EXPO_PUBLIC_SUPPORT_EMAIL` | Optional. Adds “Contact support” to Settings. |
 
-For Turso, set a libSQL-compatible `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. Schema initialization runs at startup. Switching does not migrate local records; preserve the database and plan an explicit import. Turso's newer engine uses another client and is not the adapter implemented here.
+> Anything prefixed `EXPO_PUBLIC_` is bundled into the app. Never put secrets here.
 
-For Spotify, set `SPOTIFY_CLIENT_ID` and register the exact `SPOTIFY_REDIRECT_URI` pointing to the API's `/api/spotify/callback`. The server completes PKCE and returns to `marginmusic://spotify-callback` on Android. A phone needs an HTTPS API/callback reachable from its browser. Web testing can use an explicit `127.0.0.1` loopback callback; Spotify does not accept `localhost`. Configure `WEB_APP_URL` and `ALLOWED_ORIGINS` for your web origin. Development-mode limits/access approval still apply. See [Spotify redirect rules](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri) and [quota modes](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
+### API (`server/.env`, never shipped to the app)
 
-For password recovery, set `RESEND_API_KEY`, a verified `EMAIL_FROM`, and `WEB_APP_URL` hosting the reset-password page. Recovery is unavailable until configured. Activity notifications work locally; push notifications are not implemented.
+| Variable | Purpose |
+|---|---|
+| `TOKEN_ENCRYPTION_KEY` | **Required in production.** 64 hex chars: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `NODE_ENV` | Set to `production` in deployment. |
+| `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` | Use Turso libSQL instead of local SQLite. Schema initialises on start; existing local data is not migrated. |
+| `PUBLIC_API_URL`, `WEB_APP_URL`, `ALLOWED_ORIGINS` | Public API URL, web app URL (for password reset links), and allowed browser origins. |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_REDIRECT_URI` | Enable Spotify. Register the exact redirect URI (`…/api/spotify/callback`) in the Spotify dashboard. |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Enable password recovery email. |
+| `ADMIN_TOKEN` | Enables the moderation CLI (32+ characters). |
+| `TRUSTED_PROXY_IPS` | Reverse proxy addresses whose `X-Forwarded-For` is trusted for rate limiting. |
 
-Deployment starting points: `server/Dockerfile`, `server/compose.yaml`, and `server/Caddyfile.example`. Set `NODE_ENV=production` and a stable 64-hex-character `TOKEN_ENCRYPTION_KEY`. Configure only known proxy addresses in `TRUSTED_PROXY_IPS`. Preserve local data/encryption keys. Public deployments need HTTPS.
+Spotify notes: phones need an HTTPS callback reachable from their browser; web testing can use a `127.0.0.1` loopback callback (Spotify rejects `localhost`). New Spotify apps start in development mode with limited users — see [quota modes](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
 
-For moderation, configure a server-only `ADMIN_TOKEN` of at least 32 characters, then from `server/`:
+## Quality
 
-```sh
-node --env-file=.env admin.mjs reports
-node --env-file=.env admin.mjs dismiss REPORT_ID
-node --env-file=.env admin.mjs remove REPORT_ID
-```
-
-## Checks and release boundaries
-
-```sh
-npm run typecheck
-npm run lint
-npm test
+```bash
+npm run typecheck      # tsc --noEmit (strict, typed routes)
+npm run lint           # ESLint incl. React Compiler rules
+npm test               # comparison logic + API integration tests
 npx expo install --check
 ```
 
-API tests cover accounts/sessions, privacy, cross-account mutations, blocks, comments/reactions, reports/moderation, recovery, SQLite persistence, and mocked Spotify PKCE/token refresh. Browser QA exercises two accounts through publishing, following, reactions/comments, Battle Mode, comparison, mood boards, photo upload, PNG export, profile editing, and privacy changes. Browser checks cannot establish native Back, keyboard/insets, font scaling, or share-sheet behavior.
+The API suite covers accounts and sessions, privacy enforcement across reads/feeds/writes, blocks, reactions and comments, reports and moderation, password recovery, SQLite persistence, mocked Spotify PKCE and token refresh, profile counts, and the public store pages.
 
-Live Turso, Spotify, and email delivery have not been tested against real accounts. Before a public business launch, complete native device QA, signing, backups, monitoring, store/privacy disclosures, and Spotify access approval. Expo's dependency tree has upstream npm advisories requiring assessment before public release; do not force incompatible SDK downgrades. Feeds load the latest 200 accessible posts; discovery loads the latest 100 people. Larger communities need pagination. Photos are stored inline locally; object storage is a later scaling step.
+## Releasing
 
-## Source map
+MARGIN ships with [EAS](https://docs.expo.dev/eas/) profiles in `eas.json` (`development`, `preview`, `production`). Production builds produce an Android App Bundle with remotely managed, auto-incrementing build numbers.
 
-- `src/app/`: phone screens and Expo Router navigation.
-- `src/store/AppContext.tsx`: account state, API sync, and device drafts.
-- `src/lib/`: API/session handling, search, comparison, and sharing links.
-- `src/ui/`: shared editorial controls, forms, and mood themes.
-- `server/`: API, SQLite/Turso adapter, schema, Spotify, moderation, and tests.
+```bash
+npx eas-cli@latest init                                   # link the project once
+npx eas-cli@latest env:create --environment production --name EXPO_PUBLIC_API_URL --value https://api.your-domain.com
+npx eas-cli@latest build --platform android --profile production
+npx eas-cli@latest submit --platform android --profile production   # uploads to the internal track as a draft
+```
+
+### Store readiness
+
+The API serves the pages store listings require — point the console at your API domain:
+
+| Requirement | URL |
+|---|---|
+| Privacy policy | `https://api.your-domain.com/privacy` |
+| Terms of service | `https://api.your-domain.com/terms` |
+| Account deletion | `https://api.your-domain.com/delete-account` |
+
+The same text appears in-app under **Settings → About**, sourced from one file: `server/legal.json`. **Have it reviewed** and add your legal entity name and support contact before publishing.
+
+Already handled: in-app account deletion, no ads or third-party tracking, minimal Android permissions (no camera, microphone, overlay, or broad media access — photos use the system picker), `ITSAppUsesNonExemptEncryption=false` for iOS, light/dark splash screens, and adaptive + monochrome Android icons.
+
+Still yours to do: create the store listings and screenshots, complete the Play **Data safety** form (account info, user content, and photos are collected; nothing is shared or sold; data is encrypted in transit; users can request deletion), set the content rating, run native QA on real devices, and apply for Spotify’s extended quota if you need more users than development mode allows.
+
+## Deploying the API
+
+`server/Dockerfile`, `server/compose.yaml`, and `server/Caddyfile.example` give you a production starting point: a non-root Node 24 container with a health check, a persistent data volume, and Caddy for automatic HTTPS.
+
+```bash
+cd server
+cp .env.example .env      # fill in production values
+docker compose up -d --build
+```
+
+### Moderation
+
+With `ADMIN_TOKEN` set, from `server/`:
+
+```bash
+node --env-file=.env admin.mjs reports            # list open reports
+node --env-file=.env admin.mjs dismiss REPORT_ID  # keep the post
+node --env-file=.env admin.mjs remove REPORT_ID   # delete the post
+```
+
+## Project structure
+
+```
+src/
+  app/            Expo Router screens — (tabs), ranking/[id], builder, battle, compare, share, legal, …
+  store/          AppContext: session, API sync, device drafts, unread activity
+  lib/            API client, music search, comparison maths, links, types
+  ui/             Design system — theme tokens, primitives, screen scaffold, music picker
+server/
+  api.mjs         Routes, validation, privacy rules
+  db.mjs          SQLite / Turso adapter       schema.sql   Tables and indexes
+  security.mjs    Hashing, encryption, input checks
+  spotify.mjs     PKCE flow, token refresh, playlist paging
+  pages.mjs       Public privacy / terms / account-deletion pages (from legal.json)
+  test/           node:test integration suite
+assets/           App icon, adaptive icon layers, splash marks
+docs/screenshots/ README imagery
+```
+
+## Security & privacy
+
+- Passwords hashed with scrypt; sessions are random 256-bit tokens stored only as SHA-256 digests, kept in the device keychain/keystore.
+- Spotify tokens encrypted at rest with AES-256-GCM.
+- Visibility and blocks are enforced in SQL on every read path; validation on every write.
+- Rate limiting on authentication, recovery, and global request volume; strict CORS allow-list; `nosniff`, `no-referrer`, and `no-store` headers.
+- No analytics SDKs, ads, or third-party trackers.
+
+## Known limitations
+
+- Feeds load the latest 200 accessible posts and discovery the latest 100 people; larger communities need pagination.
+- Mood board photos are stored inline in the database; move them to object storage before scaling.
+- Push notifications aren’t implemented — activity is in-app only.
+- MARGIN doesn’t stream music, and doesn’t integrate with Apple Music.
+
+## License
+
+No open-source license has been granted. All rights reserved by the project owner.
