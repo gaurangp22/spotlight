@@ -19,9 +19,13 @@ export async function verifyPassword(password, stored) {
 }
 export function secretKey() {
   if (process.env.TOKEN_ENCRYPTION_KEY) {
-    const key = Buffer.from(process.env.TOKEN_ENCRYPTION_KEY, 'hex');
-    if (key.length !== 32) throw new Error('TOKEN_ENCRYPTION_KEY must be 64 hexadecimal characters.');
-    return key;
+    // Tolerate the usual copy-paste slips from hosting dashboards: surrounding quotes and whitespace.
+    const raw = process.env.TOKEN_ENCRYPTION_KEY.replace(/\s+/g, '').replace(/^["']+|["']+$/g, '');
+    if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
+      const invalid = raw.replace(/[0-9a-fA-F]/g, '').length;
+      throw new Error(`TOKEN_ENCRYPTION_KEY must be exactly 64 hexadecimal characters (0-9, a-f). Received ${raw.length} characters${invalid ? `, ${invalid} of them not hexadecimal` : ''}.`);
+    }
+    return Buffer.from(raw, 'hex');
   }
   if (process.env.NODE_ENV === 'production') throw new Error('Set TOKEN_ENCRYPTION_KEY in production.');
   const file = resolve(process.env.DATA_DIR || './data', 'encryption.key');
