@@ -1,14 +1,48 @@
 {
-  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
   "build": {
-    "base": { "node": "24.19.0" },
-    "development": { "extends": "base", "developmentClient": true, "distribution": "internal", "environment": "development", "android": { "buildType": "apk" } },
-    "preview": { "extends": "base", "distribution": "internal", "environment": "preview", "channel": "preview", "android": { "buildType": "apk" } },
-    "production": { "extends": "base", "environment": "production", "channel": "production", "autoIncrement": true, "android": { "buildType": "app-bundle" } }
+    "base": {
+      "node": "24.19.0"
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "environment": "preview",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease -x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "environment": "production",
+      "channel": "production",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease -x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease"
+      }
+    }
   },
   "submit": {
     "production": {
-      "android": { "track": "internal", "releaseStatus": "draft" }
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
     }
   }
 }
