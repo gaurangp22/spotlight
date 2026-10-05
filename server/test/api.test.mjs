@@ -219,3 +219,14 @@ test('profile counts and public store pages', async (t) => {
   }
   assert.equal((await fetch(`${base}/privacy`, { method: 'POST' })).status, 404);
 });
+
+test('behind a trusted platform proxy, rate limits apply per client, not per proxy', async (t) => {
+  const previous = process.env.TRUSTED_PROXY_IPS;
+  process.env.TRUSTED_PROXY_IPS = '*';
+  t.after(() => { if (previous === undefined) delete process.env.TRUSTED_PROXY_IPS; else process.env.TRUSTED_PROXY_IPS = previous; });
+  const { base } = await fixture(t);
+  const login = (ip) => fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip }, body: JSON.stringify({ email: 'nobody@example.com', password: 'wrong-password' }) });
+  for (let i = 0; i < 25; i++) assert.equal((await login(`203.0.113.${i + 1}`)).status, 401);
+  for (let i = 0; i < 20; i++) await login('198.51.100.7');
+  assert.equal((await login('198.51.100.7')).status, 429);
+});

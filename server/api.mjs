@@ -144,7 +144,8 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
       const method = req.method;
       let peer = req.socket.remoteAddress || 'unknown';
       const proxies = (process.env.TRUSTED_PROXY_IPS || '').split(',');
-      if (proxies.includes(peer)) {
+      // '*' is for platforms (Render, Railway, Fly) where every request arrives through the platform's own proxy.
+      if (proxies.includes('*') || proxies.includes(peer)) {
         const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').at(-1)?.trim();
         if (forwarded && isIP(forwarded)) peer = forwarded;
       }
