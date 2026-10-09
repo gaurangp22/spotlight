@@ -30,7 +30,7 @@ export default function AuthScreen() {
   const [method, setMethod] = useState<'password' | 'otp'>('password');
   const [challenge, setChallenge] = useState(''), [code, setCode] = useState('');
   const [resendAt, setResendAt] = useState(0), [seconds, setSeconds] = useState(0);
-  const otp = mode === 'login' && method === 'otp';
+  const otp = mode === 'login' && method === 'otp' && !!config?.emailOtp;
   const codeFlow = otp || (mode === 'register' && !!config?.signupVerification);
   useEffect(() => {
     const tick = () => setSeconds(Math.max(0, Math.ceil((resendAt - Date.now()) / 1000)));
@@ -82,13 +82,12 @@ export default function AuthScreen() {
       <T v="body" tone="secondary" style={{ marginTop: space.sm }}>{copy[mode].text}</T>
     </View>
     {mode !== 'forgot' && <Segmented value={mode} onChange={switchMode} style={{ marginBottom: space.xl }} options={[{ value: 'register', label: 'Create account' }, { value: 'login', label: 'Sign in' }]} />}
-    {mode === 'login' && <Segmented value={method} onChange={(next) => { if (busy) return; setMethod(next); resetCode(); setTouched(false); }} style={{ marginBottom: space.lg }} options={[{ value: 'password', label: 'Password' }, { value: 'otp', label: 'Email code' }]} />}
+    {mode === 'login' && config?.emailOtp && <Segmented value={method} onChange={(next) => { if (busy) return; setMethod(next); resetCode(); setTouched(false); }} style={{ marginBottom: space.lg }} options={[{ value: 'password', label: 'Password' }, { value: 'otp', label: 'Email code' }]} />}
     {mode === 'register' && <>
       <TextField label="Name" value={name} onChangeText={setName} autoComplete="name" textContentType="name" maxLength={50} placeholder="How you’ll appear to others" error={show('name')} />
       <TextField label="Username" value={handle} onChangeText={setHandle} autoCapitalize="none" autoCorrect={false} autoComplete="username-new" textContentType="username" placeholder="e.g. radioheadfan" maxLength={25} error={show('handle')} hint={cleanHandle ? `You’ll appear as @${cleanHandle}` : undefined} />
     </>}
     <TextField label="Email" value={email} editable={!busy} onChangeText={(next) => { setEmail(next); resetCode(); setTouched(false); }} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" placeholder="you@example.com" error={show('email')} />
-    {otp && config?.emailOtp === false && <T v="footnote" tone="secondary" style={{ marginBottom: space.lg }}>Email codes aren’t available yet. Use Password to sign in while email delivery is being set up.</T>}
     {codeFlow && !!challenge && <>
       <TextField label={mode === 'register' ? 'Verification code' : 'Sign-in code'} value={code} editable={!busy} onChangeText={(next) => setCode(next.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" autoComplete="one-time-code" textContentType="oneTimeCode" autoCorrect={false} maxLength={6} placeholder="Six-digit code" error={show('code')} onSubmitEditing={() => void run(submit)} returnKeyType="go" />
       <Button label={seconds ? `Resend code in ${seconds}s` : 'Resend code'} variant="plain" size="md" disabled={busy || seconds > 0} onPress={() => void run(sendCode)} />
@@ -96,7 +95,7 @@ export default function AuthScreen() {
     {mode !== 'forgot' && !otp && <TextField label="Password" value={password} onChangeText={setPassword} editable={!busy} secureTextEntry autoComplete={mode === 'register' ? 'new-password' : 'current-password'} textContentType={mode === 'register' ? 'newPassword' : 'password'}
       placeholder={mode === 'register' ? 'At least 10 characters' : 'Your password'} maxLength={128} error={show('password')} onSubmitEditing={() => void run(submit)} returnKeyType="go" />}
     {!!message && <View style={{ backgroundColor: c.accentSoft, borderRadius: 12, padding: space.md, marginBottom: space.lg }}><T v="subhead">{message}</T></View>}
-    {mode === 'login' && <Button label="Forgot password?" variant="plain" size="md" onPress={() => switchMode('forgot')} />}
+    {mode === 'login' && config?.passwordRecovery && <Button label="Forgot password?" variant="plain" size="md" onPress={() => switchMode('forgot')} />}
     {mode === 'forgot' && <Button label="Back to sign in" variant="plain" size="md" onPress={() => switchMode('login')} />}
     <Text style={[type.footnote, { color: c.secondary, textAlign: 'center', marginTop: space.lg }]}>
       {mode === 'register' ? 'By creating an account you agree to the ' : 'Read our '}

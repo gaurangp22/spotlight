@@ -14,7 +14,7 @@ check('error', /^[0-9a-fA-F]{64}$/.test(key), 'TOKEN_ENCRYPTION_KEY is 64 hex ch
 check('error', https(env.PUBLIC_API_URL), 'PUBLIC_API_URL uses HTTPS', 'Set PUBLIC_API_URL to the HTTPS address of this API. Invite links and emails use it.');
 check('error', https(env.WEB_APP_URL), 'WEB_APP_URL uses HTTPS', 'Set WEB_APP_URL to the HTTPS address of the web app. Invite links and password resets open it.');
 check('error', origins.length > 0 && origins.every(https) && origins.includes((env.WEB_APP_URL || '').replace(/\/$/, '')), 'ALLOWED_ORIGINS lists only HTTPS origins, including the web app', 'Set ALLOWED_ORIGINS to the web app origin (comma-separated, HTTPS only).');
-check('error', !!(env.RESEND_API_KEY && env.EMAIL_FROM), 'Email delivery (Resend) is configured', 'Set RESEND_API_KEY and a verified EMAIL_FROM. Production signup is refused without them.');
+check('info', !!(env.RESEND_API_KEY && env.EMAIL_FROM), 'Optional email delivery (Resend) is configured', 'Off. Password signup and sign-in work without email delivery. Set RESEND_API_KEY and a verified EMAIL_FROM to enable signup verification, email sign-in, and password recovery.');
 check('warn', (env.ADMIN_TOKEN || '').length >= 32, 'ADMIN_TOKEN is set (32+ characters)', 'Set ADMIN_TOKEN to read stats, feedback, and reports with admin.mjs.');
 check('warn', !!env.TRUSTED_PROXY_IPS, 'TRUSTED_PROXY_IPS is set', 'Behind a hosting proxy, set TRUSTED_PROXY_IPS (use * on Render, Railway, or Fly) so rate limits apply per person.');
 check('warn', !!env.TURSO_DATABASE_URL || !!env.DATABASE_PATH, 'Database location is explicit', 'Use Turso, or set DATABASE_PATH to a persistent volume so data survives redeploys.');

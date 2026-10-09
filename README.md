@@ -205,7 +205,7 @@ Run one API process with bots enabled; with several workers, enable bots on only
 | `TMDB_API_KEY` | Enables movie search. A v3 API key or a v4 read-access token from [TMDB](https://www.themoviedb.org/settings/api). |
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | Server-wide Spotify search and Spotify link import for every user, no login required. |
 | `SPOTIFY_REDIRECT_URI` | Only for “Connect Spotify” (top tracks, private playlists). Register the exact redirect URI (`…/api/spotify/callback`) in the Spotify dashboard. |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Enable email OTP sign-in and password recovery email. |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Optional. Enable signup verification, email OTP sign-in, and password recovery email. Password signup and sign-in work without them. |
 | `ADMIN_TOKEN` | Enables the admin CLI: stats, beta feedback, and moderation (32+ characters). |
 | `ANDROID_DOWNLOAD_URL` | Optional. Adds a “Download for Android” button to invite pages (Play Store or APK link). |
 | `TRUSTED_PROXY_IPS` | Reverse proxy addresses whose `X-Forwarded-For` is trusted for rate limiting. |
@@ -340,9 +340,9 @@ Optional test sign-in: `listener@demo.margin.invalid` / `MarginDemo2026!`. Bot r
 
 ## Email OTP sign-in
 
-Account creation collects a name, username, email, and password. With Resend configured, the app requests a purpose-bound email code and creates the account only after verification. Production registration refuses to proceed without delivery configuration. Local development still permits unverified accounts while setup is deferred; existing accounts can verify under Settings → Messages, alerts & email. **Sign in → Email code** remains an alternative to password sign-in and verifies email ownership; it is not a second-factor MFA flow.
+Account creation collects a name, username, email, and password. Without email delivery configured, password signup and sign-in work in production and development; email addresses remain unverified. With Resend configured, the app requests a purpose-bound email code and creates the account only after verification. Existing accounts can verify under Settings → Messages, alerts & email. **Sign in → Email code** becomes an alternative to password sign-in when delivery is configured and verifies email ownership; it is not a second-factor MFA flow.
 
-Copy `server/.env.example` to `server/.env`, set `RESEND_API_KEY` and a verified `EMAIL_FROM`, and restart the API. These credentials stay on the server. Resend setup is documented in its [send-email API guide](https://resend.com/docs/api-reference/emails/send-email). Without them, the app explains that codes are unavailable and offers password sign-in. The same provider settings enable password reset emails.
+To enable email features later, copy `server/.env.example` to `server/.env`, set `RESEND_API_KEY` and a verified `EMAIL_FROM`, and restart the API. These credentials stay on the server. Resend setup is documented in its [send-email API guide](https://resend.com/docs/api-reference/emails/send-email). Without them, the sign-in screen offers password login and hides email-code and password-recovery controls. The same provider settings enable password reset emails.
 
 Codes expire after ten minutes, are single-use, allow five wrong attempts, and are tied to the requesting sign-in screen. A new request requires a minute between sends, with five sends per email per hour and an additional IP limit. Codes use keyed digests in the database and never appear in API responses or server logs. Provider delivery failure invalidates that code. Unregistered addresses receive the same response and email but cannot sign in until they create an account.
 

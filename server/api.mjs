@@ -346,7 +346,6 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
         if (await db.get('SELECT 1 FROM users WHERE email=? OR handle=?', email, handle)) fail(409, 'That email or username is already registered.');
         let verified = 0;
         if (emailOtp.configured()) { const proof = await emailOtp.verify(body.challenge, body.code, 'signup'); if (proof.email !== email) fail(400, 'Request a code for this email address.'); verified = 1; }
-        else if (production) fail(503, 'Email verification is not configured. Please try again later.');
         try { await db.run('INSERT INTO users (id,email,handle,name,password,created_at,email_verified) VALUES (?,?,?,?,?,?,?)', id, email, handle, name, encoded, now(), verified); }
         catch (error) { if (/UNIQUE|unique/i.test(error.message)) fail(409, 'That email or username is already registered.'); throw error; }
         await beta.joined(id, body.invite);
