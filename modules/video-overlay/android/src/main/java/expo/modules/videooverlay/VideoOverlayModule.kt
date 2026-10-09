@@ -19,6 +19,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.BitmapOverlay
 import androidx.media3.effect.OverlayEffect
+import androidx.media3.effect.TextureOverlay
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
@@ -73,7 +74,7 @@ class VideoOverlayModule : Module() {
 
       val output = File(context.cacheDir, "margin-review-${System.currentTimeMillis()}.mp4")
       val edited = EditedMediaItem.Builder(MediaItem.fromUri(video))
-        .setEffects(Effects(listOf(), listOf(OverlayEffect(ImmutableList.of(BitmapOverlay.createStaticBitmapOverlay(overlay))))))
+        .setEffects(Effects(listOf(), listOf(OverlayEffect(ImmutableList.of<TextureOverlay>(BitmapOverlay.createStaticBitmapOverlay(overlay))))))
         .build()
 
       // Transformer must be built and driven from a thread with a Looper.
