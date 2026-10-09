@@ -4,6 +4,10 @@ import { decrypt, encrypt, digest, randomToken, fail } from './security.mjs';
 export function spotifyService(db, key, fetcher = fetch) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const redirectUri = process.env.SPOTIFY_REDIRECT_URI;
+  // With a client secret, the server searches Spotify's catalog for everyone using its own app
+  // token (client credentials), so people don't need to connect an account just to search.
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  let app = null;
   const tokenUrl = 'https://accounts.spotify.com/api/token';
   const locks = new Map();
   async function exchange(params) {
@@ -28,8 +32,21 @@ export function spotifyService(db, key, fetcher = fetch) {
     })().finally(() => locks.delete(userId)));
     return locks.get(userId);
   }
+  async function appToken() {
+    if (app && app.expiresAt > Date.now() + 60000) return app.token;
+    app = (async () => {
+      const response = await fetcher(tokenUrl, {
+        method: 'POST', body: new URLSearchParams({ grant_type: 'client_credentials' }), signal: AbortSignal.timeout(15000),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.access_token) fail(502, 'Spotify search is unavailable right now. Try again.');
+      return { token: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 };
+    })();
+    try { app = await app; return app.token; } catch (error) { app = null; throw error; }
+  }
   async function call(userId, path) {
-    const token = await accessToken(userId);
+    const token = userId ? await accessToken(userId) : await appToken();
     const response = await fetcher(`https://api.spotify.com/v1${path}`, {
       headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000),
     });
@@ -39,6 +56,11 @@ export function spotifyService(db, key, fetcher = fetch) {
     return response.json();
   }
   function item(track, kind = 'song') {
+    if (kind === 'artist') return {
+      id: `spotify-artist-${track.id}`, spotifyId: track.id, kind, title: track.name,
+      artist: track.genres?.[0] ? track.genres[0].replace(/(^|\s)\S/g, (l) => l.toUpperCase()) : 'Artist',
+      artwork: track.images?.[0]?.url, externalUrl: track.external_urls?.spotify,
+    };
     return {
       id: `spotify-${kind}-${track.id}`, spotifyId: track.id, kind, title: track.name,
       artist: (track.artists || []).map((a) => a.name).join(', '), album: track.album?.name,
@@ -48,6 +70,7 @@ export function spotifyService(db, key, fetcher = fetch) {
   }
   return {
     configured: !!(clientId && redirectUri),
+    catalog: !!(clientId && clientSecret),
     async start(userId, returnUri) {
       if (!clientId || !redirectUri) fail(503, 'Spotify has not been configured on this server yet.');
       const allowed = ['marginmusic://spotify-callback', `${(process.env.WEB_APP_URL || 'http://localhost:8081').replace(/\/$/, '')}/spotify-callback`];
@@ -57,7 +80,7 @@ export function spotifyService(db, key, fetcher = fetch) {
       await db.run('INSERT INTO oauth_states VALUES (?, ?, ?, ?, ?)', digest(state), userId, verifier, returnUri, Date.now() + 600000);
       const url = new URL('https://accounts.spotify.com/authorize');
       url.search = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri,
-        response_type: 'code', state, scope: 'playlist-read-private playlist-read-collaborative',
+        response_type: 'code', state, scope: 'playlist-read-private playlist-read-collaborative user-top-read',
         code_challenge_method: 'S256', code_challenge: createHash('sha256').update(verifier).digest('base64url'),
       }).toString();
       return { url: url.toString() };
@@ -75,10 +98,63 @@ export function spotifyService(db, key, fetcher = fetch) {
       } catch { status = 'failed'; }
       return `${row.return_uri}?status=${status}`;
     },
+    /** Searches as the connected user, or with the app token when userId is null. */
     async search(userId, query, kind) {
-      const type = kind === 'album' ? 'album' : 'track';
+      const type = { album: 'album', artist: 'artist' }[kind] || 'track';
       const data = await call(userId, `/search?${new URLSearchParams({ q: query, type, limit: '10' })}`);
-      return (data[`${type}s`]?.items || []).filter((t) => t?.id).map((t) => item(t, kind));
+      return (data[`${type}s`]?.items || []).filter((t) => t?.id).map((t) => item(t, type === 'track' ? 'song' : kind));
+    },
+    async top(userId, type, range) {
+      try {
+        const data = await call(userId, `/me/top/${type}?${new URLSearchParams({ limit: '50', time_range: range })}`);
+        return { items: (data.items || []).filter((t) => t?.id).map((t) => item(t, type === 'artists' ? 'artist' : 'song')) };
+      } catch (error) {
+        // Accounts connected before top-music import was added haven't granted that permission.
+        if (error.status === 403) fail(403, 'Reconnect Spotify in Settings to import your top music.');
+        throw error;
+      }
+    },
+    /**
+     * Imports a pasted Spotify link with the app token, so it works for everyone without
+     * connecting an account (and outside development mode's 25-user limit).
+     */
+    async fromLink(input) {
+      if (!clientId || !clientSecret) fail(503, 'Spotify links have not been set up on this server yet.');
+      let link = String(input || '').trim();
+      // Short share links (spotify.link/…) redirect to the full open.spotify.com address.
+      if (/^https:\/\/spotify\.link\/[A-Za-z0-9]+$/.test(link)) {
+        const response = await fetcher(link, { redirect: 'follow', signal: AbortSignal.timeout(10000) }).catch(() => null);
+        link = response?.url || '';
+      }
+      const match = link.match(/^https:\/\/open\.spotify\.com\/(?:intl-[a-z-]+\/)?(track|album|playlist|artist)\/([A-Za-z0-9]{22})/) || link.match(/^spotify:(track|album|playlist|artist):([A-Za-z0-9]{22})$/);
+      if (!match) fail(400, 'Paste a Spotify link to a song, album, playlist, or artist.');
+      const [, type, id] = match;
+      try {
+        if (type === 'track') { const t = await call(null, `/tracks/${id}`); return { title: t.name, items: [item(t)] }; }
+        if (type === 'artist') {
+          const a = await call(null, `/artists/${id}`);
+          const top = await call(null, `/artists/${id}/top-tracks?market=US`).catch(() => ({ tracks: [] }));
+          return { title: a.name, items: [item(a, 'artist'), ...(top.tracks || []).filter((t) => t?.id).map((t) => item(t))] };
+        }
+        if (type === 'album') {
+          const a = await call(null, `/albums/${id}`);
+          const album = { ...item(a, 'album'), artwork: a.images?.[0]?.url };
+          const tracks = (a.tracks?.items || []).filter((t) => t?.id).map((t) => item({ ...t, album: { name: a.name, images: a.images } }));
+          return { title: a.name, items: [album, ...tracks].slice(0, 100) };
+        }
+        const p = await call(null, `/playlists/${id}?fields=name`);
+        const items = [];
+        for (let offset = 0; items.length < 100 && offset < 300; offset += 50) {
+          const page = await call(null, `/playlists/${id}/items?limit=50&offset=${offset}`);
+          items.push(...(page.items || []).map((i) => i.item ?? i.track).filter((t) => t?.id && t.type === 'track' && !t.is_local).map((t) => item(t)));
+          if (!page.next) break;
+        }
+        return { title: p.name, items: items.slice(0, 100) };
+      } catch (error) {
+        // Spotify hides its own editorial and algorithmic playlists (and private ones) from third-party apps.
+        if (error.status === 403 || error.status === 502) fail(404, 'Spotify didn’t share that link. Private playlists and Spotify’s own mixes can’t be imported — try a public playlist someone made.');
+        throw error;
+      }
     },
     async playlists(userId, offset) {
       const data = await call(userId, `/me/playlists?limit=50&offset=${offset}`);

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Listen later",
+    "height": 48,
+    "width": 172
+  },
+  {
+    "name": "Saved posts",
+    "height": 48,
+    "width": 172
+  },
+  {
+    "name": "Follow",
+    "height": 48,
+    "width": 70
+  },
+  {
+    "name": "Followers tab",
+    "height": 48,
+    "width": 172
+  },
+  {
+    "name": "Reply",
+    "height": 48,
+    "width": 150.65625
+  },
+  {
+    "name": "Cancel reply",
+    "height": 48,
+    "width": 350
+  },
+  {
+    "name": "Onboarding Follow",
+    "height": 48,
+    "width": 70
+  },
+  {
+    "name": "New club",
+    "height": 48,
+    "width": 84.65625
+  }
+]

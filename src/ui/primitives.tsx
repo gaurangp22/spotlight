@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Modal, Platform, Pressable, PressableProps, StyleProp, StyleSheet, Text, TextInput, TextInputProps,
+  ActivityIndicator, Modal, Platform, Pressable, PressableProps, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextInputProps,
   TextProps, TextStyle, View, ViewStyle,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
@@ -47,24 +47,24 @@ export function Button({ label, onPress, variant = 'primary', size = 'lg', icon,
 }) {
   const s = useButtonStyles();
   const { c } = useTheme();
-  const fg = { primary: c.onAccent, secondary: c.text, tinted: c.accent, plain: c.accent, destructive: c.danger, danger: '#FFFFFF', inverse: c.onInverse }[variant];
+  const fg = { primary: c.onAccent, secondary: c.text, tinted: c.accent, plain: c.accent, destructive: c.danger, danger: c.onAccent, inverse: c.onInverse }[variant];
   const iconSize = size === 'sm' ? 15 : 18;
   return <Tap onPress={onPress} disabled={disabled || loading} feedback={variant === 'primary' ? 'press' : 'tap'} accessibilityLabel={label} accessibilityState={{ disabled: disabled || loading, busy: loading }}
     style={[s.base, s[size], s[variant], inline && { alignSelf: 'flex-start' }, style]}>
     {loading ? <ActivityIndicator color={fg} /> : <>
       {icon && <Ionicons name={icon} size={iconSize} color={fg} />}
-      <T v={size === 'sm' ? 'caption' : 'headline'} weight="semibold" style={{ color: fg }} numberOfLines={1}>{label}</T>
+      <T v="label" style={[{ color: fg }, size === 'sm' && { fontSize: 15, letterSpacing: -0.2 }, size === 'md' && { fontSize: 16 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</T>
       {iconRight && <Ionicons name={iconRight} size={iconSize} color={fg} />}
     </>}
   </Tap>;
 }
 const useButtonStyles = makeStyles((c) => ({
   base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...curve },
-  lg: { minHeight: 52, paddingHorizontal: 20, borderRadius: radius.md },
-  md: { minHeight: 44, paddingHorizontal: 16, borderRadius: radius.sm + 2 },
-  sm: { minHeight: 32, paddingHorizontal: 13, borderRadius: radius.pill, gap: 5 },
+  lg: { minHeight: 52, paddingHorizontal: 22, borderRadius: radius.md },
+  md: { minHeight: 46, paddingHorizontal: 18, borderRadius: radius.sm + 2 },
+  sm: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.pill, gap: 5 },
   primary: { backgroundColor: c.accentFill }, secondary: { backgroundColor: c.fill }, tinted: { backgroundColor: c.accentSoft },
-  plain: { backgroundColor: 'transparent' }, destructive: { backgroundColor: c.fill }, danger: { backgroundColor: '#C4281C' }, inverse: { backgroundColor: c.inverse },
+  plain: { backgroundColor: 'transparent' }, destructive: { backgroundColor: c.fill }, danger: { backgroundColor: c.danger }, inverse: { backgroundColor: c.inverse },
 }));
 
 export function IconButton({ icon, onPress, label, tone = 'primary', filled = true, size = 40, badge = false, disabled }: {
@@ -76,20 +76,21 @@ export function IconButton({ icon, onPress, label, tone = 'primary', filled = tr
   return <Tap onPress={onPress} disabled={disabled} accessibilityLabel={label} hitSlop={slop} scaleTo={0.9}
     style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: filled ? c.fill : 'transparent' }}>
     <Ionicons name={icon} size={Math.round(size * 0.5)} color={toneColor(c, tone)} />
-    {badge && <View style={{ position: 'absolute', top: size * 0.18, right: size * 0.2, width: 9, height: 9, borderRadius: 5, backgroundColor: c.accent, borderWidth: 1.5, borderColor: filled ? c.fill : c.bg }} />}
+    {badge && <View style={{ position: 'absolute', top: size * 0.16, right: size * 0.18, width: 10, height: 10, borderRadius: 5, backgroundColor: c.heart, borderWidth: 2, borderColor: filled ? c.fill : c.bg }} />}
   </Tap>;
 }
 
 export function Card({ children, style, onPress, padded = true }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; padded?: boolean }) {
-  const { c, dark } = useTheme();
-  const base: ViewStyle = { backgroundColor: c.surface, borderRadius: radius.lg, ...curve, ...(padded ? { padding: space.lg } : {}), ...(dark ? { borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline } : shadow(c, 1)) };
+  const { c } = useTheme();
+  const base: ViewStyle = { backgroundColor: c.surface, borderRadius: radius.lg, ...curve, ...shadow(c, 1), ...(padded ? { padding: space.lg } : {}) };
   return onPress ? <Tap onPress={onPress} scaleTo={0.985} style={[base, style]}>{children}</Tap> : <View style={[base, style]}>{children}</View>;
 }
 
-export function Avatar({ name, seed, size = 40 }: { name: string; seed?: string; size?: number }) {
+export function Avatar({ name, seed, size = 40, uri }: { name: string; seed?: string; size?: number; uri?: string }) {
+  const [failedUri, setFailedUri] = useState('');
   const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || '·';
   return <View accessibilityElementsHidden importantForAccessibility="no" style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: avatarColor(seed || name), alignItems: 'center', justifyContent: 'center' }}>
-    <Text style={{ fontFamily: font.semibold, color: '#FFFFFF', fontSize: size * 0.38, letterSpacing: -0.3 }} maxFontSizeMultiplier={1}>{initials}</Text>
+    {uri && uri !== failedUri ? <Image source={{ uri }} onError={() => setFailedUri(uri)} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" /> : <Text style={{ fontFamily: font.displayBold, color: '#FFFFFF', fontSize: size * 0.4, letterSpacing: -0.5 }} maxFontSizeMultiplier={1}>{initials}</Text>}
   </View>;
 }
 
@@ -111,7 +112,7 @@ export function Artwork({ item, size, fill = false, rounded, style }: { item: Mu
 
 export function Badge({ label, tone = 'neutral', icon }: { label: string; tone?: 'neutral' | 'accent' | 'inverse'; icon?: IconName }) {
   const { c } = useTheme();
-  const bg = { neutral: c.fill, accent: c.accentSoft, inverse: 'rgba(255,255,255,0.18)' }[tone];
+  const bg = { neutral: c.fill, accent: c.accentSoft, inverse: 'rgba(255,255,255,0.16)' }[tone];
   const fg = { neutral: c.secondary, accent: c.accent, inverse: '#FFFFFF' }[tone];
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, alignSelf: 'flex-start' }}>
     {icon && <Ionicons name={icon} size={11} color={fg} />}
@@ -121,22 +122,22 @@ export function Badge({ label, tone = 'neutral', icon }: { label: string; tone?:
 
 /** iOS-style segmented control with a sliding thumb. */
 export function Segmented<V extends string>({ options, value, onChange, style }: { options: { value: V; label: string; icon?: IconName }[]; value: V; onChange: (value: V) => void; style?: StyleProp<ViewStyle> }) {
-  const { c, dark } = useTheme();
+  const { c } = useTheme();
   const [width, setWidth] = useState(0);
   const index = Math.max(0, options.findIndex((option) => option.value === value));
-  const segment = width ? (width - 4) / options.length : 0;
+  const segment = width ? (width - 6) / options.length : 0;
   const x = useSharedValue(0);
   useEffect(() => { x.set(withSpring(index * segment, { damping: 20, stiffness: 240 })); }, [index, segment, x]);
   const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-  return <View accessibilityRole="tablist" onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[{ flexDirection: 'row', backgroundColor: c.fill, borderRadius: radius.sm + 1, padding: 2, minHeight: 38, ...curve }, style]}>
-    {!!segment && <Animated.View style={[{ position: 'absolute', top: 2, bottom: 2, left: 2, width: segment, borderRadius: radius.sm - 1, backgroundColor: dark ? c.fillStrong : c.surface, ...curve }, shadow(c, 1), thumb]} />}
+  return <View accessibilityRole="tablist" onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[{ flexDirection: 'row', backgroundColor: c.fill, borderRadius: 10, padding: 2, minHeight: 40, overflow: 'hidden', ...curve }, style]}>
+    {!!segment && <Animated.View style={[{ position: 'absolute', top: 2, bottom: 2, left: 2, width: segment, borderRadius: 8, backgroundColor: c.material === 'dark' ? c.fillStrong : c.surface, ...curve }, shadow(c, 2), thumb]} />}
     {options.map((option) => {
       const active = option.value === value;
       return <Pressable key={option.value} accessibilityRole="tab" accessibilityState={{ selected: active }} accessibilityLabel={option.label}
         onPress={() => { if (!active) { haptic.select(); onChange(option.value); } }}
-        style={{ flex: 1, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', paddingVertical: 7, minHeight: 34 }}>
-        {option.icon && <Ionicons name={option.icon} size={14} color={active ? c.text : c.secondary} />}
-        <Text maxFontSizeMultiplier={1.3} style={[type.footnote, { fontFamily: active ? font.semibold : font.medium, color: active ? c.text : c.secondary }]}>{option.label}</Text>
+        style={{ flex: 1, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', paddingVertical: 7, minHeight: 48 }}>
+        {option.icon && <Ionicons name={option.icon} size={14} color={c.text} />}
+        <Text maxFontSizeMultiplier={1.3} style={[type.footnote, { fontFamily: active ? font.semibold : font.medium, color: c.text, fontSize: 14 }]}>{option.label}</Text>
       </Pressable>;
     })}
   </View>;
@@ -144,7 +145,7 @@ export function Segmented<V extends string>({ options, value, onChange, style }:
 
 export function SearchField({ value, onChangeText, placeholder, autoFocus, style }: { value: string; onChangeText: (value: string) => void; placeholder: string; autoFocus?: boolean; style?: StyleProp<ViewStyle> }) {
   const { c } = useTheme();
-  return <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.fill, borderRadius: radius.sm + 2, paddingHorizontal: 12, minHeight: 44, ...curve }, style]}>
+  return <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.fill, borderRadius: radius.sm + 1, paddingHorizontal: 12, minHeight: 42, ...curve }, style]}>
     <Ionicons name="search" size={17} color={c.secondary} />
     <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={c.secondary} selectionColor={c.accent} autoFocus={autoFocus}
       accessibilityLabel={placeholder} returnKeyType="search" autoCorrect={false} autoCapitalize="none" maxFontSizeMultiplier={1.4}
@@ -157,10 +158,10 @@ export function TextField({ label, hint, error, style, ...props }: TextInputProp
   const { c } = useTheme();
   const [focused, setFocused] = useState(false);
   return <View style={{ gap: 7, marginBottom: space.lg }}>
-    <T v="footnote" weight="medium" tone="secondary">{label}</T>
-    <TextInput accessibilityLabel={label} placeholderTextColor={c.tertiary} selectionColor={c.accent} maxFontSizeMultiplier={1.4} {...props}
+    <T v="footnote" weight="semibold" tone="secondary">{label}</T>
+    <TextInput accessibilityLabel={label} placeholderTextColor={c.secondary} selectionColor={c.accent} maxFontSizeMultiplier={1.4} {...props}
       onFocus={(event) => { setFocused(true); props.onFocus?.(event); }} onBlur={(event) => { setFocused(false); props.onBlur?.(event); }}
-      style={[type.body, { minHeight: 50, borderRadius: radius.md, backgroundColor: c.surface, color: c.text, paddingHorizontal: 14, paddingVertical: 13, borderWidth: 1.5, borderColor: error ? c.danger : focused ? c.accent : c.separator, ...curve },
+      style={[type.body, { minHeight: 52, borderRadius: radius.md, backgroundColor: c.surface, color: c.text, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1.5, borderColor: error ? c.danger : focused ? c.accent : c.border, ...curve },
         props.multiline && { minHeight: 96, textAlignVertical: 'top' }, noOutline, style]} />
     {!!(error || hint) && <T v="footnote" tone={error ? 'danger' : 'secondary'}>{error || hint}</T>}
   </View>;
@@ -168,23 +169,23 @@ export function TextField({ label, hint, error, style, ...props }: TextInputProp
 
 /** Inset grouped list, as used throughout system settings. */
 export function ListGroup({ header, footer, children, style }: { header?: string; footer?: string; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
-  const { c, dark } = useTheme();
+  const { c } = useTheme();
   const rows = React.Children.toArray(children).filter(Boolean);
   return <View style={[{ marginTop: space.xxl }, style]}>
     {header && <T v="overline" tone="secondary" style={{ marginLeft: space.lg, marginBottom: space.sm }}>{header}</T>}
-    <View style={{ backgroundColor: c.surface, borderRadius: radius.md + 2, overflow: 'hidden', ...curve, ...(dark ? {} : shadow(c, 1)) }}>
+    <View style={{ backgroundColor: c.surface, borderRadius: radius.md, overflow: 'hidden', ...curve }}>
       {rows.map((row, i) => <View key={i}>{row}{i < rows.length - 1 && <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: c.hairline, marginLeft: space.lg }} />}</View>)}
     </View>
     {footer && <T v="footnote" tone="secondary" style={{ marginHorizontal: space.lg, marginTop: space.sm }}>{footer}</T>}
   </View>;
 }
 
-export function ListRow({ title, subtitle, value, icon, iconColor, onPress, destructive, chevron = !!onPress, trailing, disabled }: {
-  title: string; subtitle?: string; value?: string; icon?: IconName; iconColor?: string; onPress?: () => void; destructive?: boolean; chevron?: boolean; trailing?: React.ReactNode; disabled?: boolean;
+export function ListRow({ title, subtitle, value, icon, iconColor, onPress, destructive, chevron = !!onPress, trailing, disabled, selection, accessibilityLabel }: {
+  title: string; subtitle?: string; value?: string; icon?: IconName; iconColor?: string; onPress?: () => void; destructive?: boolean; chevron?: boolean; trailing?: React.ReactNode; disabled?: boolean; selection?: boolean; accessibilityLabel?: string;
 }) {
   const { c } = useTheme();
   const body = <>
-    {icon && <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: iconColor ?? c.accentFill, alignItems: 'center', justifyContent: 'center', ...curve }}><Ionicons name={icon} size={17} color="#FFFFFF" /></View>}
+    {icon && <View style={{ width: 30, height: 30, borderRadius: 7, backgroundColor: iconColor ?? c.accentFill, alignItems: 'center', justifyContent: 'center', ...curve }}><Ionicons name={icon} size={17} color="#FFFFFF" /></View>}
     <View style={{ flex: 1, gap: 2 }}>
       <T v="body" tone={destructive ? 'danger' : 'primary'} weight={destructive ? 'medium' : undefined} numberOfLines={1}>{title}</T>
       {subtitle && <T v="footnote" tone="secondary" numberOfLines={2}>{subtitle}</T>}
@@ -194,13 +195,13 @@ export function ListRow({ title, subtitle, value, icon, iconColor, onPress, dest
     {chevron && <Ionicons name="chevron-forward" size={17} color={c.tertiary} />}
   </>;
   const style: ViewStyle = { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, minHeight: 52, paddingVertical: 10 };
-  return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={title} disabled={disabled} onPress={() => { haptic.tap(); onPress(); }} style={({ pressed }) => [style, pressed && { backgroundColor: c.fill }, disabled && { opacity: 0.4 }]}>{body}</Pressable> : <View style={style}>{body}</View>;
+  return onPress ? <Pressable accessibilityRole={selection === undefined ? 'button' : 'checkbox'} aria-checked={selection} accessibilityState={{ disabled: !!disabled, ...(selection === undefined ? {} : { checked: selection }) }} accessibilityLabel={accessibilityLabel || (selection === undefined ? title : `${title}, ${selection ? 'selected' : 'not selected'}`)} disabled={disabled} onPress={() => { haptic.tap(); onPress(); }} style={({ pressed }) => [style, pressed && { backgroundColor: c.fill }, disabled && { opacity: 0.4 }]}>{body}</Pressable> : <View style={style}>{body}</View>;
 }
 
 export function EmptyState({ icon, title, text, action }: { icon: IconName; title: string; text: string; action?: React.ReactNode }) {
   const { c } = useTheme();
   return <View style={{ alignItems: 'center', paddingVertical: space.xxxl, paddingHorizontal: space.xl, gap: space.sm }}>
-    <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: space.sm }}><Ionicons name={icon} size={28} color={c.accent} /></View>
+    <Ionicons name={icon} size={46} color={c.tertiary} style={{ marginBottom: space.xs }} />
     <T v="title3" center>{title}</T>
     <T v="subhead" tone="secondary" center style={{ maxWidth: 320 }}>{text}</T>
     {action && <View style={{ marginTop: space.md, alignSelf: 'stretch', alignItems: 'center' }}>{action}</View>}
@@ -209,7 +210,7 @@ export function EmptyState({ icon, title, text, action }: { icon: IconName; titl
 
 export function SectionHeader({ title, detail, action, style }: { title: string; detail?: string; action?: { label: string; onPress: () => void }; style?: StyleProp<ViewStyle> }) {
   return <View style={[{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: space.xxl, marginBottom: space.md }, style]}>
-    <T v="title2" accessibilityRole="header">{title}</T>
+    <T v="title2" weight="heavy" accessibilityRole="header">{title}</T>
     {action ? <Pressable accessibilityRole="button" hitSlop={10} onPress={action.onPress}><T v="callout" tone="accent">{action.label}</T></Pressable>
       : detail ? <T v="footnote" tone="secondary" tabular>{detail}</T> : null}
   </View>;
@@ -252,4 +253,29 @@ export function Dialog({ visible, title, description, confirmLabel = 'Confirm', 
       </View>
     </View>
   </Modal>;
+}
+
+/** Horizontally scrolling filter pills, for choices with too many options for a segmented control. */
+export function Chips<V extends string>({ options, value, onChange, style }: { options: { value: V; label: string; icon?: IconName }[]; value: V; onChange: (value: V) => void; style?: StyleProp<ViewStyle> }) {
+  const { c } = useTheme();
+  return <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityRole="tablist" style={[{ flexGrow: 0 }, style]} contentContainerStyle={{ gap: space.sm, paddingHorizontal: 2 }}>
+    {options.map((option) => {
+      const active = option.value === value;
+      return <Pressable key={option.value} accessibilityRole="tab" accessibilityState={{ selected: active }} accessibilityLabel={option.label}
+        onPress={() => { if (!active) { haptic.select(); onChange(option.value); } }}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: active ? c.inverse : c.fill }}>
+        {option.icon && <Ionicons name={option.icon} size={14} color={active ? c.onInverse : c.text} />}
+        <Text maxFontSizeMultiplier={1.3} style={[type.subhead, { fontFamily: font.semibold, color: active ? c.onInverse : c.text }]}>{option.label}</Text>
+      </Pressable>;
+    })}
+  </ScrollView>;
+}
+
+/** Marks a Riffs house bot next to its name, everywhere it appears. */
+export function BotBadge() {
+  const { c } = useTheme();
+  return <View accessible accessibilityLabel="Bot account" style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.fill, borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, marginLeft: 6, alignSelf: 'center' }}>
+    <Ionicons name="hardware-chip-outline" size={10} color={c.secondary} />
+    <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.semibold, fontSize: 10.5, color: c.secondary, letterSpacing: 0.2 }}>BOT</Text>
+  </View>;
 }

@@ -1,0 +1,15 @@
+{
+  "checks": [
+    "Opens latest message inside the visible phone viewport",
+    "Follows incoming messages while near the bottom",
+    "Reveals the sent message above the composer",
+    "Prepending an earlier page preserves the reading position",
+    "Incoming messages preserve older reading and expose Jump to latest",
+    "Jump to latest reveals the incoming message",
+    "Recipient choices expose checkbox roles, checked states and selected labels",
+    "Inbox accessible name includes the unread count"
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "evidence": "Isolated memory API; phone and desktop web only"
+}

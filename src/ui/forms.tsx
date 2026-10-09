@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { useApp } from '../store/AppContext';
 import { errorMessage } from '../lib/api';
 import { Ranking } from '../lib/types';
-import { visibilityIcon } from './components';
+import { visibilityIcon } from './visibility';
 import { haptic } from './haptics';
 import { Segmented, T } from './primitives';
 import { space } from './theme';

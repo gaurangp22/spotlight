@@ -6,7 +6,9 @@ import { useApp } from '../store/AppContext';
 import { Screen } from '../ui/components';
 import { useTask, Visibility } from '../ui/forms';
 import { haptic } from '../ui/haptics';
-import { MusicPicker } from '../ui/MusicPicker';
+import { activeKinds } from '../lib/categories';
+import { MusicPicker, useAvailableKinds } from '../ui/MusicPicker';
+import { SpotifyLinkImport } from '../ui/SpotifyLinkImport';
 import { Artwork, Button, Card, EmptyState, IconButton, Ionicons, ListGroup, ListRow, SectionHeader, T } from '../ui/primitives';
 import { makeStyles, noOutline, space, type, useTheme } from '../ui/theme';
 
@@ -14,7 +16,8 @@ export default function BuilderScreen() {
   const s = useStyles();
   const { c } = useTheme();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
-  const { draft, setDraft, addMusic, removeMusic, moveMusic, publish, allRankings, user, spotifyConnected } = useApp();
+  const { draft, setDraft, addMusic, removeMusic, moveMusic, publish, allRankings, user, spotifyConnected, config } = useApp();
+  const kinds = useAvailableKinds(activeKinds);
   const { busy, run } = useTask();
   const [picking, setPicking] = useState(false);
   const origin = allRankings.find((ranking) => ranking.id === draft.originId);
@@ -51,7 +54,7 @@ export default function BuilderScreen() {
       placeholder="Add some context (optional)" placeholderTextColor={c.tertiary} selectionColor={c.accent} maxLength={140} maxFontSizeMultiplier={1.4}
       style={[type.body, s.subtitleInput, { color: c.secondary }, noOutline]} />
 
-    <SectionHeader title={battle ? 'Contenders' : 'Your order'} action={draft.items.length ? { label: 'Add music', onPress: () => setPicking(true) } : undefined} />
+    <SectionHeader title={battle ? 'Contenders' : 'Your order'} action={draft.items.length ? { label: 'Add', onPress: () => setPicking(true) } : undefined} />
     {draft.items.length ? <Card padded={false} style={{ overflow: 'hidden' }}>
       {draft.items.map((item, index) => <Animated.View key={item.id} layout={LinearTransition.springify().damping(18)} entering={FadeIn} exiting={FadeOut.duration(150)}
         style={[s.row, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.hairline }]}>
@@ -64,19 +67,22 @@ export default function BuilderScreen() {
           <IconButton icon="close" label={`Remove ${item.title}`} filled={false} size={30} tone="tertiary" onPress={() => removeMusic(item.id)} />
         </View>
       </Animated.View>)}
-    </Card> : <Card><EmptyState icon="musical-notes" title="Every list starts somewhere" text="Add a few songs or albums, then put them in your order."
-      action={<Button label="Add music" icon="add" inline onPress={() => setPicking(true)} />} /></Card>}
+    </Card> : <Card><EmptyState icon="musical-notes" title="Every list starts somewhere" text="Add a few songs, albums, or artists, then put them in your order."
+      action={<Button label="Add picks" icon="add" inline onPress={() => setPicking(true)} />} /></Card>}
     {draft.items.length > 0 && <T v="footnote" tone="secondary" style={{ marginTop: space.sm, marginLeft: 4 }}>{draft.items.length} of 100 picks</T>}
 
+    {config?.spotifyCatalog && <SpotifyLinkImport label="Add to ranking" style={{ marginTop: space.xl }} onImport={(result) => {
+      setDraft((current) => ({ ...current, title: current.title || result.title, items: [...current.items, ...result.items.filter((i) => !current.items.some((x) => x.id === i.id))].slice(0, 100) }));
+    }} />}
     <ListGroup>
-      <ListRow icon="musical-notes" iconColor="#1F9D55" title={spotifyConnected ? 'Import a Spotify playlist' : 'Connect Spotify'} subtitle={spotifyConnected ? 'Replaces the picks in this draft' : 'Import playlists and search your library'} onPress={() => router.push(spotifyConnected ? '/spotify' : '/settings')} />
-      {draft.items.length >= 2 && !battle && <ListRow icon="flash" iconColor="#2F5F7A" title="Sort with Battle Mode" subtitle="Pick favourites head-to-head" onPress={() => router.push('/battle')} />}
+      <ListRow icon="musical-notes" iconColor="#1DB954" title={spotifyConnected ? 'Import a Spotify playlist' : 'Connect Spotify'} subtitle={spotifyConnected ? 'Replaces the picks in this draft' : 'Import playlists and search your library'} onPress={() => router.push(spotifyConnected ? '/spotify' : '/settings')} />
+      {draft.items.length >= 2 && !battle && <ListRow icon="flash" iconColor="#007AFF" title="Sort with Battle Mode" subtitle="Pick favourites head-to-head" onPress={() => router.push('/battle')} />}
     </ListGroup>
 
     <SectionHeader title="Who can see it" />
     <Visibility value={draft.visibility} onChange={(visibility) => setDraft((current) => ({ ...current, visibility }))} />
 
-    <MusicPicker visible={picking} onClose={() => setPicking(false)} selected={draft.items} limit={100} spotifyConnected={spotifyConnected}
+    <MusicPicker visible={picking} onClose={() => setPicking(false)} selected={draft.items} limit={100} kinds={kinds} title="Add picks" spotifyConnected={spotifyConnected}
       onToggle={(item) => draft.items.some((chosen) => chosen.id === item.id) ? removeMusic(item.id) : addMusic(item)} />
   </Screen>;
 }

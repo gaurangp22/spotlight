@@ -2,7 +2,19 @@
   "name": "margin-api",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
-  "scripts": { "start": "node --env-file-if-exists=.env index.mjs", "test": "node --test test/*.test.mjs" },
-  "dependencies": { "@libsql/client": "^0.17.0" }
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env index.mjs",
+    "test": "node --test test/*.test.mjs",
+    "demo:seed": "node --env-file-if-exists=.env demo-seed.mjs",
+    "demo:clear": "node --env-file-if-exists=.env demo-seed.mjs --clear",
+    "start:demo": "node --env-file-if-exists=.env demo-server.mjs",
+    "preflight": "node --env-file-if-exists=.env preflight.mjs",
+    "admin": "node --env-file-if-exists=.env admin.mjs"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.0"
+  }
 }

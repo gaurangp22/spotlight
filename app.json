@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "MARGIN",
+    "name": "Riffs",
     "slug": "margin-music",
     "scheme": "marginmusic",
-    "version": "1.0.0",
-    "description": "Rank the music you love, remix your friends’ lists, and see exactly where your taste agrees.",
+    "version": "2.0.0",
+    "description": "Rate and review the music you love, film quick video reviews, and see exactly where your friends’ taste agrees.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#F7F5F1",
+    "backgroundColor": "#F2F2F7",
     "experiments": {
       "typedRoutes": true
     },
@@ -22,22 +22,25 @@
     "android": {
       "package": "com.marginmusic.app",
       "adaptiveIcon": {
-        "backgroundColor": "#F3F0E8",
+        "backgroundColor": "#FF2D55",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA"
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
       ],
       "predictiveBackGestureEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
-      "name": "MARGIN",
-      "themeColor": "#C63A22"
+      "name": "Riffs",
+      "themeColor": "#E8174A"
     },
     "plugins": [
       "expo-router",
@@ -51,22 +54,48 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#F7F5F1",
+          "backgroundColor": "#F2F2F7",
           "dark": {
             "image": "./assets/splash-icon-dark.png",
-            "backgroundColor": "#0E0E0F"
+            "backgroundColor": "#000000"
           }
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "MARGIN uses your photos only when you choose one for a mood board.",
-          "cameraPermission": false,
-          "microphonePermission": false
+          "photosPermission": "Riffs uses your photos only when you choose a profile photo or a mood board image.",
+          "cameraPermission": "Riffs uses the camera only while you record a video review.",
+          "microphonePermission": "Riffs uses the microphone only if you turn on sound for a video review."
         }
       ],
-      "expo-build-properties"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Riffs uses the camera only while you record a video review.",
+          "microphonePermission": "Riffs uses the microphone only if you turn on sound for a video review.",
+          "recordAudioAndroid": true,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Riffs saves your video reviews to your library when you tap Save.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": []
+        }
+      ],
+      "expo-video",
+      "expo-notifications",
+      "expo-build-properties",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": false,
+          "microphonePermission": "Riffs uses the microphone only if you turn on sound for a video review."
+        }
+      ]
     ],
     "extra": {
       "router": {},

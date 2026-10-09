@@ -11,9 +11,14 @@ import { Avatar, Button, Card, EmptyState, IconName, Ionicons, T } from '../ui/p
 import { space, useTheme } from '../ui/theme';
 
 const kinds: Record<AppNotification['kind'], { icon: IconName; color: string; text: string }> = {
-  reaction: { icon: 'heart', color: '#C63A22', text: 'agreed with your post' },
-  comment: { icon: 'chatbubble', color: '#2F5F7A', text: 'commented on your post' },
-  follow: { icon: 'person-add', color: '#2F7D4F', text: 'started following you' },
+  reaction: { icon: 'heart', color: '#FF3B30', text: 'agreed with your post' },
+  comment: { icon: 'chatbubble', color: '#007AFF', text: 'commented on your post' },
+  follow: { icon: 'person-add', color: '#0FA3B1', text: 'started following you' },
+  contribution: { icon: 'add-circle', color: '#AF52DE', text: 'added to your pod' },
+  reply: { icon: 'return-down-forward', color: '#007AFF', text: 'replied to your comment' },
+  mention: { icon: 'at', color: '#AF52DE', text: 'mentioned you in a comment' },
+  club: { icon: 'disc', color: '#0FA3B1', text: 'chose this week’s club album' },
+  joined: { icon: 'sparkles', color: '#34C759', text: 'joined Riffs from your invite' },
 };
 
 export default function Notifications() {
@@ -46,7 +51,7 @@ export default function Notifications() {
           onPress={() => n.postId ? router.push(`/ranking/${n.postId}`) : router.push(`/person/${n.handle.slice(1)}`)}
           style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg }, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.hairline }, pressed && { backgroundColor: c.fill }]}>
           <View>
-            <Avatar name={n.name} seed={n.handle} size={44} />
+              <Avatar name={n.name} seed={n.handle} uri={n.avatar} size={44} />
             <View style={{ position: 'absolute', right: -3, bottom: -3, width: 22, height: 22, borderRadius: 11, backgroundColor: kind.color, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.surface }}>
               <Ionicons name={kind.icon} size={11} color="#FFFFFF" />
             </View>

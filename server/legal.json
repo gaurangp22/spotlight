@@ -1,68 +1,127 @@
 {
-  "updated": "5 October 2026",
+  "updated": "9 October 2026",
   "privacy": {
     "title": "Privacy Policy",
-    "intro": "MARGIN is a place to rank, remix, and discuss music with friends. This policy explains what we collect, why, and the control you have. We don’t sell your data, we don’t show ads, and we don’t use third-party analytics or tracking.",
+    "intro": "Riffs is a place to rate, rank, and argue about music, movies, shows, podcasts, and books with friends. This policy explains what we collect, why, and the control you have. We don’t sell your data, we don’t show ads, and we don’t use third-party analytics or tracking.",
     "sections": [
-      { "heading": "What we collect", "body": [
-        "Account details: your email address, display name, username, optional bio, and a salted, hashed version of your password. We never store your password itself.",
-        "What you create: rankings, mood boards (including any photos and notes you add), comments, reactions, follows, blocks, and reports you submit.",
-        "Spotify, only if you connect it: an encrypted access token that lets MARGIN read your playlists and search Spotify on your behalf. We never post to Spotify.",
-        "Drafts stay on your device and are not sent to our servers until you publish."
-      ] },
-      { "heading": "How we use it", "body": [
-        "To run the service: show your posts to the people you choose, deliver activity such as comments and new followers, and keep you signed in.",
-        "To keep MARGIN safe: enforce visibility settings and blocks, review reports, and limit repeated sign-in attempts. Your network address is used briefly in memory for rate limiting and is not stored.",
-        "To send account email, such as a password reset link you request."
-      ] },
-      { "heading": "Who can see your content", "body": [
-        "Public posts can be seen by anyone, including people who aren’t signed in. Followers-only posts are visible to people who follow you. Private posts are visible only to you.",
-        "Your name, username, and bio are visible on your profile. Images you export and share outside MARGIN are no longer covered by your visibility setting."
-      ] },
-      { "heading": "Services we rely on", "body": [
-        "Music search without Spotify uses Apple’s public iTunes Search API; your search terms are sent directly from your device to Apple.",
-        "If you connect Spotify, Spotify’s own privacy policy applies to your Spotify account.",
-        "Password reset emails are delivered through our email provider. Our database and servers are operated by our hosting providers, who process data only on our instructions."
-      ] },
-      { "heading": "Retention and deletion", "body": [
-        "You can delete any post or comment at any time. You can delete your account from Settings → Delete account. This immediately and permanently removes your profile, posts, comments, reactions, follows, and Spotify connection.",
-        "Server backups, if any, are overwritten on a rolling basis. Reports you filed about other people’s posts may be kept while they are reviewed."
-      ] },
-      { "heading": "Your rights", "body": [
-        "Depending on where you live, you may have the right to access, correct, export, or delete your personal data, and to object to or restrict its processing. Most of this can be done directly in the app. For anything else, contact us using the details below."
-      ] },
-      { "heading": "Children", "body": [
-        "MARGIN is not intended for children under 13, or the minimum age required in your country. We do not knowingly collect data from them."
-      ] },
-      { "heading": "Changes and contact", "body": [
-        "If we make material changes to this policy, we’ll update the date above and let you know in the app. Questions or requests can be sent to the support contact listed in the app’s Settings or on our store listing."
-      ] }
+      {
+        "heading": "What we collect",
+        "body": [
+          "Account details: your email address, whether it is verified, display name, username, optional bio, music status, profile photo, selected favourite artists, message/notification preferences, and a salted, hashed version of your password. We never store your password itself. If you enable phone alerts, we store a push delivery token linked to your signed-in session.",
+          "What you create: ratings and reviews (the item, your gut reaction, your score, and your review text), rankings, pods and the picks you add to other people’s pods, playlist source links, mood boards (including any photos and notes you add), comments and replies, reactions, follows, blocks, listening clubs and memberships, direct/group messages and read positions, and reports you submit. Your saved music, saved posts, and manual listening diary are private to your account.",
+          "Spotify, only if you connect your account: an encrypted access token that lets Riffs read your playlists and your top songs and artists, and search Spotify on your behalf. We never post to Spotify.",
+          "Video reviews are recorded and put together entirely on your device. We never receive the video, your camera feed, or your microphone audio — they go only where you save or share them.",
+          "Usage dates: the calendar day (not the time) on which you used Riffs, one record per day. We use these only to count how many people use Riffs and how many come back. There are no analytics or advertising SDKs, and we do not record what you tap or view.",
+          "Invites: if you joined through someone’s invite link, we record who invited you. You follow them automatically and they are told you joined; you can unfollow them at any time.",
+          "Feedback you send from the app: your message, the screen you sent it from, your device type (iOS, Android, or web), and the app version. Signed-out feedback is anonymous.",
+          "Drafts stay on your device and are not sent to our servers until you publish."
+        ]
+      },
+      {
+        "heading": "Camera, microphone, and photos",
+        "body": [
+          "The camera is used only while you record a video review. The microphone is off by default and is used only if you turn on sound for a recording.",
+          "The app saves finished videos and share images to your photo library only when you tap Save. Profile photos and photos for mood boards are chosen through the system photo picker; the app can’t browse your library.",
+          "You can turn off any of these permissions in your device settings at any time. Everything else in the app keeps working without them."
+        ]
+      },
+      {
+        "heading": "How we use it",
+        "body": [
+          "To run the service: show your posts to the people you choose, deliver activity such as comments and new followers, and keep you signed in.",
+          "To calculate your personal scores and show community and friends’ averages on each item. Averages only include ratings the person viewing is allowed to see.",
+          "To order For You using your Riffs favourite artists, loved ratings, follows, and manual listening diary. The diary does not monitor playback in other apps.",
+          "To keep Riffs safe: enforce visibility settings and blocks, review reports, and limit repeated sign-in attempts. Your network address is used briefly in memory for rate limiting and is not stored.",
+          "To send account email, such as a sign-in code or password reset link you request. One-time code records contain a keyed digest, expiry, and attempt count; the plain code is not stored.",
+          "To improve Riffs: the founders read feedback you send and look at combined counts, such as how many people were active this week. These counts exclude demo accounts and are never sold or shared."
+        ]
+      },
+      {
+        "heading": "Who can see your content",
+        "body": [
+          "Public posts and ratings can be seen by anyone, including people who aren’t signed in. Followers-only posts are visible to people who follow you. Private posts and ratings are visible only to you.",
+          "Your name, username, bio, profile photo, music status, and favourite artists are visible on your profile, along with the top picks drawn from ratings that the viewer is allowed to see. When you add something to someone else’s open pod, your username is shown next to it.",
+          "Messages are stored on our server and are available to conversation members, subject to blocks. They are not end-to-end encrypted. Reported messages are available to moderators for review. Removing a message clears its text and attachments; an empty removal marker remains in the conversation.",
+          "Images and videos you export and share outside Riffs are no longer covered by your visibility setting.",
+          "Shared links to public posts open a public preview page showing the post, its music, and your name, so friends without the app can see what you shared. Private and followers-only posts never appear on these pages.",
+          "Riffs runs a few house bots, always labelled “Bot”. They post music picks and may like, vote on, or reply to your public posts, and may follow new members. They only ever interact with public posts, never open or read messages, follow the same blocking rules as everyone else, and leave you alone entirely if you turn them off in Settings → Messages, alerts & email."
+        ]
+      },
+      {
+        "heading": "Services we rely on",
+        "body": [
+          "Song, album, and podcast search uses Apple’s public iTunes Search API; your search terms are sent directly from your device to Apple.",
+          "Artist, movie, TV show, and book search is sent from our server, not your device, to Deezer (artists), TMDB (movies), TVmaze (TV shows), and Open Library (books). They receive only the search terms, never your account details. If the server is set up with Spotify, song, album, and artist searches and pasted Spotify links are sent from our server to Spotify in the same way.",
+          "If you connect your Spotify account, Spotify’s own privacy policy applies to that account.",
+          "Signup verification, sign-in codes, and password reset emails are delivered through our email provider. Opt-in phone alerts use Expo and the Apple/Google notification services; alert bodies are generic and do not include message or post text. Playlist source lookups send the submitted public link or playlist ID to its provider; pasted track matching sends track search terms to Apple. Our database and servers are operated by our hosting providers, who process data only on our instructions."
+        ]
+      },
+      {
+        "heading": "Retention and deletion",
+        "body": [
+          "You can delete any post, rating, or comment, remove your own message content, or clear your listening diary. You can delete your account from Settings → Delete account. This immediately and permanently removes your profile, ratings, reviews, posts, pods, comments, reactions, follows, saved music, saved posts, listening diary, message memberships, messages you sent, conversations you own, device push registrations/jobs, reports you filed, club memberships, clubs you own and their weekly discussions, and Spotify connection. Picks you added to other people’s pods are removed with your account. Deleting your account also deletes your usage dates; feedback you sent is kept without your name.",
+          "Server backups, if any, are overwritten on a rolling basis. Report records are removed when the associated account or content is deleted."
+        ]
+      },
+      {
+        "heading": "Your rights",
+        "body": [
+          "Depending on where you live, you may have the right to access, correct, export, or delete your personal data, and to object to or restrict its processing. Most of this can be done directly in the app. For anything else, contact us using the details below."
+        ]
+      },
+      {
+        "heading": "Children",
+        "body": [
+          "Riffs is not intended for children under 13, or the minimum age required in your country. We do not knowingly collect data from them."
+        ]
+      },
+      {
+        "heading": "Changes and contact",
+        "body": [
+          "If we make material changes to this policy, we’ll update the date above and let you know in the app. Questions or requests can be sent to the support contact listed in the app’s Settings or on our store listing."
+        ]
+      }
     ]
   },
   "terms": {
     "title": "Terms of Service",
-    "intro": "These terms apply when you use MARGIN. By creating an account or using the app, you agree to them.",
+    "intro": "These terms apply when you use Riffs. By creating an account or using the app, you agree to them.",
     "sections": [
-      { "heading": "Your account", "body": [
-        "You must be at least 13 years old, or the minimum age in your country, to use MARGIN. Keep your password safe; you’re responsible for activity on your account.",
-        "Choose a username that doesn’t impersonate someone else or reveal personal information you’d rather keep private."
-      ] },
-      { "heading": "Your content", "body": [
-        "You own what you post. You grant MARGIN a limited licence to store, display, and distribute it within the service according to the visibility you choose, and to let others remix your rankings into their own versions.",
-        "Only upload photos and text you have the right to share."
-      ] },
-      { "heading": "Community rules", "body": [
-        "Disagree about music as loudly as you like — but don’t harass, threaten, or impersonate people, post hateful or sexual content, spam, or break the law.",
-        "We may remove content or suspend accounts that break these rules. You can report posts and block people at any time."
-      ] },
-      { "heading": "Music and third-party services", "body": [
-        "MARGIN does not stream music. Song and album names and artwork belong to their respective owners and are shown for identification. Spotify is a trademark of Spotify AB; MARGIN is not affiliated with or endorsed by Spotify or Apple.",
-        "When you connect Spotify, you also agree to Spotify’s terms."
-      ] },
-      { "heading": "The service", "body": [
-        "We work hard to keep MARGIN available and your data safe, but the service is provided “as is” without warranties. To the extent the law allows, we aren’t liable for indirect or consequential losses.",
-        "You can stop using MARGIN and delete your account at any time. We may update these terms; continuing to use the app after changes means you accept them."
-      ] }
+      {
+        "heading": "Your account",
+        "body": [
+          "You must be at least 13 years old, or the minimum age in your country, to use Riffs. Keep your password safe; you’re responsible for activity on your account.",
+          "Choose a username that doesn’t impersonate someone else or reveal personal information you’d rather keep private."
+        ]
+      },
+      {
+        "heading": "Your content",
+        "body": [
+          "You own what you post. You grant Riffs a limited licence to store, display, and distribute it within the service according to the visibility you choose, to let others remix your rankings into their own versions, and to show what you add to someone else’s open pod in that pod.",
+          "Only upload photos, videos, and text you have the right to share. You’re responsible for anything you record and post outside the app, including music you add on other platforms."
+        ]
+      },
+      {
+        "heading": "Community rules",
+        "body": [
+          "Disagree about taste as loudly as you like — but don’t harass, threaten, or impersonate people, post hateful or sexual content, spam, or break the law.",
+          "We may remove content or suspend accounts that break these rules. You can report posts and block people at any time."
+        ]
+      },
+      {
+        "heading": "Media and third-party services",
+        "body": [
+          "Riffs does not stream music, movies, or shows. Titles, names, and artwork belong to their respective owners and are shown for identification. Catalog information comes from Apple, Deezer, TMDB, TVmaze, Open Library, and Spotify. This product uses the TMDB API but is not endorsed or certified by TMDB. Spotify is a trademark of Spotify AB; Riffs is not affiliated with or endorsed by Spotify, Apple, Deezer, TMDB, TVmaze, or the Internet Archive.",
+          "When you connect Spotify, you also agree to Spotify’s terms."
+        ]
+      },
+      {
+        "heading": "The service",
+        "body": [
+          "We work hard to keep Riffs available and your data safe, but the service is provided “as is” without warranties. To the extent the law allows, we aren’t liable for indirect or consequential losses.",
+          "You can stop using Riffs and delete your account at any time. We may update these terms; continuing to use the app after changes means you accept them."
+        ]
+      }
     ]
   }
 }

@@ -1,0 +1,20 @@
+{
+  "checks": [
+    "two-account messaging, inbox unread, replies and polling",
+    "music attachments",
+    "message removal",
+    "group creation with selected participants",
+    "group leave and ownership transfer",
+    "private manual diary log",
+    "Spotify source preserved, pasted CSV matched and published to pod",
+    "public Deezer link import with provider adapter",
+    "message preferences and explicit native push setup state",
+    "cursor feed pages through populated community",
+    "signup email verification with synthetic delivery adapter",
+    "post share into conversation and recipient visibility",
+    "message report submission"
+  ],
+  "pageErrors": [],
+  "evidence": "Isolated memory API, synthetic email and catalog adapters; native push and real provider delivery unverified",
+  "consoleErrors": []
+}

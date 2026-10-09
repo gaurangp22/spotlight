@@ -1,0 +1,81 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { openDatabase } from '../db.mjs';
+import { createApi } from '../api.mjs';
+import { clearDemo, DEMO_CREDENTIALS, seedDemo } from '../demo-seed.mjs';
+import { respondToDemoPosts } from '../demo-bots.mjs';
+
+test('demo community is repeatable, survives real app interactions, and clears without touching real accounts', async (t) => {
+  const db = await openDatabase({ url: '', file: ':memory:' });
+  const server = createApi({ db, key: randomBytes(32) });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(async () => { await new Promise((r) => server.close(r)); db.close(); });
+  const base = `http://127.0.0.1:${server.address().port}/api`;
+  async function request(route, { method = 'GET', token, body } = {}) {
+    const response = await fetch(base + route, { method, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    return { status: response.status, data: await response.json() };
+  }
+  const real = await request('/auth/register', { method: 'POST', body: { email: 'real@example.test', name: 'Real person', handle: 'real_person', password: 'real-account-password' } });
+  assert.equal(real.status, 201);
+  const realPost = await request('/posts', { method: 'POST', token: real.data.token, body: { kind: 'take', title: 'Preserve this real post', items: [], visibility: 'private' } });
+  const first = await seedDemo(db, { now: 1791253800000 });
+  assert.equal(first.users, 13);
+  assert.ok(first.posts >= 150 && first.posts < 200);
+  assert.ok(first.comments >= 90 && first.poll_votes >= 80);
+  assert.deepEqual(await seedDemo(db), first, 're-running never duplicates data');
+  const login = await request('/auth/login', { method: 'POST', body: { email: DEMO_CREDENTIALS.email, password: DEMO_CREDENTIALS.password } });
+  assert.equal(login.status, 200);
+  const token = login.data.token;
+  const sync = (await request('/sync', { token })).data;
+  assert.equal(sync.following.length, 5);
+  assert.equal(sync.ratings.length, 8);
+  assert.ok(sync.posts.some((p) => p.kind === 'moodboard'));
+  assert.ok(sync.posts.some((p) => p.kind === 'ranking'));
+  assert.ok(sync.posts.some((p) => p.kind === 'pod' && p.open));
+  assert.ok(sync.people.filter((p) => p.name.endsWith('· Bot')).length === 12);
+  for (const review of sync.posts.filter((p) => p.kind === 'review').slice(0, 5)) assert.equal((await request(`/posts/${review.id}`, { token })).status, 200, 'seed IDs work through the real post routes');
+  assert.ok((await request('/twins', { token })).data.twins.length >= 8);
+  const poll = sync.posts.find((p) => p.poll && p.userId !== login.data.user.id);
+  assert.equal(poll.poll.counts, null);
+  assert.ok(poll.poll.total >= 10);
+  const voted = (await request(`/posts/${poll.id}/vote`, { token, method: 'PUT', body: { choice: 0 } })).data.post;
+  assert.equal(voted.poll.mine, 0);
+  assert.equal(voted.poll.total, poll.poll.total + 1);
+  const privatePost = sync.posts.find((p) => p.visibility === 'private');
+  assert.equal((await request(`/posts/${privatePost.id}`)).status, 404);
+  const pod = sync.posts.find((p) => p.kind === 'pod' && p.open);
+  const newItem = { id: 'demo-test-contribution', title: 'My own pick', artist: 'Me', kind: 'song' };
+  const contributed = await request(`/posts/${pod.id}/items`, { token, method: 'POST', body: { item: newItem } });
+  assert.equal(contributed.status, 200);
+  assert.equal(contributed.data.post.items.at(-1).addedBy, '@demo_listener');
+  // A re-seed preserves votes and contributions, rather than replacing the demo people used.
+  await seedDemo(db);
+  assert.equal((await request(`/posts/${poll.id}`, { token })).data.post.poll.total, poll.poll.total + 1);
+  assert.ok((await request(`/posts/${pod.id}`, { token })).data.post.items.some((item) => item.id === newItem.id));
+  assert.ok((await request('/notifications', { token })).data.notifications.filter((n) => !n.seen).length >= 7);
+  const take = await request('/posts', { method: 'POST', token, body: { kind: 'take', title: 'A new demo opinion', items: [], visibility: 'public' } });
+  const newPoll = await request('/posts', { method: 'POST', token, body: { kind: 'take', poll: true, title: 'A new demo poll', items: sync.ratings.slice(0, 2).map((r) => r.item), visibility: 'public' } });
+  const privateTake = await request('/posts', { method: 'POST', token, body: { kind: 'take', title: 'Bots must not see this', items: [], visibility: 'private' } });
+  const realPublic = await request('/posts', { method: 'POST', token: real.data.token, body: { kind: 'take', title: 'Leave real accounts alone', items: [], visibility: 'public' } });
+  await request('/people/demo_mira/block', { token, method: 'PUT' });
+  await respondToDemoPosts(db);
+  const reacted = (await request(`/posts/${take.data.post.id}`, { token })).data.post;
+  assert.equal(reacted.comments.length, 2, 'only unblocked bots reply');
+  assert.equal(reacted.reactionCount, 2);
+  assert.equal((await request(`/posts/${newPoll.data.post.id}`, { token })).data.post.poll.total, 2, 'demo responders can vote');
+  assert.equal((await request(`/posts/${privateTake.data.post.id}`, { token })).data.post.comments.length, 0);
+  assert.equal((await request(`/posts/${realPublic.data.post.id}`, { token: real.data.token })).data.post.comments.length, 0, 'real accounts never receive simulated responses');
+  await respondToDemoPosts(db);
+  assert.equal((await request(`/posts/${take.data.post.id}`, { token })).data.post.comments.length, 2, 'bot ticks do not duplicate comments');
+  assert.equal((await db.get('PRAGMA foreign_key_check')), undefined);
+  await clearDemo(db);
+  assert.equal((await db.get('SELECT COUNT(*) AS n FROM users')).n, 1);
+  assert.equal((await request(`/posts/${realPost.data.post.id}`, { token: real.data.token })).status, 200);
+  assert.equal((await request('/auth/login', { method: 'POST', body: { email: DEMO_CREDENTIALS.email, password: DEMO_CREDENTIALS.password } })).status, 401);
+});
+
+test('demo tools refuse remote databases', async () => {
+  await assert.rejects(seedDemo({ mode: 'turso' }), /local SQLite/);
+  await assert.rejects(clearDemo({ mode: 'turso' }), /local SQLite/);
+});

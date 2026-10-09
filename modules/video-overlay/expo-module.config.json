@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["VideoOverlayModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.videooverlay.VideoOverlayModule"]
+  }
+}

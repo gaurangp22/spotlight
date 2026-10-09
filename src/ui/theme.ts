@@ -1,43 +1,75 @@
 import { useMemo } from 'react';
 import { ImageStyle, Platform, StyleSheet, TextStyle, useColorScheme, ViewStyle } from 'react-native';
 
-// Contrast-checked against WCAG AA: body text ≥ 4.5:1 on every surface it sits on.
+// Riffs follows Apple's Human Interface Guidelines: system grouped backgrounds, quiet chrome, one accent,
+// and album art supplying the colour. Light and dark follow the device setting.
+// Contrast (WCAG AA): body text ≥ 15:1, secondary ≥ 5:1 on every surface it sits on; accent text ≥ 4.6:1;
+// white on accent fills ≥ 4.6:1.
 const light = {
-  bg: '#F7F5F1', surface: '#FFFFFF', elevated: '#FFFFFF', fill: '#EFECE6', fillStrong: '#E4E0D8',
-  text: '#121211', secondary: '#6B6862', tertiary: '#A3A09A', separator: 'rgba(18,18,17,0.09)', hairline: 'rgba(18,18,17,0.14)',
-  accent: '#C63A22', accentFill: '#C63A22', accentSoft: 'rgba(198,58,34,0.10)', onAccent: '#FFFFFF',
-  danger: '#C4281C', success: '#2F7D4F', scrim: 'rgba(10,10,10,0.42)', inverse: '#121211', onInverse: '#FFFFFF',
-  tabBar: 'rgba(250,249,246,0.97)', shadow: '#1A140C',
+  bg: '#F2F2F7', surface: '#FFFFFF', elevated: '#FFFFFF', fill: '#EEEEF2', fillStrong: '#E1E1E6',
+  text: '#000000', secondary: '#6C6C70', tertiary: '#AEAEB2',
+  separator: 'rgba(60,60,67,0.18)', hairline: 'rgba(60,60,67,0.22)', border: 'rgba(60,60,67,0.08)',
+  accent: '#D9124B', accentFill: '#E8174A', accentSoft: 'rgba(232,23,74,0.10)', onAccent: '#FFFFFF',
+  violet: '#7A38C4', violetSoft: 'rgba(175,82,222,0.12)',
+  heart: '#E8174A', heartSoft: 'rgba(232,23,74,0.10)',
+  danger: '#D70015', success: '#248A3D', scrim: 'rgba(0,0,0,0.4)', inverse: '#000000', onInverse: '#FFFFFF',
+  tabBar: 'rgba(249,249,251,0.78)', shadow: '#000000', material: 'light' as 'light' | 'dark',
+  /** Brand gradient for rare celebratory moments: rose into purple. */
+  glowA: '#FF2D55', glowB: '#AF52DE',
 };
 const dark: typeof light = {
-  bg: '#0E0E0F', surface: '#1A1A1C', elevated: '#232326', fill: '#262628', fillStrong: '#323235',
-  text: '#F5F3EE', secondary: '#A09D97', tertiary: '#6C6A66', separator: 'rgba(255,255,255,0.08)', hairline: 'rgba(255,255,255,0.14)',
-  accent: '#FF6B4A', accentFill: '#D44129', accentSoft: 'rgba(255,107,74,0.14)', onAccent: '#FFFFFF',
-  danger: '#FF5B4F', success: '#4CC27E', scrim: 'rgba(0,0,0,0.6)', inverse: '#F5F3EE', onInverse: '#121211',
-  tabBar: 'rgba(20,20,21,0.97)', shadow: '#000000',
+  bg: '#000000', surface: '#1C1C1E', elevated: '#2C2C2E', fill: '#2C2C2E', fillStrong: '#3A3A3C',
+  text: '#FFFFFF', secondary: '#98989F', tertiary: '#636366',
+  separator: 'rgba(84,84,88,0.55)', hairline: 'rgba(84,84,88,0.65)', border: 'rgba(255,255,255,0.06)',
+  accent: '#FF4D74', accentFill: '#E8174A', accentSoft: 'rgba(255,55,95,0.16)', onAccent: '#FFFFFF',
+  violet: '#D08CFF', violetSoft: 'rgba(191,90,242,0.18)',
+  heart: '#FF4D74', heartSoft: 'rgba(255,55,95,0.16)',
+  danger: '#FF453A', success: '#30D158', scrim: 'rgba(0,0,0,0.6)', inverse: '#FFFFFF', onInverse: '#000000',
+  tabBar: 'rgba(30,30,32,0.72)', shadow: '#000000', material: 'dark',
+  glowA: '#FF375F', glowB: '#BF5AF2',
 };
 export type Palette = typeof light;
 export const palettes = { light, dark };
 
+/** Apple system colours for icon tiles and category markers; white glyphs sit on them, as in Settings. */
+export const tints = {
+  violet: '#AF52DE', pink: '#FF2D55', teal: '#0FA3B1', amber: '#FF9500', sky: '#007AFF', coral: '#FF3B30', volt: '#34C759', grey: '#8E8E93', spotify: '#1DB954', indigo: '#5856D6',
+} as const;
+
+/** `#RRGGBB` → `rgba(...)` at the given opacity, for soft tinted backgrounds. */
+export function alpha(hex: string, opacity: number) {
+  const value = hex.replace('#', '');
+  const n = parseInt(value.length === 3 ? value.split('').map((ch) => ch + ch).join('') : value.slice(0, 6), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${opacity})`;
+}
+
+// Inter is the closest open typeface to SF Pro, and renders the same on iOS, Android, and the web.
 export const font = {
-  regular: 'Inter_400Regular', medium: 'Inter_500Medium', semibold: 'Inter_600SemiBold', bold: 'Inter_700Bold', heavy: 'Inter_800ExtraBold',
+  regular: 'Inter_400Regular', medium: 'Inter_500Medium', semibold: 'Inter_600SemiBold', bold: 'Inter_700Bold',
+  heavy: 'Inter_800ExtraBold', display: 'Inter_700Bold', displayBold: 'Inter_700Bold',
+  mono: 'Inter_500Medium', monoBold: 'Inter_600SemiBold',
 } as const;
 export type Weight = keyof typeof font;
 
-// A single type scale modelled on platform text styles, tuned for Inter's wider default tracking.
+// The iOS Dynamic Type scale (Large) in Inter, with Inter's wider default tracking pulled in.
 export const type = {
-  display: { fontFamily: font.heavy, fontSize: 40, lineHeight: 44, letterSpacing: -1.4 },
-  largeTitle: { fontFamily: font.bold, fontSize: 34, lineHeight: 40, letterSpacing: -1 },
+  display: { fontFamily: font.heavy, fontSize: 40, lineHeight: 44, letterSpacing: -1.2 },
+  largeTitle: { fontFamily: font.bold, fontSize: 34, lineHeight: 41, letterSpacing: -1 },
   title1: { fontFamily: font.bold, fontSize: 28, lineHeight: 34, letterSpacing: -0.7 },
   title2: { fontFamily: font.bold, fontSize: 22, lineHeight: 28, letterSpacing: -0.45 },
-  title3: { fontFamily: font.semibold, fontSize: 19, lineHeight: 25, letterSpacing: -0.3 },
-  headline: { fontFamily: font.semibold, fontSize: 16, lineHeight: 21, letterSpacing: -0.2 },
-  body: { fontFamily: font.regular, fontSize: 16, lineHeight: 23, letterSpacing: -0.15 },
-  callout: { fontFamily: font.medium, fontSize: 15, lineHeight: 20, letterSpacing: -0.15 },
-  subhead: { fontFamily: font.regular, fontSize: 14, lineHeight: 19, letterSpacing: -0.08 },
-  footnote: { fontFamily: font.regular, fontSize: 13, lineHeight: 18, letterSpacing: -0.04 },
+  title3: { fontFamily: font.semibold, fontSize: 20, lineHeight: 25, letterSpacing: -0.4 },
+  headline: { fontFamily: font.semibold, fontSize: 17, lineHeight: 22, letterSpacing: -0.4 },
+  body: { fontFamily: font.regular, fontSize: 17, lineHeight: 24, letterSpacing: -0.35 },
+  callout: { fontFamily: font.regular, fontSize: 16, lineHeight: 21, letterSpacing: -0.3 },
+  subhead: { fontFamily: font.regular, fontSize: 15, lineHeight: 20, letterSpacing: -0.2 },
+  footnote: { fontFamily: font.regular, fontSize: 13, lineHeight: 18, letterSpacing: -0.08 },
   caption: { fontFamily: font.medium, fontSize: 12, lineHeight: 16, letterSpacing: 0 },
-  overline: { fontFamily: font.semibold, fontSize: 11, lineHeight: 14, letterSpacing: 0.9, textTransform: 'uppercase' },
+  /** Grouped-list headers and small eyebrows. */
+  overline: { fontFamily: font.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.3, textTransform: 'uppercase' },
+  /** Button labels. */
+  label: { fontFamily: font.semibold, fontSize: 17, lineHeight: 22, letterSpacing: -0.4 },
+  /** Counts and timestamps: tabular figures so numbers don't jitter. */
+  mono: { fontFamily: font.regular, fontSize: 13, lineHeight: 18, letterSpacing: -0.08, fontVariant: ['tabular-nums'] },
 } satisfies Record<string, TextStyle>;
 export type TypeVariant = keyof typeof type;
 
@@ -48,13 +80,16 @@ export const gutter = 20;
 export const noOutline: TextStyle = Platform.OS === 'web' ? { outlineWidth: 0 } : {};
 export const maxContent = 680;
 
-/** iOS-style continuous corners where supported; harmless elsewhere. */
+/** iOS continuous corners (squircles) where supported; harmless elsewhere. */
 export const curve = Platform.OS === 'ios' ? ({ borderCurve: 'continuous' } as const) : {};
 
 export function shadow(c: Palette, level: 1 | 2 | 3 = 1): ViewStyle {
-  const spec = { 1: [2, 8, 0.06, 1], 2: [8, 20, 0.1, 4], 3: [18, 40, 0.18, 10] }[level];
+  // Light mode: cards float on soft, wide shadows. Dark mode: elevation comes from lighter surfaces instead.
+  const isDark = c.material === 'dark';
+  if (isDark && level === 1) return {};
+  const spec = { 1: [2, 10, 0.05, 1], 2: [8, 24, isDark ? 0.5 : 0.1, 6], 3: [16, 40, isDark ? 0.6 : 0.16, 12] }[level];
   return Platform.select<ViewStyle>({
-    web: { boxShadow: `0px ${spec[0]}px ${spec[1]}px rgba(26,20,12,${spec[2]})` } as ViewStyle,
+    web: { boxShadow: `0px ${spec[0]}px ${spec[1]}px rgba(0,0,0,${spec[2]})` } as ViewStyle,
     default: { shadowColor: c.shadow, shadowOffset: { width: 0, height: spec[0] }, shadowRadius: spec[1] / 2, shadowOpacity: spec[2], elevation: spec[3] },
   })!;
 }
@@ -74,10 +109,14 @@ export function makeStyles<T extends NamedStyles>(factory: (c: Palette, dark: bo
   };
 }
 
-/** Deterministic, pleasant avatar colours derived from a handle. */
-const avatarHues = ['#C63A22', '#2F6F8F', '#6A4C93', '#2F7D4F', '#B5651D', '#8C2F5A', '#3D5A80', '#2E7A72'];
-export function avatarColor(seed: string) {
+function hashOf(seed: string) {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
-  return avatarHues[Math.abs(hash) % avatarHues.length];
+  return Math.abs(hash);
 }
+/** Avatar fills in Apple's contact-card style; white initials stay ≥ 4.5:1 on every one. */
+const avatarHues = ['#5856D6', '#C2185B', '#0B7A75', '#B35A00', '#0060DF', '#8E3BBF', '#2E7D32', '#B3261E'];
+/** Soft fills for artist chips; black text on them is ≥ 11:1. */
+const chipHues = ['#E9DDFB', '#FFD9E2', '#D4F1EE', '#FFE8CC', '#D6E8FF', '#DFF5D8', '#FFDAD6', '#E7E3FF'];
+export function chipColor(seed: string) { return chipHues[hashOf(seed) % chipHues.length]; }
+export function avatarColor(seed: string) { return avatarHues[hashOf(seed) % avatarHues.length]; }

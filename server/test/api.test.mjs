@@ -19,7 +19,10 @@ async function fixture(t, fetcher) {
     return { status: response.status, data: await response.json().catch(() => ({})), headers: response.headers };
   }
   async function account(name) {
+    // Legacy accounts are created before delivery configuration; signup verification has its own suite.
+    const taskMailKey = process.env.RESEND_API_KEY; delete process.env.RESEND_API_KEY;
     const r = await request('/auth/register', { method: 'POST', body: { email: `${name}@example.com`, name, handle: name, password: 'a-long-password-123' } });
+    if (taskMailKey !== undefined) process.env.RESEND_API_KEY = taskMailKey;
     assert.equal(r.status, 201, JSON.stringify(r.data)); return r.data;
   }
   return { db, key, request, account, base };
@@ -126,7 +129,7 @@ test('mood boards, editing, invalid payloads, and cascading account deletion', a
 
 test('password recovery is delivered privately, expires, is single-use, and revokes sessions', async (t) => {
   const previous = { key: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM };
-  process.env.RESEND_API_KEY = 'test-only'; process.env.EMAIL_FROM = 'MARGIN <test@example.com>';
+  process.env.RESEND_API_KEY = 'test-only'; process.env.EMAIL_FROM = 'Riffs <test@example.com>';
   t.after(() => { for (const [name, value] of [['RESEND_API_KEY', previous.key], ['EMAIL_FROM', previous.from]]) { if (value === undefined) delete process.env[name]; else process.env[name] = value; } });
   const sent = [];
   const { request, account } = await fixture(t, async (url, opts) => { assert.equal(url, 'https://api.resend.com/emails'); sent.push(JSON.parse(opts.body)); return new Response('{}', { status: 200 }); });
@@ -210,7 +213,7 @@ test('profile counts and public store pages', async (t) => {
   const me = (await request('/me', { token: alice.token })).data.user;
   assert.deepEqual([me.followers, me.following], [1, 0]);
   assert.equal((await request('/me', { token: bob.token })).data.user.following, 1);
-  for (const [path, heading] of [['/privacy', 'Privacy Policy'], ['/terms', 'Terms of Service'], ['/delete-account', 'Delete your MARGIN account']]) {
+  for (const [path, heading] of [['/privacy', 'Privacy Policy'], ['/terms', 'Terms of Service'], ['/delete-account', 'Delete your Riffs account']]) {
     const response = await fetch(`${base}${path}`);
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /text\/html/);

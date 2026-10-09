@@ -114,7 +114,7 @@ export default function MoodBuilder() {
     </>}
 
     <ListGroup>
-      <ListRow icon="musical-notes" iconColor="#1F9D55" title={spotifyConnected ? 'Import a Spotify playlist' : 'Connect Spotify'} subtitle={spotifyConnected ? `Uses the first ${MAX_SONGS} songs` : 'Import playlists and search your library'}
+      <ListRow icon="musical-notes" iconColor="#1DB954" title={spotifyConnected ? 'Import a Spotify playlist' : 'Connect Spotify'} subtitle={spotifyConnected ? `Uses the first ${MAX_SONGS} songs` : 'Import playlists and search your library'}
         onPress={() => router.push(spotifyConnected ? { pathname: '/spotify', params: { target: 'moodboard' } } : '/settings')} />
     </ListGroup>
 

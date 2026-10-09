@@ -1,75 +1,85 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Ranking } from '../../lib/types';
 import { useApp } from '../../store/AppContext';
+import { RiffsWordmark } from '../../ui/brand';
 import { RankingCard, Screen } from '../../ui/components';
-import { Button, Card, EmptyState, IconButton, Ionicons, SectionHeader, T, Tap } from '../../ui/primitives';
-import { curve, gutter, makeStyles, radius, space, useTheme } from '../../ui/theme';
+import { StoryRail, UnderlineTabs } from '../../ui/equals';
+import { usePages } from '../../ui/pages';
+import { Avatar, Button, Card, EmptyState, IconButton, Ionicons, ListGroup, ListRow, T } from '../../ui/primitives';
+import { curve, font, radius, shadow, space, useTheme } from '../../ui/theme';
 
-const prompts = [
-  { title: 'Five songs for someone who’s never met you', tint: '#C63A22' },
-  { title: 'The albums that raised you', tint: '#2F5F7A' },
-  { title: 'Songs that sound like the last day of summer', tint: '#995217' },
-  { title: 'Your all-time top ten, no hedging', tint: '#4E3A78' },
-];
+/** Signed-out welcome: the afterglow gradient, one promise, one action. */
+function Welcome() {
+  const { c } = useTheme();
+  return <LinearGradient colors={[c.glowA, c.glowB]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: space.xl, paddingTop: space.xxl, marginBottom: space.xl, overflow: 'hidden', ...curve }}>
+    <T v="overline" style={{ color: '#FFFFFFCC' }}>Music, out loud</T>
+    <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.heavy, fontSize: 36, lineHeight: 40, letterSpacing: -1.1, color: '#FFFFFF', marginTop: space.sm }}>Your taste deserves an audience.</Text>
+    <T v="body" style={{ color: '#FFFFFFE6', marginTop: space.md }}>Rate albums head-to-head, post hot takes, and find the people whose taste matches yours.</T>
+    <View style={{ gap: space.sm, marginTop: space.xl }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Join Riffs" onPress={() => router.push('/auth')} style={{ minHeight: 52, borderRadius: radius.md, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', ...curve }}>
+        <T v="label" style={{ color: '#D9124B' }}>Join Riffs — it’s free</T>
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="I already have an account" onPress={() => router.push({ pathname: '/auth', params: { mode: 'login' } })} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+        <T v="label" style={{ color: '#FFFFFF' }}>I already have an account</T>
+      </Pressable>
+    </View>
+  </LinearGradient>;
+}
 
-function today() {
-  return new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+/** One line to start a take, with quick routes to a poll or a rating. */
+function Composer() {
+  const { c } = useTheme();
+  const { user, takeDraft, startTake } = useApp();
+  const hasTake = takeDraft.items.length > 0 || !!takeDraft.title.trim();
+  const first = user?.name.split(/\s+/)[0];
+  return <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, marginBottom: space.xl }}>
+    <Avatar name={user?.name ?? 'You'} seed={user?.handle ?? 'guest'} uri={user?.avatar} size={40} />
+    <Pressable accessibilityRole="button" accessibilityLabel={hasTake ? 'Continue your take' : 'Post a hot take'} onPress={() => { if (!hasTake) startTake(undefined, false); router.push('/take'); }} style={{ flex: 1, minHeight: 44, justifyContent: 'center' }}>
+      <T v="callout" tone="secondary" numberOfLines={1}>{hasTake ? 'Continue your take…' : first ? `What’s on repeat, ${first}?` : 'What’s on repeat?'}</T>
+    </Pressable>
+    <IconButton icon="stats-chart" label="Start a poll" size={40} tone="secondary" onPress={() => { startTake(undefined, true); router.push('/take'); }} />
+    <Pressable accessibilityRole="button" accessibilityLabel="Rate music" onPress={() => router.push('/rate')} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
+      <Ionicons name="star" size={18} color={c.onAccent} />
+    </Pressable>
+  </Card>;
 }
 
 export default function HomeScreen() {
-  const s = useStyles();
   const { c } = useTheme();
-  const { allRankings, draft, following, user, refresh, refreshing, startDraft, setDraft, unread } = useApp();
-  const feed = allRankings.filter((ranking) => !user || ranking.userId === user.id || following.includes(ranking.handle));
+  const { allRankings, draft, following, people, user, refresh, refreshing, unread, connected } = useApp();
+  const [tab, setTab] = useState<'you' | 'following'>('you');
+  const visible = allRankings.filter((post) => post.visibility !== 'private');
+  const pages = usePages<Ranking>(`/feed?mode=${tab}`, 'posts', tab !== 'following' || !!user);
+  const feed = pages.rows.map((post) => allRankings.find((cached) => cached.id === post.id) || post);
+  const circle = people.filter((person) => following.includes(person.handle));
   const hasDraft = draft.items.length > 0 || !!draft.title.trim();
-  const startPrompt = (title: string) => { startDraft(); setDraft((current) => ({ ...current, title })); router.push('/builder'); };
 
-  return <Screen tab title="Home" large eyebrow={today()} onRefresh={() => void refresh()} refreshing={refreshing}
+  return <Screen tab onRefresh={() => { pages.reload(); void refresh(); }} refreshing={refreshing || pages.loading} onEndReached={() => { if (pages.hasMore && !pages.busy && !pages.error) void pages.loadMore(); }}
+    left={<RiffsWordmark width={76} />}
     right={user ? <IconButton icon="notifications-outline" label={unread ? `Activity, ${unread} unread` : 'Activity'} badge={unread > 0} onPress={() => router.push('/notifications')} />
-      : <Button label="Sign in" size="sm" variant="tinted" inline onPress={() => router.push('/auth')} />}>
-
-    {!user && <Animated.View entering={FadeInDown.duration(380)}>
-      <View style={s.hero}>
-        <T v="overline" style={{ color: '#FFFFFFB3' }}>Music, in your own order</T>
-        <T v="display" style={{ color: '#FFFFFF', marginTop: space.sm }}>Good taste is a conversation.</T>
-        <T v="body" style={{ color: '#FFFFFFCC', marginTop: space.md }}>Rank the music you love. Remix your friends’ lists. See exactly where you disagree.</T>
-        <View style={{ gap: space.sm, marginTop: space.xl }}>
-          <Button label="Create your account" onPress={() => router.push('/auth')} />
-          <Button label="I already have one" variant="plain" onPress={() => router.push({ pathname: '/auth', params: { mode: 'login' } })} style={{ minHeight: 44 }} />
-        </View>
-      </View>
-    </Animated.View>}
-
-    {hasDraft && <Card onPress={() => router.push('/builder')} style={s.draft}>
-      <View style={s.draftIcon}><Ionicons name="create" size={20} color={c.accent} /></View>
-      <View style={{ flex: 1 }}>
-        <T v="headline" numberOfLines={1}>{draft.title.trim() || 'Untitled ranking'}</T>
-        <T v="footnote" tone="secondary">Draft · {draft.items.length} {draft.items.length === 1 ? 'pick' : 'picks'} saved on this device</T>
-      </View>
+      : <Button label="Sign in" size="sm" variant="secondary" inline onPress={() => router.push({ pathname: '/auth', params: { mode: 'login' } })} />}>
+    <View style={{ height: space.sm }} />
+    {!user && <Welcome />}
+    {user && <StoryRail people={circle} posts={visible} />}
+    {user && <Composer />}
+    {user && !user.onboardingComplete && <Pressable accessibilityRole="button" accessibilityLabel="Set up your music profile" onPress={() => router.push('/onboarding')}
+      style={[{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderRadius: radius.lg, backgroundColor: c.surface, marginBottom: space.xl, ...curve }, shadow(c, 1)]}>
+      <View style={{ width: 36, height: 36, borderRadius: 9, backgroundColor: '#AF52DE', alignItems: 'center', justifyContent: 'center', ...curve }}><Ionicons name="sparkles" size={19} color="#FFFFFF" /></View>
+      <View style={{ flex: 1, gap: 2 }}><T v="headline">Make Riffs sound like you</T><T v="footnote" tone="secondary">Pick your artists and rate three favourites — two minutes.</T></View>
       <Ionicons name="chevron-forward" size={18} color={c.tertiary} />
-    </Card>}
-
-    <SectionHeader title="Start with a prompt" style={{ marginTop: hasDraft || !user ? space.xxl : space.sm }} />
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -gutter }} contentContainerStyle={{ paddingHorizontal: gutter, gap: space.md }} decelerationRate="fast" snapToInterval={232 + space.md} snapToAlignment="start">
-      {prompts.map((prompt) => <Tap key={prompt.title} onPress={() => startPrompt(prompt.title)} accessibilityLabel={`Start a ranking: ${prompt.title}`} style={[s.prompt, { backgroundColor: prompt.tint }]}>
-        <Ionicons name="sparkles" size={18} color="#FFFFFFCC" />
-        <T v="title3" style={{ color: '#FFFFFF', flex: 1, marginTop: space.md }} numberOfLines={4}>{prompt.title}</T>
-        <View style={s.promptFoot}><T v="footnote" weight="semibold" style={{ color: '#FFFFFF' }}>Make yours</T><Ionicons name="arrow-forward" size={16} color="#FFFFFF" /></View>
-      </Tap>)}
-    </ScrollView>
-
-    <SectionHeader title={user ? 'Following' : 'Featured'} detail={feed.length ? `${feed.length} ${feed.length === 1 ? 'post' : 'posts'}` : undefined} />
-    {feed.length ? feed.map((ranking, index) => <Animated.View key={ranking.id} entering={FadeInDown.delay(Math.min(index, 6) * 50).duration(320)}><RankingCard ranking={ranking} /></Animated.View>)
-      : <Card><EmptyState icon="people-outline" title="Your feed is quiet" text="Follow people in Discover, or publish your first ranking to get the conversation going."
-        action={<Button label="Find people" variant="tinted" inline onPress={() => router.push('/(tabs)/discover')} />} /></Card>}
+    </Pressable>}
+    <UnderlineTabs value={tab} onChange={setTab} options={[{ value: 'you', label: 'For you' }, { value: 'following', label: 'Following' }]} />
+    {hasDraft && <ListGroup style={{ marginTop: 0, marginBottom: space.lg }}><ListRow icon="create-outline" title={draft.title.trim() || 'Untitled ranking'} subtitle={`Draft · ${draft.items.length} picks on this device`} onPress={() => router.push('/builder')} /></ListGroup>}
+    {!connected && !refreshing && <View style={{ flexDirection: 'row', gap: space.sm, marginBottom: space.lg, alignItems: 'center' }}><Ionicons name="cloud-offline-outline" size={18} color={c.secondary} /><T v="footnote" tone="secondary" style={{ flex: 1 }}>You’re offline. Pull to refresh when you’re connected.</T></View>}
+    {tab === 'following' && !user ? <Card><EmptyState icon="people-outline" title="Find your circle" text="Sign in and follow people to see their latest music opinions here." action={<Button label="Sign in" inline onPress={() => router.push('/auth')} />} /></Card>
+      : feed.length ? feed.map((post) => <RankingCard key={post.id} ranking={post} />)
+        : !pages.loading && !pages.error && <Card><EmptyState icon="musical-notes" title={tab === 'following' ? 'Your circle is quiet' : 'Start the conversation'} text={tab === 'following' ? 'Follow people in Discover to bring their music into your feed.' : 'Be the first to share a take, rate an album, or build a pod.'}
+          action={<Button label={tab === 'following' ? 'Find people' : 'Post a take'} inline onPress={() => router.push(tab === 'following' ? '/(tabs)/discover' : '/take')} />} /></Card>}
+    {!!pages.error && <Card style={{ gap: space.md }}><T>{pages.error}</T><Button label="Try again" variant="secondary" onPress={pages.reload} /></Card>}
+    {pages.loading && !pages.rows.length && <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} />}
+    {pages.hasMore && <Button label="More posts" variant="secondary" loading={pages.busy} onPress={() => void pages.loadMore()} />}
   </Screen>;
 }
-
-const useStyles = makeStyles((c, dark) => ({
-  hero: { backgroundColor: '#161514', borderRadius: radius.xl, padding: space.xl, paddingTop: space.xxl, marginBottom: space.md, overflow: 'hidden', ...curve, ...(dark ? { borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline } : {}) },
-  draft: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.xs },
-  draftIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center', ...curve },
-  prompt: { width: 232, height: 196, borderRadius: radius.lg, padding: space.lg, ...curve },
-  promptFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: space.md, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#FFFFFF55' },
-}));

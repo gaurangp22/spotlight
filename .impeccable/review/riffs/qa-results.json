@@ -1,0 +1,15 @@
+{
+  "checks": [
+    "artist selection, actual starter rating, suggested follow, onboarding completion",
+    "system picker, crop/resize/JPEG, persisted profile photo",
+    "follow list and unfollow",
+    "saved item, saved post, reply and clickable mention",
+    "saved post removal",
+    "join club and weekly discussion",
+    "create club and choose weekly album through catalog picker adapter"
+  ],
+  "pageErrors": [],
+  "clubId": "592585ee-85cc-4749-8b43-95ee21ff2efe",
+  "provider": "isolated database; artist and album picker adapters",
+  "browser": "Browser plugin not available; bundled Playwright Chromium"
+}

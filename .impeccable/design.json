@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-07T21:25:18.596Z",
+  "title": "Design System: Riffs",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Black canvas"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Charcoal cards"
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Coral"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Archivo Black",
+        "purpose": "Screen headings"
+      },
+      "body": {
+        "displayName": "Inter",
+        "purpose": "Music opinions and supporting text"
+      },
+      "label": {
+        "displayName": "Space Mono",
+        "purpose": "Uppercase controls and counters"
+      }
+    },
+    "shadows": [
+      {
+        "name": "lifted",
+        "value": "0px 8px 20px rgba(0,0,0,0.5)",
+        "purpose": "Sheets and elevated surfaces"
+      },
+      {
+        "name": "floating",
+        "value": "0px 18px 40px rgba(0,0,0,0.6)",
+        "purpose": "Floating players and share previews"
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "90ms",
+        "purpose": "Tap press-in response"
+      },
+      {
+        "name": "splash",
+        "value": "250ms",
+        "purpose": "Launch fade after session and drafts restore"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "navigation-rail",
+        "value": "768px"
+      }
+    ],
+    "brand": {
+      "name": "Riffs",
+      "geometry": "Original lowercase r mark and path-based wordmark independent of the font stack",
+      "sources": [
+        "assets/brand/riffs-mark.svg",
+        "assets/brand/riffs-wordmark.svg",
+        "assets/brand/riffs-wordmark-coral.svg",
+        "assets/brand/riffs-icon.svg"
+      ],
+      "renderer": "src/ui/brand.tsx",
+      "generator": "scripts/generate-icons.cjs",
+      "regenerate": "node scripts/generate-icons.cjs",
+      "provenance": "Sharp renders shipping PNGs from the original vector geometry. Each generated PNG embeds an impeccable:prompt tEXt entry identifying scripts/generate-icons.cjs and the renderer.",
+      "rasterOutputs": [
+        "assets/icon.png",
+        "assets/favicon.png",
+        "assets/android-icon-foreground.png",
+        "assets/android-icon-monochrome.png",
+        "assets/splash-icon.png",
+        "assets/splash-icon-dark.png",
+        "assets/brand/riffs-wordmark.png",
+        "assets/brand/riffs-icon-preview.png"
+      ]
+    },
+    "verification": {
+      "verdict": "Ship for evidenced web scope; sole touch-target P2 resolved",
+      "viewports": [
+        "390x844",
+        "1440x960"
+      ],
+      "evidenceDirectory": ".impeccable/review/riffs",
+      "interactions": ".impeccable/review/riffs/qa-results.json",
+      "touchTargets": ".impeccable/review/riffs/touch-targets.json",
+      "native": "Unverified: permissions, gestures, camera/video, audio, and library saving require a real device build"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "description": "Primary completion action",
+      "html": "<button class=\"ds-primary\">POST TAKE</button>",
+      "css": ".ds-primary{background:#FF6B4A;color:#000;border:0;border-radius:999px;min-height:52px;padding:0 22px;font:700 12.5px \"Space Mono\",monospace;letter-spacing:.8px}.ds-primary:hover{opacity:.9}.ds-primary:focus-visible{outline:2px solid #fff;outline-offset:3px}.ds-primary:active{transform:scale(.97)}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "description": "Medium secondary action with a 48-point minimum target",
+      "html": "<button class=\"ds-secondary\">EDIT PROFILE</button>",
+      "css": ".ds-secondary{background:#2A2A2D;color:#fff;border:0;border-radius:999px;min-height:48px;padding:0 18px;font:700 12.5px \"Space Mono\",monospace;letter-spacing:.8px}.ds-secondary:hover{opacity:.9}.ds-secondary:focus-visible{outline:2px solid #FF6B4A;outline-offset:3px}.ds-secondary:active{transform:scale(.97)}"
+    },
+    {
+      "name": "Music status input",
+      "kind": "input",
+      "description": "Labelled input with a focus border",
+      "html": "<label class=\"ds-field\">MUSIC STATUS<input placeholder=\"What’s on repeat?\"></label>",
+      "css": ".ds-field{display:grid;gap:8px;color:#A1A1A6;font:700 11px \"Space Mono\",monospace}.ds-field input{background:#1C1C1E;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px;font:14px Inter,sans-serif}.ds-field input::placeholder{color:#A1A1A6}.ds-field input:focus-visible{outline:2px solid #FF6B4A;outline-offset:2px}"
+    },
+    {
+      "name": "Community tabs",
+      "kind": "nav",
+      "description": "Selected section with underline",
+      "html": "<nav class=\"ds-tabs\"><button aria-current=\"page\">For You</button><button>Following</button></nav>",
+      "css": ".ds-tabs{display:flex;background:#000;border-bottom:1px solid rgba(255,255,255,.12)}.ds-tabs button{flex:1;min-height:48px;background:none;color:#A1A1A6;border:0;border-bottom:2px solid transparent;font:600 16px Inter,sans-serif}.ds-tabs button[aria-current]{color:#fff;border-bottom-color:#FF6B4A}.ds-tabs button:hover{color:#fff}.ds-tabs button:focus-visible{outline:2px solid #FF6B4A;outline-offset:-4px}"
+    },
+    {
+      "name": "Artist chip",
+      "kind": "chip",
+      "description": "Pastel fill with black text",
+      "html": "<span class=\"ds-artist\">Radiohead</span>",
+      "css": ".ds-artist{display:inline-block;background:#F3DE8A;color:#000;border-radius:999px;padding:8px 12px;font:600 12px Inter,sans-serif}"
+    },
+    {
+      "name": "Opinion card",
+      "kind": "card",
+      "description": "Charcoal grouping surface",
+      "html": "<article class=\"ds-card\"><strong>Good taste travels.</strong><p>The music you love. The people who get it.</p></article>",
+      "css": ".ds-card{background:#1C1C1E;color:#fff;border-radius:20px;padding:16px;font:16px Inter,sans-serif}.ds-card p{color:#A1A1A6;font-size:14px;line-height:19px}"
+    },
+    {
+      "name": "Compact button",
+      "kind": "button",
+      "description": "Compact secondary action; reduced horizontal padding preserves a 48-point minimum target",
+      "html": "<button class=\"ds-compact\">FOLLOW</button>",
+      "css": ".ds-compact{background:#2A2A2D;color:#fff;border:0;border-radius:999px;min-height:48px;padding:0 13px;font:700 11px \"Space Mono\",monospace;letter-spacing:.6px}.ds-compact:hover{opacity:.9}.ds-compact:focus-visible{outline:2px solid #FF6B4A;outline-offset:3px}.ds-compact:active{transform:scale(.97)}"
+    },
+    {
+      "name": "Segmented tabs",
+      "kind": "nav",
+      "description": "48-point tabs inside a 54-point charcoal pill track with a brighter selected thumb",
+      "html": "<div class=\"ds-segmented\" role=\"tablist\" aria-label=\"Library\"><button role=\"tab\" aria-selected=\"true\">Listen later</button><button role=\"tab\" aria-selected=\"false\">Saved posts</button></div>",
+      "css": ".ds-segmented{display:flex;background:#1C1C1E;border-radius:999px;padding:3px;min-height:54px;box-sizing:border-box;overflow:hidden}.ds-segmented button{flex:1;background:transparent;color:#A1A1A6;border:0;border-radius:999px;min-height:48px;padding:7px 0;font:500 13px Inter,sans-serif;line-height:18px}.ds-segmented button[aria-selected=\"true\"]{background:#3A3A3D;color:#fff;font-weight:600}.ds-segmented button:hover{color:#fff}.ds-segmented button:focus-visible{outline:2px solid #FF6B4A;outline-offset:-3px}"
+    },
+    {
+      "name": "Riffs wordmark",
+      "kind": "custom",
+      "description": "Original path-based white wordmark; no font dependency",
+      "html": "<svg class=\"ds-wordmark\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 430 148\" role=\"img\" aria-label=\"Riffs\"><g fill=\"#FFFFFF\"><path d=\"M24 128V30H54V48C66 35 84 27 108 27H132V59H107C72 59 54 81 54 113V128Z\" transform=\"translate(-12 8) scale(.82 1)\"/><path d=\"M112 40H142V136H112Z\"/><circle cx=\"127\" cy=\"15\" r=\"15\"/><path d=\"M20 128V66H6V40H20V31C20 10 35 0 55 0H77V27H60C52 27 49 32 49 40H77V66H49V128Z\" transform=\"translate(160 8)\"/><path d=\"M20 128V66H6V40H20V31C20 10 35 0 55 0H77V27H60C52 27 49 32 49 40H77V66H49V128Z\" transform=\"translate(240 8)\"/><path d=\"M80 41C66 32 54 27 38 27C14 27 1 40 1 57C1 76 14 83 36 88L47 91C55 93 59 95 59 100C59 105 54 108 44 108C31 108 19 102 9 95L0 120C12 130 29 136 47 136C73 136 89 123 89 103C89 84 77 76 53 70L43 68C34 66 30 64 30 59C30 54 35 52 43 52C54 52 64 56 72 61Z\" transform=\"translate(330 0)\"/></g></svg>",
+      "css": ".ds-wordmark{display:block;width:112px;height:auto;background:#000}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Music opinions and the people who get them",
+    "overview": "A music-first social app with a black canvas, charcoal surfaces, cover art, and readable opinions. This documents the implemented October 2026 system. The approved Riffs continuation preserves this incumbent visual world; no new concept comps or standing workflow defaults were introduced.",
+    "keyCharacteristics": [
+      "Dark only",
+      "Artwork leads",
+      "Coral actions with black labels",
+      "Safe areas and native navigation"
+    ],
+    "dos": [
+      "Use named text and spacing tokens",
+      "Explain incomplete composer states",
+      "Use server-filtered visibility data",
+      "Keep drafts through sign-in and errors",
+      "Keep new continuation controls at least 48 points; compact buttons reduce horizontal padding, not target height",
+      "Preserve original Riffs path geometry and PNG provenance when regenerating brand assets"
+    ],
+    "donts": [
+      "Do not fabricate activity or matches",
+      "Do not depend on provider audio previews",
+      "Do not treat web screenshots as native verification"
+    ]
+  }
+}

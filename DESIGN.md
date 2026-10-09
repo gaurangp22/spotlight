@@ -1,119 +1,79 @@
 ---
-name: MARGIN
-description: Music opinions, presented with first-party polish.
+name: Riffs
+description: Music opinions and the people who get them — designed the way Apple would build a social app.
 colors:
-  light:
-    bg: "#F7F5F1"
-    surface: "#FFFFFF"
-    fill: "#EFECE6"
-    text: "#121211"
-    secondary: "#6B6862"
-    tertiary: "#A3A09A"
-    accent: "#C63A22"
-    accent-fill: "#C63A22"
-    danger: "#C4281C"
-  dark:
-    bg: "#0E0E0F"
-    surface: "#1A1A1C"
-    fill: "#262628"
-    text: "#F5F3EE"
-    secondary: "#A09D97"
-    tertiary: "#6C6A66"
-    accent: "#FF6B4A"
-    accent-fill: "#D44129"
-    danger: "#FF5B4F"
+  light: { bg: "#F2F2F7", surface: "#FFFFFF", fill: "#EEEEF2", text: "#000000", secondary: "#6C6C70", tertiary: "#AEAEB2", accent: "#D9124B", accent-fill: "#E8174A", on-accent: "#FFFFFF" }
+  dark: { bg: "#000000", surface: "#1C1C1E", fill: "#2C2C2E", text: "#FFFFFF", secondary: "#98989F", tertiary: "#636366", accent: "#FF4D74", accent-fill: "#E8174A", on-accent: "#FFFFFF" }
+  brand-gradient: ["#FF2D55", "#AF52DE"]
+  scores: { loved: "#1E9E4A", fine: "#D97A00", nope: "#D93025" }
+  icon-tiles: { purple: "#AF52DE", pink: "#FF2D55", teal: "#0FA3B1", orange: "#FF9500", blue: "#007AFF", red: "#FF3B30", green: "#34C759", grey: "#8E8E93", indigo: "#5856D6" }
 typography:
-  family: "Inter"
-  display: { fontSize: "40px", fontWeight: 800, lineHeight: "44px", letterSpacing: "-1.4px" }
-  large-title: { fontSize: "34px", fontWeight: 700, lineHeight: "40px", letterSpacing: "-1px" }
-  title1: { fontSize: "28px", fontWeight: 700, lineHeight: "34px", letterSpacing: "-0.7px" }
-  title2: { fontSize: "22px", fontWeight: 700, lineHeight: "28px", letterSpacing: "-0.45px" }
-  title3: { fontSize: "19px", fontWeight: 600, lineHeight: "25px", letterSpacing: "-0.3px" }
-  headline: { fontSize: "16px", fontWeight: 600, lineHeight: "21px" }
-  body: { fontSize: "16px", fontWeight: 400, lineHeight: "23px" }
-  subhead: { fontSize: "14px", fontWeight: 400, lineHeight: "19px" }
+  family: "Inter (closest open face to SF Pro; same on iOS, Android, web)"
+  largeTitle: { fontSize: "34px", fontWeight: 700, lineHeight: "41px", letterSpacing: "-1px" }
+  title1: { fontSize: "28px", fontWeight: 700, lineHeight: "34px" }
+  title2: { fontSize: "22px", fontWeight: 700, lineHeight: "28px" }
+  title3: { fontSize: "20px", fontWeight: 600, lineHeight: "25px" }
+  headline: { fontSize: "17px", fontWeight: 600, lineHeight: "22px" }
+  body: { fontSize: "17px", fontWeight: 400, lineHeight: "24px" }
+  callout: { fontSize: "16px", fontWeight: 400, lineHeight: "21px" }
+  subhead: { fontSize: "15px", fontWeight: 400, lineHeight: "20px" }
   footnote: { fontSize: "13px", fontWeight: 400, lineHeight: "18px" }
   caption: { fontSize: "12px", fontWeight: 500, lineHeight: "16px" }
-  overline: { fontSize: "11px", fontWeight: 600, letterSpacing: "0.9px", textTransform: "uppercase" }
-rounded:
-  xs: "6px"
-  sm: "10px"
-  md: "14px"
-  lg: "20px"
-  xl: "28px"
-  pill: "999px"
-spacing:
-  xxs: "4px"
-  xs: "6px"
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
-  xl: "20px"
-  xxl: "28px"
-  xxxl: "40px"
-  gutter: "20px"
-  max-content: "680px"
+rounded: { xs: "6px", sm: "10px", md: "14px", lg: "20px", xl: "28px", pill: "999px" }
+spacing: { xxs: "4px", xs: "6px", sm: "8px", md: "12px", lg: "16px", xl: "20px", xxl: "28px", xxxl: "40px", gutter: "20px", max-content: "680px" }
 ---
+
+# Riffs design system
 
 ## North star
 
-**Feels first-party.** MARGIN should sit on a home screen next to the system’s own apps and not look out of place: calm surfaces, confident type, generous spacing, and motion that responds to touch rather than decorating it. Music artwork supplies the colour; the interface stays quiet so opinions stand out.
+**What would it look like if Apple made a social app for music?** Riffs follows Apple’s Human Interface Guidelines: quiet chrome, system grouped backgrounds, one accent, generous spacing, and album art supplying the colour. It should sit on a home screen next to Music, Messages, and Photos and feel like it belongs.
 
-The implementation lives in `src/ui/`: tokens in `theme.ts`, primitives in `primitives.tsx`, screen scaffolding in `components.tsx`. Screens compose these and never hard-code colours.
+Tokens live in `src/ui/theme.ts`; primitives in `src/ui/primitives.tsx`; the screen scaffold, feed cards, and score badge in `src/ui/components.tsx`; social pieces (feed switcher, takes, polls, taste match, friends’ rail) in `src/ui/equals.tsx`; the tab bar in `src/ui/tabbar.tsx`. Screens compose these and never hard-code colours.
 
-## Colour
+## Appearance
 
-- **Warm neutrals, one red.** The canvas is warm off-white (dark: near-black); content sits on white (dark: charcoal) cards. The brand red is reserved for primary actions, selection, and the top of a ranking.
-- **Two accent tokens.** `accent` is for text and icons; `accentFill` is for filled controls. In dark mode they differ, so red text stays legible on dark surfaces while white-on-red buttons keep their contrast.
-- **Contrast is checked, not guessed.** Body text pairs meet WCAG AA (≥ 4.5:1) in both themes. `tertiary` is for placeholders and decoration only.
-- **Artwork leads.** Hero areas use the cover art itself, blurred, under a dark scrim — so every post looks different without any new interface colours.
+- **Light and dark follow the device**, like every Apple app. Light uses the grouped background `#F2F2F7` with white cards; dark uses true black with `#1C1C1E` cards.
+- **One accent: Riffs Rose.** Music apps own warm red-pink. It marks primary actions, selection, likes, and links. Accent text and white-on-accent fills are contrast-checked (≥ 4.6:1).
+- **Brand gradient** (rose → purple) is rare and celebratory: the app icon, the signed-out welcome, the taste-match card, the “Rate it” tile, and the glow ring on friends who posted today.
+- **Icon tiles are Settings-style:** a solid system colour (purple, pink, teal, orange, blue, red, green, grey, indigo) with a white glyph.
+- **Scores** use green / orange / red rounded squares with white bold numerals.
 
-## Typography
+## Type
 
-Inter, loaded at launch behind the splash screen, at five weights. Use the named variants on `<T v="…">`, never raw font sizes. Large sizes carry negative tracking; numbers that line up (ranks, counts, scores) use tabular figures. Text respects the system font size up to a 1.6× cap so layouts don’t break.
+Inter on the iOS Dynamic Type scale (Large). Large titles (34 bold) open every tab root and collapse into the navigation bar on scroll. Body is 17pt. Counts use tabular figures. Text respects the system size up to 1.6×.
 
-## Layout
+## Layout and surfaces
 
-- One column, 20 pt gutters, content capped at 680 pt and centred on wide screens; tabs move to a side rail at tablet widths.
-- **Large titles** sit at the top of tab roots and list screens and collapse into the navigation bar as you scroll; a hairline appears under the bar only once content scrolls beneath it.
-- **Inset grouped lists** (`ListGroup` + `ListRow`) for settings-like content, with coloured icon tiles and inset separators.
-- Primary actions that complete a flow (Publish, Share, Send) are pinned in a footer above the keyboard and safe area.
-
-## Shape & depth
-
-Continuous-curve corners (`borderCurve: continuous` on iOS): 20 pt cards, 14 pt buttons and fields, 28 pt hero panels and dialogs. In light mode cards float on a soft, low shadow; in dark mode shadows are replaced by a hairline border. No glass, no decorative gradients — the only gradient is the scrim that keeps text readable over artwork.
-
-## Motion & feedback
-
-- Every tappable surface springs down slightly on press (`Tap`) and gives a light haptic tick; primary actions use a firmer one, successes a success notification, errors a warning.
-- Segmented controls slide their thumb with a spring; list reorders animate with layout transitions; feeds fade up in a short stagger.
-- Animation is short (150–400 ms) and never blocks input.
+- One column, 20pt gutters, capped at 680pt; tablets get a side rail.
+- Cards: 20pt continuous corners, soft wide shadow in light mode, no border; elevation in dark mode comes from the lighter surface.
+- Grouped lists (`ListGroup` + `ListRow`) for settings-like content, with inset separators.
+- The **floating glass tab bar** (iOS 26 style): a frosted capsule of four destinations — Home, Discover, Messages, Profile — with a separate round glass **+** button for creating, as Apple Music separates Search.
+- Primary buttons are filled rounded rectangles (14pt corners); small actions are capsules.
 
 ## Components
 
 | Component | Use |
 |---|---|
-| `Screen` | Every route. Safe areas, collapsing large title, pull-to-refresh, pinned footer, keyboard avoidance. |
-| `Button` | `primary`, `secondary`, `tinted`, `plain`, `danger`, `inverse`; `lg` / `md` / `sm`; loading state built in. |
-| `IconButton` | Circular icon actions with optional badge and a guaranteed 44 pt hit target. |
-| `Card` | The grouping surface. Pressable cards scale on touch. |
-| `Segmented` | Mutually exclusive choices (visibility, Songs/Albums, share template, Posts/Drafts). |
-| `TextField`, `SearchField` | Labelled inputs with focus and error states. |
-| `ListGroup`, `ListRow` | Settings-style lists and secondary actions. |
-| `Sheet`, `Dialog` | Full-height pickers and confirmations; destructive confirmations use the solid danger button. |
-| `RankingCard` | The feed unit: author, title, and a podium of the top three covers. |
-| `MusicRow`, `Artwork` | Indexed music with cover art and a typographic fallback when art is missing. |
-| `Toast` | App-wide notices, announced to screen readers, dismiss on tap or after five seconds. |
+| `Screen` | Every route: safe areas, collapsing large title, pull-to-refresh, pinned footer, tab-bar spacing. |
+| `Button` | `primary` (rose fill), `secondary` (grey fill), `tinted`, `plain`, `danger`, `inverse`; `lg` / `md` / `sm`. |
+| `Segmented` | The iOS segmented control: grey track, raised thumb. Used for For you / Following. |
+| `SearchField` | The iOS search bar. |
+| `Chips` | Filter capsules; the selected one is filled with the text colour. |
+| `ListGroup`, `ListRow` | Inset grouped lists with Settings-style icon tiles. |
+| `EmptyState` | Apple’s content-unavailable layout: large grey symbol, title, description, action. |
+| `ReviewCard`, `TakeCard`, `PodCard` | Feed units with the shared action row: like, reply, send to a friend, share. |
+| `ScoreBadge` | Tier-coloured rounded square with the score. |
+| `BotBadge` | A small grey “BOT” chip after any house bot’s name, everywhere it appears. |
+| `MatchCard`, `StoryRail` | Taste match (gradient card, big percentage) and friends’ latest picks (avatars with a glow ring). |
 
-## Do
+## Motion and feedback
 
-- Let artwork carry colour; keep chrome neutral.
-- Say what’s blocking a disabled action (e.g. “Add at least two picks to publish”).
-- Label examples and device-only drafts honestly.
-- Keep touch targets ≥ 44 pt and every icon-only control labelled.
+Springy press-scale on every tappable surface, haptics on meaningful actions, sliding segmented thumb, 150–400 ms transitions that never block input.
 
-## Don’t
+## Do / don’t
 
-- Hard-code colours or font sizes in screens.
-- Add new accent colours for UI state — use the existing tokens.
-- Copy another music or ranking app’s visual identity.
+- Do let artwork carry colour; keep chrome neutral and follow the system appearance.
+- Do label every bot, every example, and every device-only draft honestly.
+- Don’t add accent colours for UI state, tilt or rotate elements for decoration, or use monospace or all-caps for buttons.
+- Don’t copy another app’s brand identity (Apple Music’s logo, names, or artwork); follow the platform conventions instead.

@@ -12,7 +12,9 @@ function apiBase() {
 export const API_URL = apiBase();
 const TOKEN_KEY = 'margin-session-v1';
 let token: string | null = null;
-export function setApiToken(value: string | null) { token = value; }
+let sessionEpoch = 0;
+export function apiSessionEpoch() { return sessionEpoch; }
+export function setApiToken(value: string | null) { if (token !== value) sessionEpoch++; token = value; }
 export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
 }
