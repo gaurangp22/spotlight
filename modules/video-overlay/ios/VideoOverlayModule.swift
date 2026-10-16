@@ -20,7 +20,30 @@ public class VideoOverlayModule: Module {
       }
       Task {
         do {
-          promise.resolve(try await Self.compose(videoURL: videoURL, overlay: overlay).absoluteString)
+          promise.resolve(try await Self.compose(videoURL: videoURL, overlays: [(overlay, 0)]).absoluteString)
+        } catch {
+          promise.reject("ERR_VIDEO_EXPORT", "The video couldn't be saved. Try a shorter clip.")
+        }
+      }
+    }
+
+    // Several cards, each shown from its start time (seconds) until the next one starts: the ranking countdown.
+    AsyncFunction("composeTimed") { (videoUri: String, overlayUris: [String], starts: [Double], promise: Promise) in
+      guard let videoURL = URL(string: videoUri), !overlayUris.isEmpty, overlayUris.count == starts.count else {
+        promise.reject("ERR_OVERLAY_READ", "The ranking cards couldn't be prepared. Try again.")
+        return
+      }
+      var overlays: [(CGImage, Double)] = []
+      for (index, uri) in overlayUris.enumerated() {
+        guard let url = URL(string: uri), let image = UIImage(contentsOfFile: url.path)?.cgImage else {
+          promise.reject("ERR_OVERLAY_READ", "The ranking cards couldn't be prepared. Try again.")
+          return
+        }
+        overlays.append((image, max(0, starts[index])))
+      }
+      Task {
+        do {
+          promise.resolve(try await Self.compose(videoURL: videoURL, overlays: overlays.sorted { $0.1 < $1.1 }).absoluteString)
         } catch {
           promise.reject("ERR_VIDEO_EXPORT", "The video couldn't be saved. Try a shorter clip.")
         }
@@ -28,7 +51,7 @@ public class VideoOverlayModule: Module {
     }
   }
 
-  private static func compose(videoURL: URL, overlay: CGImage) async throws -> URL {
+  private static func compose(videoURL: URL, overlays: [(CGImage, Double)]) async throws -> URL {
     let asset = AVURLAsset(url: videoURL)
     guard let source = try await asset.loadTracks(withMediaType: .video).first else { throw ComposeError.noVideo }
     let duration = try await asset.load(.duration)
@@ -60,12 +83,28 @@ public class VideoOverlayModule: Module {
     parent.frame = frame
     let videoLayer = CALayer()
     videoLayer.frame = frame
-    let overlayLayer = CALayer()
-    overlayLayer.frame = frame
-    overlayLayer.contents = overlay
-    overlayLayer.contentsGravity = .resize
     parent.addSublayer(videoLayer)
-    parent.addSublayer(overlayLayer)
+    let total = CMTimeGetSeconds(duration)
+    for (index, (image, start)) in overlays.enumerated() {
+      let layer = CALayer()
+      layer.frame = frame
+      layer.contents = image
+      layer.contentsGravity = .resize
+      if overlays.count > 1 {
+        // Hidden by default; an opacity animation shows it for its own slice of the video.
+        let end = index + 1 < overlays.count ? overlays[index + 1].1 : total
+        layer.opacity = 0
+        let show = CABasicAnimation(keyPath: "opacity")
+        show.fromValue = 1
+        show.toValue = 1
+        show.beginTime = start <= 0 ? AVCoreAnimationBeginTimeAtZero : start
+        show.duration = max(0.01, end - start)
+        show.isRemovedOnCompletion = false
+        show.fillMode = .removed
+        layer.add(show, forKey: "show")
+      }
+      parent.addSublayer(layer)
+    }
 
     let videoComposition = AVMutableVideoComposition()
     videoComposition.renderSize = size

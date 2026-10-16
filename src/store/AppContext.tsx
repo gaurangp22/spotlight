@@ -91,19 +91,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setRefreshing(true);
     const promise = (async () => {
       try {
-        const data = await api<SyncData>('/sync');
+        // The three requests are independent, so they run together instead of one after another.
+        const [data, me, activity] = await Promise.all([
+          api<SyncData>('/sync'),
+          userId ? api<{ user: Profile; spotifyConnected: boolean }>('/me') : null,
+          userId ? api<{ notifications: AppNotification[] }>('/notifications').catch(() => null) : null,
+        ]);
         if (current !== generation.current) return;
         setPosts(data.posts); setPeople(data.people); setFollowing(data.following); setBlocks(data.blocks); setRatings(data.ratings || []); setConnected(true);
         setSavedItems(data.savedItems || []); setSavedPostIds(data.savedPostIds || []);
-        if (userId) {
-          const [me, activity] = await Promise.all([
-            api<{ user: Profile; spotifyConnected: boolean }>('/me'),
-            api<{ notifications: AppNotification[] }>('/notifications').catch(() => null),
-          ]);
-          if (current === generation.current) {
-            setUser(me.user); setSpotifyConnected(me.spotifyConnected);
-            if (activity) setUnread(activity.notifications.filter((n) => !n.seen).length);
-          }
+        if (me) {
+          setUser(me.user); setSpotifyConnected(me.spotifyConnected);
+          if (activity) setUnread(activity.notifications.filter((n) => !n.seen).length);
         }
       } catch (error) {
         if (current !== generation.current) return;

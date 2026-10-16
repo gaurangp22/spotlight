@@ -8,5 +8,9 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "site",
+    "node_modules"
   ]
 }

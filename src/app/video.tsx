@@ -17,41 +17,13 @@ import { goBack, Screen } from '../ui/components';
 import { useTask } from '../ui/forms';
 import { haptic } from '../ui/haptics';
 import { MusicPicker } from '../ui/MusicPicker';
+import { ReviewCard } from '../ui/reelCards';
 import { Artwork, Button, Card, EmptyState, IconButton, Ionicons, SectionHeader, T, Tap, TextField } from '../ui/primitives';
 import { curve, font, radius, space, useTheme } from '../ui/theme';
 
 const MAX_SECONDS = 60;
 const quickScores = [10, 9, 8, 7, 6, 5];
 type Stage = 'setup' | 'camera' | 'preview';
-
-/**
- * The card burned into the video. It is laid out on a 360-wide design grid and scaled to whatever
- * width it is drawn at, so the on-screen preview and the 1080×1920 export look identical.
- */
-function ReviewOverlay({ item, score, caption, width }: { item: MusicItem; score: number; caption: string; width: number }) {
-  const k = width / 360;
-  const shadowText = { textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 6 * k, textShadowOffset: { width: 0, height: 1 } };
-  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { justifyContent: 'space-between', padding: 16 * k, paddingTop: 22 * k, paddingBottom: 28 * k }]}>
-    <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.heavy, fontSize: 15 * k, letterSpacing: -0.4 * k, color: '#FFFFFF' }, shadowText]}>
-      Riffs<Text style={{ color: '#FF6B4A' }}>.</Text>
-    </Text>
-    <View style={{ gap: 10 * k }}>
-      {!!caption.trim() && <Text maxFontSizeMultiplier={1} numberOfLines={2} style={[{ fontFamily: font.heavy, fontSize: 30 * k, lineHeight: 34 * k, letterSpacing: -1 * k, color: '#FFFFFF' }, shadowText]}>{caption.trim()}</Text>}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 * k, backgroundColor: 'rgba(14,14,15,0.78)', borderRadius: 18 * k, padding: 10 * k, ...curve }}>
-        <Artwork item={item} size={64 * k} rounded={10 * k} />
-        <View style={{ flex: 1, gap: 2 * k }}>
-          <Text maxFontSizeMultiplier={1} style={{ fontFamily: font.semibold, fontSize: 10 * k, letterSpacing: 1 * k, color: '#FFFFFFA6' }}>{categories[item.kind].label.toUpperCase()}</Text>
-          <Text maxFontSizeMultiplier={1} numberOfLines={2} style={{ fontFamily: font.bold, fontSize: 17 * k, lineHeight: 21 * k, letterSpacing: -0.4 * k, color: '#FFFFFF' }}>{item.title}</Text>
-          <Text maxFontSizeMultiplier={1} numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12 * k, color: '#FFFFFFB3' }}>{item.artist}</Text>
-        </View>
-        <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: scoreColor(score), borderRadius: 14 * k, paddingHorizontal: 10 * k, paddingVertical: 6 * k, minWidth: 64 * k }}>
-          <Text maxFontSizeMultiplier={1} style={{ fontFamily: font.heavy, fontSize: 26 * k, letterSpacing: -1 * k, color: '#FFFFFF', fontVariant: ['tabular-nums'] }}>{formatScore(score)}</Text>
-          <Text maxFontSizeMultiplier={1} style={{ fontFamily: font.semibold, fontSize: 10 * k, color: '#FFFFFFCC', marginTop: -2 * k }}>/10</Text>
-        </View>
-      </View>
-    </View>
-  </View>;
-}
 
 function Clip({ uri }: { uri: string }) {
   const player = useVideoPlayer(uri, (p) => { p.loop = true; p.play(); });
@@ -65,7 +37,7 @@ export default function VideoReviewScreen() {
   const insets = useSafeAreaInsets();
   const screen = useWindowDimensions();
   const params = useLocalSearchParams<{ itemId?: string }>();
-  const { itemFor, ratingFor, spotifyConnected, setNotice } = useApp();
+  const { user, itemFor, ratingFor, spotifyConnected, setNotice } = useApp();
   const { busy, run } = useTask();
   const start = params.itemId ? itemFor(params.itemId) : undefined;
   const [item, setItem] = useState<MusicItem | undefined>(start);
@@ -160,7 +132,7 @@ export default function VideoReviewScreen() {
       <Button label="Open camera" icon="videocam" disabled={!item} loading={busy} onPress={() => void openCamera()} />
     </View>}>
     <T v="title1" style={{ marginTop: space.sm }}>Film your take</T>
-    <T v="subhead" tone="secondary" style={{ marginTop: space.xs }}>Your rating and caption are burned into the video. Post it anywhere — add music in Instagram with Add audio.</T>
+    <T v="subhead" tone="secondary" style={{ marginTop: space.xs }}>Flip the camera and record your reaction. Your score and your take sit on a card in the video — post it anywhere.</T>
 
     <SectionHeader title="Reviewing" />
     {item ? <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
@@ -195,13 +167,13 @@ export default function VideoReviewScreen() {
       </View>
     </Card>
 
-    <SectionHeader title="Caption" />
-    <TextField label="Shown big on the video" value={caption} onChangeText={setCaption} maxLength={80} placeholder="perfection" hint={`${caption.length}/80`} />
+    <SectionHeader title="Your take" />
+    <TextField label="Shown inside the card" value={caption} onChangeText={setCaption} maxLength={80} placeholder="perfection" hint={`${caption.length}/80`} />
 
     {item && <>
       <SectionHeader title="Preview" />
       <View style={{ alignSelf: 'center', width: 180, height: 320, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: '#1E1D1B', ...curve }}>
-        <ReviewOverlay item={item} score={score} caption={caption} width={180} />
+        <ReviewCard item={item} score={score} take={caption} name={user?.name || 'You'} handle={user?.handle || '@you'} avatar={user?.avatar} width={180} />
       </View>
     </>}
     <T v="footnote" tone="secondary" center style={{ marginTop: space.xl }}>Recorded and made on your phone. Nothing is uploaded unless you share it.</T>
@@ -213,7 +185,7 @@ export default function VideoReviewScreen() {
   // Camera and preview share one dark stage with the overlay drawn on top of it.
   const overlayLayer = item && <ViewShot ref={overlay} options={{ format: 'png', quality: 1, result: 'tmpfile', width: 1080, height: 1920 }}
     style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent' }]}>
-    <View collapsable={false} style={StyleSheet.absoluteFill}><ReviewOverlay item={item} score={score} caption={caption} width={stageWidth} /></View>
+    <View collapsable={false} style={StyleSheet.absoluteFill}><ReviewCard item={item} score={score} take={caption} name={user?.name || 'You'} handle={user?.handle || '@you'} avatar={user?.avatar} width={stageWidth} /></View>
   </ViewShot>;
 
   return <View style={{ flex: 1, backgroundColor: '#000000', paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, space.md) }}>

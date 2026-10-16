@@ -185,7 +185,7 @@ export function ListRow({ title, subtitle, value, icon, iconColor, onPress, dest
 }) {
   const { c } = useTheme();
   const body = <>
-    {icon && <View style={{ width: 30, height: 30, borderRadius: 7, backgroundColor: iconColor ?? c.accentFill, alignItems: 'center', justifyContent: 'center', ...curve }}><Ionicons name={icon} size={17} color="#FFFFFF" /></View>}
+    {icon && <View style={{ width: 30, height: 30, borderRadius: 7, backgroundColor: iconColor ?? c.accentFill, alignItems: 'center', justifyContent: 'center', ...curve }}><Ionicons name={icon} size={17} color={iconColor ? '#FFFFFF' : c.onAccent} /></View>}
     <View style={{ flex: 1, gap: 2 }}>
       <T v="body" tone={destructive ? 'danger' : 'primary'} weight={destructive ? 'medium' : undefined} numberOfLines={1}>{title}</T>
       {subtitle && <T v="footnote" tone="secondary" numberOfLines={2}>{subtitle}</T>}

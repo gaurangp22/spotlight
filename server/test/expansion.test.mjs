@@ -16,14 +16,18 @@ async function fixture(t, fetcher) {
 }
 const song = { id: 'itunes-song-123', title: 'A song', artist: 'Radiohead', kind: 'song' };
 
-test('playlist links import public Deezer picks and preserve Spotify sources without pretending to read tracks', async () => {
+test('playlist links import public Spotify, Apple Music, and Deezer tracks from fixed hosts only', async () => {
   let calls = [];
-  const fetcher = async (url) => { calls.push(url); return { ok: true, json: async () => url.includes('oembed') ? { title: 'My Spotify list' } : { title: 'My Deezer list', nb_tracks: 1, tracks: { data: [{ id: 42, title: 'A song', artist: { name: 'Radiohead' }, album: {} }] } } }; };
+  const spotifyHtml = '<script id="__NEXT_DATA__" type="application/json">' + JSON.stringify({ props: { pageProps: { state: { data: { entity: { name: 'My Spotify list', trackList: [{ uri: 'spotify:track:1234567890123456789012', title: 'A song', subtitle: 'Radiohead' }, { uri: 'bad', title: 'Skipped', subtitle: 'Nobody' }] } } } } } }) + '</script>';
+  const appleHtml = '<script type="application/json" id="serialized-server-data">' + JSON.stringify([{ data: { sections: [{ itemKind: 'containerDetailHeaderLockup', items: [{ title: 'My Apple list' }] }, { itemKind: 'trackLockup', items: [{ title: 'Nude', subtitleLinks: [{ title: 'Radiohead' }], contentDescriptor: { identifiers: { storeAdamID: '99' }, url: 'https://music.apple.com/us/album/x/1?i=99' }, artwork: { dictionary: { url: 'https://is1-ssl.mzstatic.com/a/{w}x{h}bb.{f}' } } }] }] } }]) + '</script>';
+  const fetcher = async (url) => { calls.push(url); if (url.includes('open.spotify.com/embed')) return { ok: true, text: async () => spotifyHtml }; if (url.includes('music.apple.com')) return { ok: true, text: async () => appleHtml }; return { ok: true, json: async () => ({ title: 'My Deezer list', nb_tracks: 1, tracks: { data: [{ id: 42, title: 'A song', artist: { name: 'Radiohead' }, album: {} }] } }) }; };
   const deezer = await playlistLink('https://www.deezer.com/playlist/123?utm_source=test', fetcher); assert.equal(deezer.items[0].id, 'deezer-song-42'); assert.equal(deezer.sourceUrl, 'https://www.deezer.com/playlist/123');
-  const spotify = await playlistLink('https://open.spotify.com/playlist/1234567890123456789012', fetcher); assert.equal(spotify.items.length, 0); assert.match(spotify.note, /does not provide playlist tracks/); assert.equal(spotify.title, 'My Spotify list');
-  assert.ok(calls.every((url) => url.startsWith('https://api.deezer.com/') || url.startsWith('https://open.spotify.com/oembed?')));
+  const spotify = await playlistLink('https://open.spotify.com/playlist/1234567890123456789012?si=abc', fetcher); assert.equal(spotify.title, 'My Spotify list'); assert.equal(spotify.items.length, 1); assert.equal(spotify.items[0].id, 'spotify-song-1234567890123456789012'); assert.equal(spotify.sourceUrl, 'https://open.spotify.com/playlist/1234567890123456789012');
+  const apple = await playlistLink('https://music.apple.com/us/playlist/my-list/pl.abc123', fetcher); assert.equal(apple.title, 'My Apple list'); assert.equal(apple.items[0].id, 'song-99'); assert.equal(apple.items[0].artwork, 'https://is1-ssl.mzstatic.com/a/600x600bb.jpg');
+  assert.ok(calls.every((url) => url.startsWith('https://api.deezer.com/') || url.startsWith('https://open.spotify.com/embed/playlist/') || url.startsWith('https://music.apple.com/')));
   await assert.rejects(() => playlistLink('http://127.0.0.1/playlist/123', fetcher), /HTTPS/);
-  await assert.rejects(() => playlistLink('https://evil.test/playlist/123', fetcher), /full Spotify/);
+  await assert.rejects(() => playlistLink('https://evil.test/playlist/123', fetcher), /playlist link/);
+  await assert.rejects(() => playlistLink('https://open.spotify.com/playlist/1234567890123456789012', async () => ({ ok: true, text: async () => '<html></html>' })), /public/);
 });
 
 test('messages are member-only, idempotent, ordered, removable, and respect blocking and opt-outs', async (t) => {

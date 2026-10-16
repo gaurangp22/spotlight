@@ -18,8 +18,8 @@ const port = Number(process.env.PORT || 8787);
 let stopHouseBots = () => {};
 server.listen(port, process.env.HOST || '0.0.0.0', async () => {
   console.log(`Riffs API listening on ${port} (${db.mode})`);
-  // House bots: labelled accounts that post real music and greet new people. Off unless RIFFS_BOTS=1.
-  if (process.env.RIFFS_BOTS === '1') {
+  // House bots: labelled accounts that post real music and greet new people. On unless RIFFS_BOTS=0.
+  if (process.env.RIFFS_BOTS !== '0') {
     const { createBotEngine, ensureBots, PERSONAS } = await import('./bots.mjs');
     await ensureBots(db);
     stopHouseBots = createBotEngine({ db, base: `http://127.0.0.1:${port}` }).start();

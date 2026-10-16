@@ -28,7 +28,6 @@ export function TrackPill({ item }: { item: MusicItem }) {
   const preview = usePreview();
   const playable = canPreview(item);
   const playing = preview.item?.id === item.id && preview.playing;
-  const service = item.externalUrl?.includes('spotify.com') ? 'Spotify' : 'Apple Music';
   return <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.fill, padding: space.sm, paddingRight: space.xs, borderRadius: radius.md, gap: space.sm, borderWidth: 1, borderColor: c.border, ...curve }}>
     <Pressable accessibilityRole="button" accessibilityLabel={`View ${item.title} by ${item.artist}`} onPress={() => { rememberItem(item); router.push(`/item/${encodeURIComponent(item.id)}`); }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, flex: 1, minHeight: 52 }}>
       <Artwork item={item} size={52} rounded={10} />
@@ -37,7 +36,7 @@ export function TrackPill({ item }: { item: MusicItem }) {
     {playable ? <Pressable accessibilityRole="button" accessibilityLabel={`${playing ? 'Pause' : 'Preview'} ${item.title}`} onPress={() => preview.toggle(item)} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
       <Ionicons name={playing ? 'pause' : 'play'} size={18} color={c.onAccent} style={{ marginLeft: playing ? 0 : 2 }} />
     </Pressable>
-      : item.externalUrl ? <IconButton icon="open-outline" label={`Open ${item.title} in ${service}`} size={44} filled={false} tone="secondary" onPress={() => void Linking.openURL(item.externalUrl!).catch((e) => setNotice(errorMessage(e)))} /> : null}
+      : item.externalUrl ? <IconButton icon="open-outline" label={`Listen to ${item.title}`} size={44} filled={false} tone="secondary" onPress={() => void Linking.openURL(item.externalUrl!).catch((e) => setNotice(errorMessage(e)))} /> : null}
   </View>;
 }
 
@@ -169,9 +168,9 @@ export function MatchCard({ handle }: { handle: string }) {
   if (!state || state.key !== key) return <Card style={{ marginTop: space.xl }}><T v="subhead" tone="secondary">Comparing your taste…</T></Card>;
   if (state.error) return <Card style={{ marginTop: space.xl, gap: space.md }}><T v="subhead" tone="secondary">{state.error}</T><Button label="Retry match" size="sm" variant="secondary" onPress={() => retry((v) => v + 1)} /></Card>;
   return <LinearGradient colors={[c.glowA, c.glowB]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ marginTop: space.xl, borderRadius: radius.lg, padding: space.xl, gap: space.sm, ...curve }}>
-    <T v="overline" style={{ color: '#FFFFFFCC' }}>Taste match</T>
-    <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.heavy, fontSize: data?.percent === null ? 28 : 54, lineHeight: data?.percent === null ? 34 : 58, letterSpacing: -1.6, color: '#FFFFFF' }}>{data?.percent === null ? 'A match in the making' : `${data?.percent}%`}</Text>
-    <T v="subhead" style={{ color: '#FFFFFFE6' }}>{data?.percent === null ? 'Rate some of the same music to compare your taste.' : `similar · based on ${data?.shared.length} shared ${data?.shared.length === 1 ? 'rating' : 'ratings'}`}</T>
+    <T v="overline" style={{ color: c.onGlow, opacity: 0.7 }}>Taste match</T>
+    <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.heavy, fontSize: data?.percent === null ? 28 : 54, lineHeight: data?.percent === null ? 34 : 58, letterSpacing: -1.6, color: c.onGlow }}>{data?.percent === null ? 'A match in the making' : `${data?.percent}%`}</Text>
+    <T v="subhead" style={{ color: c.onGlow, opacity: 0.85 }}>{data?.percent === null ? 'Rate some of the same music to compare your taste.' : `similar · based on ${data?.shared.length} shared ${data?.shared.length === 1 ? 'rating' : 'ratings'}`}</T>
     {!!data?.sharedArtists.length && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.xs }}>{data.sharedArtists.map((artist) => <ArtistChip key={artist.name} artist={artist} />)}</View>}
   </LinearGradient>;
 }
@@ -242,7 +241,7 @@ export function TasteTwinsRow() {
       : data?.twins.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -gutter }} contentContainerStyle={{ paddingHorizontal: gutter, gap: space.md }}>{data.twins.map((twin) => <Card key={twin.user.id} onPress={() => router.push(`/person/${twin.user.handle.slice(1)}`)} style={{ width: 210, gap: space.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Avatar name={twin.user.name} seed={twin.user.handle} uri={twin.user.avatar} size={48} />
-          <LinearGradient colors={[c.glowA, c.glowB]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 }}><Text style={{ fontFamily: font.bold, fontSize: 15, color: '#FFFFFF', letterSpacing: -0.3 }}>{twin.percent}%</Text></LinearGradient>
+          <LinearGradient colors={[c.glowA, c.glowB]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 }}><Text style={{ fontFamily: font.bold, fontSize: 15, color: c.onGlow, letterSpacing: -0.3 }}>{twin.percent}%</Text></LinearGradient>
         </View>
         <T v="headline" numberOfLines={1}>{twin.user.name}</T><T v="mono" tone="secondary" numberOfLines={1}>{twin.user.handle}</T>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>{twin.sharedArtists.slice(0, 3).map((artist) => <ArtistChip key={artist.name} artist={artist} />)}</View>

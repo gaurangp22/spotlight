@@ -73,7 +73,7 @@ export function MiniPlayer({ bottom }: { bottom: number }) {
       <Artwork item={item} size={44} rounded={10} />
       <View style={{ flex: 1, gap: 1 }}>
         <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={{ fontFamily: font.semibold, fontSize: 15, color: c.text }}>{item.title}</Text>
-        <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={{ fontFamily: font.mono, fontSize: 11, color: c.secondary }}>{item.artist} · Preview from Apple Music</Text>
+        <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={{ fontFamily: font.mono, fontSize: 11, color: c.secondary }}>{item.artist} · Preview</Text>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={playing ? 'Pause preview' : 'Play preview'} hitSlop={8} onPress={() => toggle(item)} style={[styles.button, { backgroundColor: c.inverse }]}>
         <Ionicons name={playing ? 'pause' : 'play'} size={18} color={c.onInverse} style={!playing && { marginLeft: 2 }} />

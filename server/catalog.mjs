@@ -1,10 +1,14 @@
 import { fail } from './security.mjs';
 
-// Keyless public catalogs (Deezer, TVmaze, Open Library) plus TMDB when TMDB_API_KEY is set.
+// Keyless public catalogs (Apple's search with Deezer as a fallback, TVmaze, Open Library) plus TMDB when TMDB_API_KEY is set.
 // Results are cached briefly so repeated searches don't hit the upstream rate limits.
 const TTL = 10 * 60 * 1000, MAX_ENTRIES = 500;
 const year = (date) => (typeof date === 'string' && /^\d{4}/.test(date) ? date.slice(0, 4) : '');
 const https = (url) => (typeof url === 'string' && url.startsWith('https://') ? url : undefined);
+// Deezer's top-level genre ids; album search results carry one, track results don't.
+const DEEZER_GENRES = { 132: 'Pop', 116: 'Hip-Hop/Rap', 152: 'Rock', 113: 'Dance', 165: 'R&B/Soul', 85: 'Alternative', 106: 'Electronic', 466: 'Folk', 144: 'Reggae',
+  129: 'Jazz', 98: 'Classical', 173: 'Soundtrack', 464: 'Metal', 169: 'Soul', 2: 'African', 16: 'Asian', 153: 'Blues', 75: 'Brazilian', 81: 'Indian', 197: 'Latin', 84: 'Country' };
+const genre = (name) => (typeof name === 'string' && name.trim() && name.length <= 60 ? { genre: name.trim() } : {});
 
 export function catalogService(fetcher = fetch) {
   const cache = new Map();
@@ -15,7 +19,35 @@ export function catalogService(fetcher = fetch) {
     if (!response.ok) fail(502, 'Search is unavailable right now. Try again.');
     return response.json();
   }
+  /** Apple's public search. Asked from the server so browsers aren't blocked and results are cached. */
+  async function itunes(q, kind, country) {
+    const entity = { song: 'song', album: 'album', podcast: 'podcast' }[kind];
+    const data = await json(`https://itunes.apple.com/search?${new URLSearchParams({ term: q, entity, media: kind === 'podcast' ? 'podcast' : 'music', limit: '35', country })}`);
+    const seen = new Set();
+    return (data.results || []).flatMap((r) => {
+      const id = kind === 'song' ? r.trackId : r.collectionId, title = kind === 'song' ? r.trackName : r.collectionName;
+      if (!id || !title || seen.has(id)) return [];
+      seen.add(id);
+      const art = https(r.artworkUrl600 || r.artworkUrl100?.replace('100x100bb', '600x600bb'));
+      return [{ id: `${kind}-${id}`, kind, title, artist: r.artistName || 'Unknown', ...(kind === 'song' && r.collectionName ? { album: r.collectionName } : {}),
+        ...(art ? { artwork: art } : {}), ...(https(kind === 'song' ? r.trackViewUrl : r.collectionViewUrl) ? { externalUrl: kind === 'song' ? r.trackViewUrl : r.collectionViewUrl } : {}),
+        ...(kind === 'song' && https(r.previewUrl) ? { previewUrl: r.previewUrl } : {}), ...(kind !== 'podcast' ? { ...genre(r.primaryGenreName), ...(year(r.releaseDate) ? { year: year(r.releaseDate) } : {}) } : {}) }];
+    });
+  }
+  /** Used when Apple is rate-limiting this server, so search keeps working. */
+  async function deezer(q, kind) {
+    const data = await json(`https://api.deezer.com/search/${kind === 'song' ? 'track' : 'album'}?${new URLSearchParams({ q, limit: '30' })}`);
+    return (data.data || []).filter((x) => x?.id && x.title && x.artist?.name).map((x) => ({
+      id: `deezer-${kind}-${x.id}`, kind, title: x.title, artist: x.artist.name, ...(kind === 'song' && x.album?.title ? { album: x.album.title } : {}),
+      ...(https(kind === 'song' ? x.album?.cover_xl : x.cover_xl) ? { artwork: kind === 'song' ? x.album.cover_xl : x.cover_xl } : {}), ...(https(x.link) ? { externalUrl: x.link } : {}),
+      ...genre(DEEZER_GENRES[x.genre_id ?? x.album?.genre_id]), ...(year(x.release_date || x.album?.release_date) ? { year: year(x.release_date || x.album?.release_date) } : {}),
+    }));
+  }
+  const music = (kind) => async (q, country) => {
+    try { return await itunes(q, kind, country); } catch (error) { if (kind === 'podcast') throw error; return deezer(q, kind); }
+  };
   const sources = {
+    song: music('song'), album: music('album'), podcast: music('podcast'),
     async artist(q) {
       const data = await json(`https://api.deezer.com/search/artist?${new URLSearchParams({ q, limit: '30' })}`);
       return (data.data || []).filter((a) => a?.id && a.name).map((a) => ({
@@ -53,13 +85,14 @@ export function catalogService(fetcher = fetch) {
     },
   };
   return {
-    kinds: { artist: true, movie: !!tmdbKey, show: true, book: true },
-    async search(kind, q) {
+    kinds: { song: true, album: true, podcast: true, artist: true, movie: !!tmdbKey, show: true, book: true },
+    async search(kind, q, country = 'US') {
       if (!Object.hasOwn(sources, kind)) fail(400, 'Choose a valid category.');
-      const key = `${kind}:${q.toLowerCase()}`;
+      if (!/^[A-Z]{2}$/.test(country)) country = 'US';
+      const key = `${kind}:${country}:${q.toLowerCase()}`;
       const hit = cache.get(key);
       if (hit && hit.until > Date.now()) return hit.items;
-      const items = await sources[kind](q);
+      const items = await sources[kind](q, country);
       if (cache.size >= MAX_ENTRIES) cache.delete(cache.keys().next().value);
       cache.set(key, { items, until: Date.now() + TTL });
       return items;

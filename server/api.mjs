@@ -11,6 +11,7 @@ import { catalogService } from './catalog.mjs';
 import { emailOtpService } from './email-otp.mjs';
 import { communityRoutes } from './community.mjs';
 import { betaRoutes } from './beta.mjs';
+import { leadArtist, tasteService } from './taste.mjs';
 
 const now = () => new Date().toISOString();
 const MAX_BODY = 14 * 1024 * 1024;
@@ -47,9 +48,6 @@ function previewUrl(value) {
   return value;
 }
 
-const CREDIT_SPLIT = /,|&| x |\bfeat\.?|\bft\.|\bwith\b/i;
-/** First credited artist ("Kendrick Lamar & SZA" -> "Kendrick Lamar"). */
-const leadArtist = (name) => String(name || '').split(CREDIT_SPLIT)[0].trim();
 /**
  * How alike two people's taste is, from their ratings: agreement on the things both rated, weighted by
  * how much of the smaller collection overlaps, plus how many artists they share. 0-100, or null when
@@ -101,6 +99,8 @@ export function validateItem(i, { allowAddedBy = false } = {}) {
   if (!CATEGORIES.includes(i.kind)) fail(400, 'Invalid category.');
   return { id, kind: i.kind, title: text(i.title, 'Title', 1, 300), artist: text(i.artist, 'Artist', 1, 300),
     ...(i.album ? { album: text(i.album, 'Album', 1, 300) } : {}),
+    ...(i.genre ? { genre: text(i.genre, 'Genre', 1, 60) } : {}),
+    ...(i.year ? { year: /^\d{4}$/.test(String(i.year)) ? String(i.year) : fail(400, 'Invalid release year.') } : {}),
     ...(i.artwork ? { artwork: safeUrl(i.artwork) } : {}),
     ...(i.externalUrl ? { externalUrl: safeUrl(i.externalUrl) } : {}),
     ...(i.spotifyId ? { spotifyId: text(i.spotifyId, 'Spotify ID', 1, 50) } : {}),
@@ -165,6 +165,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
   const blockedSQL = `NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.user_id = ? AND b.blocked_id = p.user_id) OR (b.blocked_id = ? AND b.user_id = p.user_id))`;
   const visibleSQL = `(p.user_id = ? OR p.visibility = 'public' OR (p.visibility = 'followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followed_id = p.user_id))) AND ${blockedSQL}`;
   const viewerArgs = (id) => [id || anonymousId, id || anonymousId, id || anonymousId, id || anonymousId];
+  const taste = tasteService({ db, catalog, fetcher, match: tasteMatch, visibleSQL, viewerArgs });
 
   async function userFor(req) {
     const token = req.headers.authorization?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];
@@ -252,9 +253,9 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
       return body;
     } catch { fail(400, 'Invalid JSON object.'); }
   }
-  const community = communityRoutes({ db, profile, validateItem, getPost, postJSON, visibleSQL, viewerArgs, notify });
+  const community = communityRoutes({ db, profile, validateItem, getPost, postJSON, visibleSQL, viewerArgs, notify, taste });
   const push = pushService({ db, fetcher, getPost });
-  const expansion = expansionRoutes({ db, key, profile, validateItem, getPost, postJSON, visibleSQL, viewerArgs, emailOtp, push });
+  const expansion = expansionRoutes({ db, key, profile, validateItem, getPost, postJSON, visibleSQL, viewerArgs, emailOtp, push, taste });
   const beta = betaRoutes({ db, profile, notify, webApp });
   const server = createServer(async (req, res) => {
     const requestId = randomUUID();
@@ -306,7 +307,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
       const user = await userFor(req);
       await beta.seen(user);
       const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ? await readBody(req) : {};
-      if (path === '/api/catalog/playlist-link' && method === 'POST') { requireUser(user); rate(`playlist-link:${user.id}`, 20, 60000); const imported = await playlistLink(body.url, fetcher); return send({ ...imported, items: imported.items.map((item) => validateItem(item)) }); }
+      if (path === '/api/catalog/playlist-link' && method === 'POST') { requireUser(user); rate(`playlist-link:${user.id}`, 20, 60000); const imported = await playlistLink(body.url, fetcher); return send({ ...imported, items: imported.items.flatMap((item) => { try { return [validateItem(item)]; } catch { return []; } }) }); }
       if (await expansion({ path, method, body, user, url, send, rate, req })) return;
       if (await community({ path, method, body, user, url, send, rate })) return;
       if (await beta.routes({ path, method, body, user, url, send, rate, peer })) return;
@@ -473,6 +474,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
         if (!target || target.id === user.id) fail(400, 'Cannot follow this profile.');
         if (method === 'PUT') { const r = await db.run('INSERT OR IGNORE INTO follows VALUES (?,?)', user.id, target.id); if (r.rowsAffected) await notify(target.id, user.id, 'follow'); }
         else await db.run('DELETE FROM follows WHERE follower_id=? AND followed_id=?', user.id, target.id);
+        taste.invalidate(user.id);
         return send({ ok: true });
       }
       const blockRoute = path.match(/^\/api\/people\/([a-z0-9_]{3,24})\/block$/);
@@ -520,6 +522,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
           // Deleting a review removes its rating (cascade); close the gap so the remaining scores stay continuous.
           const tiers = rating ? await tiersFor(user.id, rating.category, rating.item_id) : null;
           await db.batch([{ sql: 'DELETE FROM posts WHERE id=?', args: [id] }, ...(tiers ? reorder(user.id, tiers) : [])]);
+          if (rating) taste.invalidate(user.id);
           return send({ ok: true });
         }
       }
@@ -538,8 +541,11 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
       const reactionRoute = path.match(/^\/api\/posts\/([a-zA-Z0-9-]+)\/reaction$/);
       if (reactionRoute && ['PUT', 'DELETE'].includes(method)) {
         requireUser(user); const p = await getPost(reactionRoute[1], user.id);
-        if (method === 'PUT') { const r = await db.run('INSERT OR IGNORE INTO reactions VALUES (?,?)', user.id, p.id); if (r.rowsAffected) await notify(p.user_id, user.id, 'reaction', p.id); }
-        else await db.run('DELETE FROM reactions WHERE user_id=? AND post_id=?', user.id, p.id);
+        if (method === 'PUT') {
+          const r = await db.run('INSERT OR IGNORE INTO reactions VALUES (?,?)', user.id, p.id);
+          if (r.rowsAffected) { await db.run("INSERT OR REPLACE INTO post_engagements VALUES (?,?,'like',?)", user.id, p.id, now()); await notify(p.user_id, user.id, 'reaction', p.id); }
+        } else await db.batch([{ sql: 'DELETE FROM reactions WHERE user_id=? AND post_id=?', args: [user.id, p.id] }, { sql: "DELETE FROM post_engagements WHERE user_id=? AND post_id=? AND kind='like'", args: [user.id, p.id] }]);
+        taste.invalidate(user.id);
         return send({ post: await postJSON(p, user.id) });
       }
       const commentsRoute = path.match(/^\/api\/posts\/([a-zA-Z0-9-]+)\/comments$/);
@@ -584,7 +590,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
         rate(`catalog:${peer}`, 90, 60000);
         const kind = url.searchParams.get('kind') || '', q = text(url.searchParams.get('q'), 'Search', 2, 100);
         if (['song', 'album', 'artist'].includes(kind) && spotify.catalog) return send({ items: await spotify.search(null, q, kind), source: 'spotify' });
-        return send({ items: await catalog.search(kind, q), source: kind === 'artist' ? 'deezer' : kind });
+        return send({ items: await catalog.search(kind, q, (url.searchParams.get('country') || 'US').toUpperCase()) });
       }
       if (path === '/api/catalog/spotify-link' && method === 'GET') {
         rate(`catalog:${peer}`, 90, 60000);
@@ -609,6 +615,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
             ON CONFLICT(user_id, item_id) DO UPDATE SET item=excluded.item, updated_at=excluded.updated_at`, args: [user.id, item.id, item.kind, JSON.stringify(item), body.tier, position, postId, date, date] },
           ...reorder(user.id, tiers),
         ]);
+        taste.invalidate(user.id);
         const saved = await db.get('SELECT r.*, p.subtitle, p.visibility FROM ratings r JOIN posts p ON p.id=r.post_id WHERE r.user_id=? AND r.item_id=?', user.id, item.id);
         return send({ rating: ratingJSON(saved), post: await postJSON(await getPost(postId, user.id), user.id) }, existing ? 200 : 201);
       }

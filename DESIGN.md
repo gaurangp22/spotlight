@@ -2,9 +2,9 @@
 name: Riffs
 description: Music opinions and the people who get them — designed the way Apple would build a social app.
 colors:
-  light: { bg: "#F2F2F7", surface: "#FFFFFF", fill: "#EEEEF2", text: "#000000", secondary: "#6C6C70", tertiary: "#AEAEB2", accent: "#D9124B", accent-fill: "#E8174A", on-accent: "#FFFFFF" }
-  dark: { bg: "#000000", surface: "#1C1C1E", fill: "#2C2C2E", text: "#FFFFFF", secondary: "#98989F", tertiary: "#636366", accent: "#FF4D74", accent-fill: "#E8174A", on-accent: "#FFFFFF" }
-  brand-gradient: ["#FF2D55", "#AF52DE"]
+  light: { bg: "#F2F2F7", surface: "#FFFFFF", fill: "#EEEEF2", text: "#000000", secondary: "#6C6C70", tertiary: "#AEAEB2", accent: "#3F6E00", accent-fill: "#B4F03A", on-accent: "#0B0B0C" }
+  dark: { bg: "#000000", surface: "#1C1C1E", fill: "#2C2C2E", text: "#FFFFFF", secondary: "#98989F", tertiary: "#636366", accent: "#C6FF3D", accent-fill: "#C6FF3D", on-accent: "#0B0B0C" }
+  brand-gradient: ["#C6FF3D", "#2EE6C5"]
   scores: { loved: "#1E9E4A", fine: "#D97A00", nope: "#D93025" }
   icon-tiles: { purple: "#AF52DE", pink: "#FF2D55", teal: "#0FA3B1", orange: "#FF9500", blue: "#007AFF", red: "#FF3B30", green: "#34C759", grey: "#8E8E93", indigo: "#5856D6" }
 typography:
@@ -34,8 +34,8 @@ Tokens live in `src/ui/theme.ts`; primitives in `src/ui/primitives.tsx`; the scr
 ## Appearance
 
 - **Light and dark follow the device**, like every Apple app. Light uses the grouped background `#F2F2F7` with white cards; dark uses true black with `#1C1C1E` cards.
-- **One accent: Riffs Rose.** Music apps own warm red-pink. It marks primary actions, selection, likes, and links. Accent text and white-on-accent fills are contrast-checked (≥ 4.6:1).
-- **Brand gradient** (rose → purple) is rare and celebratory: the app icon, the signed-out welcome, the taste-match card, the “Rate it” tile, and the glow ring on friends who posted today.
+- **One accent: Riffs Volt.** An electric lime that no major music service owns; it reads instantly against album art and black. Volt fills carry near-black ink; in light mode accent text is a deep olive (#3F6E00) so it stays readable on white.
+- **Brand gradient** (volt → aqua, dark ink on top) is rare and celebratory: the app icon, the signed-out welcome, the taste-match card, the “Rate it” tile, and the glow ring on friends who posted today.
 - **Icon tiles are Settings-style:** a solid system colour (purple, pink, teal, orange, blue, red, green, grey, indigo) with a white glyph.
 - **Scores** use green / orange / red rounded squares with white bold numerals.
 
@@ -63,7 +63,7 @@ Inter on the iOS Dynamic Type scale (Large). Large titles (34 bold) open every t
 | `ListGroup`, `ListRow` | Inset grouped lists with Settings-style icon tiles. |
 | `EmptyState` | Apple’s content-unavailable layout: large grey symbol, title, description, action. |
 | `ReviewCard`, `TakeCard`, `PodCard` | Feed units with the shared action row: like, reply, send to a friend, share. |
-| `ScoreBadge` | Tier-coloured rounded square with the score. |
+| `ScoreBadge` | Tier-coloured score ring, the same treatment as the cards in Riffs videos (`src/ui/reelCards.tsx`). |
 | `BotBadge` | A small grey “BOT” chip after any house bot’s name, everywhere it appears. |
 | `MatchCard`, `StoryRail` | Taste match (gradient card, big percentage) and friends’ latest picks (avatars with a glow ring). |
 

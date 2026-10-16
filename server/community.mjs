@@ -6,7 +6,7 @@ export function currentWeek(time = new Date()) {
   day.setUTCDate(day.getUTCDate() - (day.getUTCDay() + 6) % 7);
   return day.toISOString().slice(0, 10);
 }
-export function communityRoutes({ db, profile, validateItem, getPost, postJSON, visibleSQL, viewerArgs, notify }) {
+export function communityRoutes({ db, profile, validateItem, getPost, postJSON, visibleSQL, viewerArgs, notify, taste }) {
   const unblocked = (column) => `NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.user_id=? AND b.blocked_id=${column}) OR (b.blocked_id=? AND b.user_id=${column}))`;
   async function clubFor(id, viewer) {
     const row = await db.get(`SELECT c.*, u.handle, u.name AS owner_name, u.avatar,
@@ -29,6 +29,7 @@ export function communityRoutes({ db, profile, validateItem, getPost, postJSON, 
       const clean = artists.map((item) => { const pick = validateItem(item); if (pick.kind !== 'artist') fail(400, 'Choose artists for your music profile.'); return pick; });
       if (new Set(clean.map((item) => item.id)).size !== clean.length) fail(400, 'Choose each artist once.');
       await db.run('UPDATE users SET favorite_artists=?, onboarding_complete=? WHERE id=?', JSON.stringify(clean), body.complete === true ? 1 : 0, user.id);
+      taste?.invalidate(user.id);
       return done({ user: profile(await db.get('SELECT * FROM users WHERE id=?', user.id)) });
     }
     const connections = path.match(/^\/api\/people\/([a-z0-9_]{3,24})\/(followers|following)$/);
@@ -59,6 +60,7 @@ export function communityRoutes({ db, profile, validateItem, getPost, postJSON, 
         const item = validateItem(body.item); if (item.id !== id) fail(400, 'This pick does not match the saved item.');
         await db.run('INSERT INTO saved_items VALUES (?,?,?,?) ON CONFLICT(user_id,item_id) DO UPDATE SET item=excluded.item', user.id, item.id, JSON.stringify(item), now());
       } else await db.run('DELETE FROM saved_items WHERE user_id=? AND item_id=?', user.id, id);
+      taste?.invalidate(user.id);
       return done({ ok: true });
     }
     const savedPost = path.match(/^\/api\/library\/posts\/([a-zA-Z0-9-]+)$/);
@@ -68,6 +70,7 @@ export function communityRoutes({ db, profile, validateItem, getPost, postJSON, 
         await getPost(savedPost[1], user.id);
         await db.run('INSERT INTO saved_posts VALUES (?,?,?) ON CONFLICT DO NOTHING', user.id, savedPost[1], now());
       } else await db.run('DELETE FROM saved_posts WHERE user_id=? AND post_id=?', user.id, savedPost[1]);
+      taste?.invalidate(user.id);
       return done({ ok: true });
     }
     if (path === '/api/clubs') {

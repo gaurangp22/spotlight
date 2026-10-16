@@ -1,11 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Ranking } from '../../lib/types';
 import { useApp } from '../../store/AppContext';
-import { RiffsWordmark } from '../../ui/brand';
-import { RankingCard, Screen } from '../../ui/components';
+import { RiffsLockup } from '../../ui/brand';
+import { FeedSkeleton, RankingCard, Screen } from '../../ui/components';
 import { StoryRail, UnderlineTabs } from '../../ui/equals';
 import { usePages } from '../../ui/pages';
 import { Avatar, Button, Card, EmptyState, IconButton, Ionicons, ListGroup, ListRow, T } from '../../ui/primitives';
@@ -15,15 +15,15 @@ import { curve, font, radius, shadow, space, useTheme } from '../../ui/theme';
 function Welcome() {
   const { c } = useTheme();
   return <LinearGradient colors={[c.glowA, c.glowB]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: space.xl, paddingTop: space.xxl, marginBottom: space.xl, overflow: 'hidden', ...curve }}>
-    <T v="overline" style={{ color: '#FFFFFFCC' }}>Music, out loud</T>
-    <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.heavy, fontSize: 36, lineHeight: 40, letterSpacing: -1.1, color: '#FFFFFF', marginTop: space.sm }}>Your taste deserves an audience.</Text>
-    <T v="body" style={{ color: '#FFFFFFE6', marginTop: space.md }}>Rate albums head-to-head, post hot takes, and find the people whose taste matches yours.</T>
+    <T v="overline" style={{ color: c.onGlow, opacity: 0.7 }}>Music, out loud</T>
+    <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.heavy, fontSize: 36, lineHeight: 40, letterSpacing: -1.1, color: c.onGlow, marginTop: space.sm }}>Your music taste deserves a mic.</Text>
+    <T v="body" style={{ color: c.onGlow, opacity: 0.85, marginTop: space.md }}>Rate your favourite tracks, drop album reviews, and record videos featuring your ratings.</T>
     <View style={{ gap: space.sm, marginTop: space.xl }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Join Riffs" onPress={() => router.push('/auth')} style={{ minHeight: 52, borderRadius: radius.md, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', ...curve }}>
-        <T v="label" style={{ color: '#D9124B' }}>Join Riffs — it’s free</T>
+      <Pressable accessibilityRole="button" accessibilityLabel="Join Riffs" onPress={() => router.push('/auth')} style={{ minHeight: 52, borderRadius: radius.md, backgroundColor: c.onGlow, alignItems: 'center', justifyContent: 'center', ...curve }}>
+        <T v="label" style={{ color: c.glowA }}>Join Riffs — it’s free</T>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="I already have an account" onPress={() => router.push({ pathname: '/auth', params: { mode: 'login' } })} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
-        <T v="label" style={{ color: '#FFFFFF' }}>I already have an account</T>
+        <T v="label" style={{ color: c.onGlow }}>I already have an account</T>
       </Pressable>
     </View>
   </LinearGradient>;
@@ -58,7 +58,7 @@ export default function HomeScreen() {
   const hasDraft = draft.items.length > 0 || !!draft.title.trim();
 
   return <Screen tab onRefresh={() => { pages.reload(); void refresh(); }} refreshing={refreshing || pages.loading} onEndReached={() => { if (pages.hasMore && !pages.busy && !pages.error) void pages.loadMore(); }}
-    left={<RiffsWordmark width={76} />}
+    left={<RiffsLockup height={30} />}
     right={user ? <IconButton icon="notifications-outline" label={unread ? `Activity, ${unread} unread` : 'Activity'} badge={unread > 0} onPress={() => router.push('/notifications')} />
       : <Button label="Sign in" size="sm" variant="secondary" inline onPress={() => router.push({ pathname: '/auth', params: { mode: 'login' } })} />}>
     <View style={{ height: space.sm }} />
@@ -79,7 +79,7 @@ export default function HomeScreen() {
         : !pages.loading && !pages.error && <Card><EmptyState icon="musical-notes" title={tab === 'following' ? 'Your circle is quiet' : 'Start the conversation'} text={tab === 'following' ? 'Follow people in Discover to bring their music into your feed.' : 'Be the first to share a take, rate an album, or build a pod.'}
           action={<Button label={tab === 'following' ? 'Find people' : 'Post a take'} inline onPress={() => router.push(tab === 'following' ? '/(tabs)/discover' : '/take')} />} /></Card>}
     {!!pages.error && <Card style={{ gap: space.md }}><T>{pages.error}</T><Button label="Try again" variant="secondary" onPress={pages.reload} /></Card>}
-    {pages.loading && !pages.rows.length && <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} />}
+    {pages.loading && !pages.rows.length && <FeedSkeleton />}
     {pages.hasMore && <Button label="More posts" variant="secondary" loading={pages.busy} onPress={() => void pages.loadMore()} />}
   </Screen>;
 }

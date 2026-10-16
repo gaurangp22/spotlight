@@ -6,7 +6,7 @@ import { useApp } from '../store/AppContext';
 import { goBack, Screen } from '../ui/components';
 import { useTask } from '../ui/forms';
 import { haptic } from '../ui/haptics';
-import { RiffsWordmark } from '../ui/brand';
+import { RiffsLogo } from '../ui/brand';
 import { Button, IconButton, Segmented, T, TextField } from '../ui/primitives';
 import { font, space, type, useTheme } from '../ui/theme';
 
@@ -77,7 +77,7 @@ export default function AuthScreen() {
   return <Screen left={<IconButton icon="close" label="Close" onPress={goBack} size={36} />}
     footer={<Button label={cta} loading={busy} disabled={otp && config?.emailOtp === false} onPress={() => void run(submit)} />}>
     <View style={{ paddingTop: space.lg, paddingBottom: space.xl }}>
-      <RiffsWordmark />
+      <RiffsLogo size={64} />
       <T v="title1" style={{ marginTop: space.xl }} accessibilityRole="header">{copy[mode].title}</T>
       <T v="body" tone="secondary" style={{ marginTop: space.sm }}>{copy[mode].text}</T>
     </View>
