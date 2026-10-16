@@ -36,14 +36,14 @@ function CountdownPhone() {
   return <div className="phone tilt-left" aria-label="A ranking countdown video made with Riffs">
     <div className="screen camera" style={{ backgroundImage: `url(${covers[22]})` }}>
       <div className="reel-head">
-        <span className="avatar">G</span><b>@gaurang22</b>
+        <span className="avatar">M</span><b>@mira.loops</b>
       </div>
       <h4 className="reel-title">My Discovery ranking</h4>
       <p className="reel-sub">on Riffs <img src="/riffs-mark-white.png" alt="" /></p>
       <div className="glass list">
         {[1, 2, 3].map((n) => <div key={n} className={`slot${n === 1 ? ' gold' : ''}`}><i>{n}</i></div>)}
         <div className="hot">
-          <div className="by"><span className="avatar xs">G</span>@gaurang22 <em>now</em></div>
+          <div className="by"><span className="avatar xs">M</span>@mira.loops <em>now</em></div>
           <div className="row"><i>4</i><img src={rows[0].c} alt="" /><div><b>{rows[0].t}</b><span>{rows[0].a}</span></div><Ring score={rows[0].s} /></div>
           <q>Beautiful</q>
         </div>
@@ -57,7 +57,7 @@ function ReviewPhone() {
   return <div className="phone tilt-right" aria-label="A video review made with Riffs">
     <div className="screen camera" style={{ backgroundImage: `url(${covers[4]})` }}>
       <div className="glass review">
-        <div className="by"><span className="avatar xs">A</span>@adi22 <em>now</em><img className="mark" src="/riffs-mark-white.png" alt="" /></div>
+        <div className="by"><span className="avatar xs">T</span>@theo.vinyl <em>now</em><img className="mark" src="/riffs-mark-white.png" alt="" /></div>
         <div className="row"><img src={covers[24] || covers[0]} alt="" /><div><b>Random Access Memories</b><span>Daft Punk · Album</span></div><Ring score={9.2} size="lg" /></div>
         <q>Daft Punk never misses</q>
       </div>
@@ -78,7 +78,7 @@ const features = [
 function FeatureVisual({ kind }: { kind: string }) {
   if (kind === 'versus') return <div className="fv versus"><img src={covers[2]} alt="" /><span>or</span><img src={covers[1]} alt="" /></div>;
   if (kind === 'countdown') return <div className="fv countdown">{[3, 2, 1].map((n, i) => <div key={n} className={n === 1 ? 'gold' : ''}><i>{n}</i><img src={covers[5 + i]} alt="" /><Ring score={8.6 + i * 0.4} size="sm" /></div>)}</div>;
-  if (kind === 'twins') return <div className="fv twins"><span className="avatar lg">G</span><b>94%</b><span className="avatar lg alt">A</span></div>;
+  if (kind === 'twins') return <div className="fv twins"><span className="avatar lg">M</span><b>94%</b><span className="avatar lg alt">T</span></div>;
   if (kind === 'foryou') return <div className="fv foryou">{['Because you rated Metallica', 'More Hard Rock', 'Loved by your taste twin'].map((t, i) => <div key={t}><img src={covers[12 + i]} alt="" /><em>{t}</em></div>)}</div>;
   if (kind === 'import') return <div className="fv import"><code>open.spotify.com/playlist/…</code><div>{covers.slice(14, 19).map((c) => <img key={c} src={c} alt="" />)}</div></div>;
   return <div className="fv chat"><p className="them">have you heard the new Tame Impala?</p><p className="me">sending it rn</p><p className="them song"><img src={covers[9]} alt="" />Let It Happen</p></div>;

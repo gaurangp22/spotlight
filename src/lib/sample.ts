@@ -27,14 +27,14 @@ const albums: MusicItem[] = [
 export const sampleRankings: Ranking[] = [
   {
     id: 'sample-radiohead', title: 'The Radiohead songs I keep returning to',
-    subtitle: 'Five songs, one impossible order.', author: 'Mandi', handle: '@mandi',
+    subtitle: 'Five songs, one impossible order.', author: 'Juno', handle: '@juno',
     items: radiohead, createdAt: 'Today', visibility: 'public', reactionCount: 24,
-    comments: [{ id: 'sample-comment', author: 'Ayush', text: 'Reckoner at three is a brave choice.', itemId: 'sample-reckoner' }],
+    comments: [{ id: 'sample-comment', author: 'Kai', text: 'Reckoner at three is a brave choice.', itemId: 'sample-reckoner' }],
     isSample: true,
   },
   {
     id: 'sample-albums', title: 'Albums that changed my wiring',
-    subtitle: 'No skips. No explanations.', author: 'Ayush', handle: '@ayush',
+    subtitle: 'No skips. No explanations.', author: 'Kai', handle: '@kai',
     items: albums, createdAt: 'Yesterday', visibility: 'public', reactionCount: 18,
     comments: [], isSample: true,
   },
