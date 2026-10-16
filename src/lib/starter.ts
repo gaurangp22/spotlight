@@ -411,3 +411,247 @@ export const starterAlbums: MusicItem[] = [
     externalUrl: "https://music.apple.com/in/album/1440818584"
   }
 ];
+
+// Popular artists across Western and Indian music (Deezer catalog, with photos), shown before someone searches.
+export const starterArtists: MusicItem[] = [
+  {
+    id: "artist-dz12246",
+    title: "Taylor Swift",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/cc2495870fe1a792ad0cdb05501ad5ec/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/12246"
+  },
+  {
+    id: "artist-dz4050205",
+    title: "The Weeknd",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/581693b4724a7fcfa754455101e13a44/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/4050205"
+  },
+  {
+    id: "artist-dz246791",
+    title: "Drake",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/eb0ed5b21d1ea5af021fc074ded0e91f/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/246791"
+  },
+  {
+    id: "artist-dz9635624",
+    title: "Billie Eilish",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/8eab1a9a644889aabaca1e193e05f984/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/9635624"
+  },
+  {
+    id: "artist-dz525046",
+    title: "Kendrick Lamar",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/be0a7c550567f4af0ed202d7235b74d6/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/525046"
+  },
+  {
+    id: "artist-dz5531258",
+    title: "SZA",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/8ced041da2bed70d5715f0860956169b/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/5531258"
+  },
+  {
+    id: "artist-dz3830821",
+    title: "Arijit Singh",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/ac5350cff290edd5b69fa584b8b1bd4f/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/3830821"
+  },
+  {
+    id: "artist-dz76708242",
+    title: "AP Dhillon",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/52594ac9fa763dc163ed13d21cb130ec/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/76708242"
+  },
+  {
+    id: "artist-dz1199677",
+    title: "Diljit Dosanjh",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/79b85e695e0ca6529e56bf3b628e92bd/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/1199677"
+  },
+  {
+    id: "artist-dz5208987",
+    title: "Prateek Kuhad",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/7f69b3905ae630b3f7bcd826bd2dc46f/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/5208987"
+  },
+  {
+    id: "artist-dz253620",
+    title: "A. R. Rahman",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/e6bfa2ee147854dc35fdc5dd4950a084/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/253620"
+  },
+  {
+    id: "artist-dz64116612",
+    title: "Anuv Jain",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/eb0c0e91c8ad621b41178e0d66c81057/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/64116612"
+  },
+  {
+    id: "artist-dz399",
+    title: "Radiohead",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/0d58cfbc90f2e776608bcdc0c45a4711/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/399"
+  },
+  {
+    id: "artist-dz1182",
+    title: "Arctic Monkeys",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/6c03e4c7c36800897fd468633286db24/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/1182"
+  },
+  {
+    id: "artist-dz1350335",
+    title: "Frank Ocean",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/882155c08dc31d6464d6d580083c968c/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/1350335"
+  },
+  {
+    id: "artist-dz134790",
+    title: "Tame Impala",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/879015e713cc6ad6ffaeec154c027505/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/134790"
+  },
+  {
+    id: "artist-dz27",
+    title: "Daft Punk",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/638e69b9caaf9f9f3f8826febea7b543/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/27"
+  },
+  {
+    id: "artist-dz892",
+    title: "Coldplay",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/3087954bca22f306324912e5ac8375c3/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/892"
+  },
+  {
+    id: "artist-dz8706544",
+    title: "Dua Lipa",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/877872aaf75694f11d53c318700ab2b5/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/8706544"
+  },
+  {
+    id: "artist-dz4495513",
+    title: "Travis Scott",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/8d8316146026d7e6ce377e314536df62/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/4495513"
+  },
+  {
+    id: "artist-dz119",
+    title: "Metallica",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/056578a9c2007f69ce198c81875eca41/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/119"
+  },
+  {
+    id: "artist-dz92",
+    title: "Linkin Park",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/4886905210739af3438990897bad3a98/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/92"
+  },
+  {
+    id: "artist-dz10583405",
+    title: "Bad Bunny",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/044a3f315b041864887a8dd8709e6926/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/10583405"
+  },
+  {
+    id: "artist-dz6982223",
+    title: "BTS",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/b5c64fa8216ca158e52b4d88bd9388ff/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/6982223"
+  },
+  {
+    id: "artist-dz1424821",
+    title: "Lana Del Rey",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/8994d3be1a59a72f887f1f8afd2d4c6c/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/1424821"
+  },
+  {
+    id: "artist-dz1194083",
+    title: "Tyler, The Creator",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/5eceecd683beab6dd901a7931294a121/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/1194083"
+  },
+  {
+    id: "artist-dz1462230",
+    title: "Charli xcx",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/5a4f593c65c71292b4389e871f76c023/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/1462230"
+  },
+  {
+    id: "artist-dz1176900",
+    title: "Sabrina Carpenter",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/4a9cdc7737e2a0e59b4917b47884b859/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/1176900"
+  },
+  {
+    id: "artist-dz11152580",
+    title: "Olivia Rodrigo",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/2c9e480317183c037eaebcd7ba96daf4/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/11152580"
+  },
+  {
+    id: "artist-dz1",
+    title: "The Beatles",
+    artist: "Artist",
+    kind: "artist",
+    artwork: "https://cdn-images.dzcdn.net/images/artist/16925ed8f96eb621ecd56c2c8ba3da6e/1000x1000-000000-80-0-0.jpg",
+    externalUrl: "https://www.deezer.com/artist/1"
+  }
+];

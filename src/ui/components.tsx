@@ -11,6 +11,7 @@ import { useApp } from '../store/AppContext';
 import { MoodGrid } from './mood';
 import { PostActions, TakeCard } from './equals';
 import { MINI_PLAYER_HEIGHT, usePreview } from './preview';
+import { makeReveal, RevealContext } from './keyboard';
 import { useTabBarSpace } from './tabbar';
 import { Artwork, Avatar, Badge, BotBadge, Card, IconButton, Ionicons, T } from './primitives';
 import { curve, font, gutter, makeStyles, maxContent, radius, shadow, space, useTheme } from './theme';
@@ -45,7 +46,10 @@ export function Screen({ children, title, large = false, fadeTitle = false, eyeb
   const preview = usePreview();
   const tabSpace = useTabBarSpace();
   const y = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => { y.value = e.contentOffset.y; if (onScrollPosition) scheduleOnRN(onScrollPosition, e.contentOffset.y, e.contentSize.height, e.layoutMeasurement.height); if (onEndReached && e.contentOffset.y + e.layoutMeasurement.height >= e.contentSize.height - 400) scheduleOnRN(onEndReached); });
+  const ownScroll = React.useRef<Animated.ScrollView>(null);
+  // Refs and the scroll position are read only when a field asks to be revealed, never during render.
+  const reveal = React.useCallback((field: Parameters<ReturnType<typeof makeReveal>>[0]) => makeReveal(() => ((scrollRef ?? ownScroll) as React.RefObject<Animated.ScrollView | null>).current as never, () => y.get())(field), [scrollRef, y]);
+  const onScroll = useAnimatedScrollHandler((e) => { y.set(e.contentOffset.y); if (onScrollPosition) scheduleOnRN(onScrollPosition, e.contentOffset.y, e.contentSize.height, e.layoutMeasurement.height); if (onEndReached && e.contentOffset.y + e.layoutMeasurement.height >= e.contentSize.height - 400) scheduleOnRN(onEndReached); });
   const titleStyle = useAnimatedStyle(() => ({ opacity: large ? interpolate(y.value, [26, 46], [0, 1], Extrapolation.CLAMP) : fadeTitle ? interpolate(y.value, [130, 170], [0, 1], Extrapolation.CLAMP) : 1 }));
   const hairline = useAnimatedStyle(() => ({ opacity: interpolate(y.value, [0, 12], [0, 1], Extrapolation.CLAMP) }));
   // Tab screens scroll under the floating tab bar, so they reserve its height.
@@ -69,11 +73,12 @@ export function Screen({ children, title, large = false, fadeTitle = false, eyeb
   const content = <View style={[s.measure, padded && s.padded, contentStyle]}>{heading}{children}</View>;
   return <View style={s.page}>
     {bar}
-    <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {scroll ? <Animated.ScrollView ref={scrollRef} onContentSizeChange={(_width, height) => onContentHeight?.(height)} onScroll={onScroll} scrollEventThrottle={16} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}
+    {/* Android draws edge-to-edge and no longer resizes the window for the keyboard, so both platforms pad. */}
+    <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'web' ? undefined : 'padding'}>
+      {scroll ? <Animated.ScrollView ref={(scrollRef ?? ownScroll) as never} onContentSizeChange={(_width, height) => onContentHeight?.(height)} onScroll={onScroll} scrollEventThrottle={16} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomPad }}
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.secondary} colors={[c.accent]} progressBackgroundColor={c.surface} /> : undefined}>
-        {content}
+        <RevealContext.Provider value={reveal}>{content}</RevealContext.Provider>
       </Animated.ScrollView> : <View style={[s.fill, { paddingBottom: bottomPad }]}>{content}</View>}
       {footer && <View style={[s.footer, { paddingBottom: tab ? tabSpace + space.sm : Math.max(insets.bottom, space.md) }]}><View style={[s.measure, s.padded]}>{footer}</View></View>}
     </KeyboardAvoidingView>

@@ -1,6 +1,8 @@
 import { fail, text } from './security.mjs';
 
-const LIMIT = 100;
+// Pods hold up to 500 songs. Spotify's public player only lists the first 100, so longer playlists need the
+// server's Spotify app credentials (SPOTIFY_CLIENT_ID/SECRET), which read every track without anyone logging in.
+const LIMIT = 500, EMBED_LIMIT = 100;
 const BROWSER = { 'user-agent': 'Mozilla/5.0 (compatible; RiffsBot/1.0; +https://riffs.app)', 'accept-language': 'en' };
 
 /** Reads the JSON a public page embeds in a <script> tag, or fails with a message the person can act on. */
@@ -17,11 +19,34 @@ async function page(fetcher, url, message) {
   return response.text();
 }
 
+/** Runs `work` over `list` with at most `size` in flight. */
+async function pool(list, size, work) {
+  const out = new Array(list.length); let next = 0;
+  await Promise.all(Array.from({ length: Math.min(size, list.length) }, async () => { while (next < list.length) { const i = next++; out[i] = await work(list[i]).catch(() => undefined); } }));
+  return out;
+}
+
+/** Spotify's oEmbed gives each track's cover; the 300px thumbnail is swapped for the 640px image. */
+async function spotifyCovers(items, fetcher) {
+  const covers = await pool(items, 10, async (item) => {
+    const response = await fetcher(`https://open.spotify.com/oembed?url=${encodeURIComponent(item.externalUrl)}`, { signal: AbortSignal.timeout(8000) });
+    const url = response.ok ? (await response.json()).thumbnail_url : undefined;
+    return typeof url === 'string' && url.startsWith('https://') ? url.replace('ab67616d00001e02', 'ab67616d0000b273') : undefined;
+  });
+  return items.map((item, i) => (covers[i] ? { ...item, artwork: covers[i] } : item));
+}
+
 /**
- * Spotify's public embed player carries the playlist's track list, so public playlists import without
- * anyone connecting an account. The embed has no per-track artwork; the app fills covers in afterwards.
+ * Spotify's public embed player carries the first 100 tracks of a playlist, so public playlists import without
+ * anyone connecting an account; covers come from oEmbed. With app credentials, the Web API reads every track.
  */
-async function spotifyPlaylist(id, sourceUrl, fetcher) {
+async function spotifyPlaylist(id, sourceUrl, fetcher, spotify) {
+  if (spotify?.catalog) {
+    try {
+      const full = await spotify.playlistTracks(id, LIMIT);
+      if (full.items.length) return { title: String(full.title || 'My playlist').slice(0, 100), sourceUrl, items: full.items, note: full.more ? `Imported the first ${LIMIT} songs.` : '' };
+    } catch { /* Spotify's own mixes are hidden from apps; the public player still lists them. */ }
+  }
   const message = 'This Spotify playlist couldn’t be read. Make sure it’s public, or paste the track list instead.';
   const html = await page(fetcher, `https://open.spotify.com/embed/playlist/${id}`, message);
   const data = embeddedJson(html, /<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/, message);
@@ -32,8 +57,9 @@ async function spotifyPlaylist(id, sourceUrl, fetcher) {
     if (!trackId || !track.title || !track.subtitle) return [];
     return [{ id: `spotify-song-${trackId}`, kind: 'song', title: String(track.title).slice(0, 300), artist: String(track.subtitle).replace(/ /g, ' ').slice(0, 300), externalUrl: `https://open.spotify.com/track/${trackId}`, spotifyId: trackId }];
   });
-  const total = Number(entity.trackCount ?? entity.trackList.length);
-  return { title: String(entity.name || entity.title || 'My playlist').slice(0, 100), sourceUrl, items: items.slice(0, LIMIT), note: total > LIMIT || items.length > LIMIT ? `Imported the first ${LIMIT} tracks.` : '' };
+  const capped = entity.trackList.length >= EMBED_LIMIT;
+  return { title: String(entity.name || entity.title || 'My playlist').slice(0, 100), sourceUrl, items: await spotifyCovers(items.slice(0, EMBED_LIMIT), fetcher),
+    note: capped ? `Imported the first ${EMBED_LIMIT} songs — that’s all Spotify shares publicly. Add more with search.` : '' };
 }
 
 /** Apple Music playlist pages include their track list (with artwork) as server data. */
@@ -69,12 +95,12 @@ async function deezerPlaylist(id, sourceUrl, fetcher) {
 }
 
 /** Reads a public playlist link from a fixed set of provider hosts. Nothing else is ever fetched. */
-export async function playlistLink(input, fetcher = fetch) {
+export async function playlistLink(input, fetcher = fetch, spotify = null) {
   let url; try { url = new URL(text(input, 'Playlist link', 10, 1000).trim()); } catch { fail(400, 'Paste a full playlist link, like open.spotify.com/playlist/…'); }
   if (url.protocol !== 'https:' || url.username || url.password || url.port) fail(400, 'Use an HTTPS playlist link.');
   const sourceUrl = url.origin + url.pathname.replace(/\/$/, '');
-  const spotify = url.hostname === 'open.spotify.com' && url.pathname.match(/^\/(?:intl-[a-z-]+\/)?(?:embed\/)?playlist\/([A-Za-z0-9]{22})\/?$/);
-  if (spotify) return spotifyPlaylist(spotify[1], `https://open.spotify.com/playlist/${spotify[1]}`, fetcher);
+  const spotifyMatch = url.hostname === 'open.spotify.com' && url.pathname.match(/^\/(?:intl-[a-z-]+\/)?(?:embed\/)?playlist\/([A-Za-z0-9]{22})\/?$/);
+  if (spotifyMatch) return spotifyPlaylist(spotifyMatch[1], `https://open.spotify.com/playlist/${spotifyMatch[1]}`, fetcher, spotify);
   if (url.hostname === 'music.apple.com' && /^\/[a-z]{2}\/playlist\/[^/]+\/pl\.[A-Za-z0-9.-]+\/?$/.test(url.pathname)) return applePlaylist(sourceUrl, fetcher);
   const deezer = (url.hostname === 'www.deezer.com' || url.hostname === 'deezer.com') && url.pathname.match(/^\/(?:[a-z]{2}\/)?playlist\/(\d+)\/?$/);
   if (deezer) return deezerPlaylist(deezer[1], sourceUrl, fetcher);

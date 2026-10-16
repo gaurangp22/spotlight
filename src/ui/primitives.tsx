@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Modal, Platform, Pressable, PressableProps, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextInputProps,
+  ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, PressableProps, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextInputProps,
   TextProps, TextStyle, View, ViewStyle,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
@@ -10,6 +10,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { MusicItem } from '../lib/types';
 import { sampleMusic } from '../lib/sample';
 import { haptic } from './haptics';
+import { useReveal } from './keyboard';
 import { avatarColor, curve, font, makeStyles, noOutline, Palette, radius, shadow, space, type, TypeVariant, useTheme, Weight } from './theme';
 
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -154,15 +155,25 @@ export function SearchField({ value, onChangeText, placeholder, autoFocus, style
   </View>;
 }
 
-export function TextField({ label, hint, error, style, ...props }: TextInputProps & { label: string; hint?: string; error?: string }) {
+export function TextField({ label, hint, error, style, secureTextEntry, ...props }: TextInputProps & { label: string; hint?: string; error?: string }) {
   const { c } = useTheme();
+  const reveal = useReveal();
+  const input = React.useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
+  // Passwords start hidden; the eye shows what you typed.
+  const [shown, setShown] = useState(false);
   return <View style={{ gap: 7, marginBottom: space.lg }}>
     <T v="footnote" weight="semibold" tone="secondary">{label}</T>
-    <TextInput accessibilityLabel={label} placeholderTextColor={c.secondary} selectionColor={c.accent} maxFontSizeMultiplier={1.4} {...props}
-      onFocus={(event) => { setFocused(true); props.onFocus?.(event); }} onBlur={(event) => { setFocused(false); props.onBlur?.(event); }}
-      style={[type.body, { minHeight: 52, borderRadius: radius.md, backgroundColor: c.surface, color: c.text, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1.5, borderColor: error ? c.danger : focused ? c.accent : c.border, ...curve },
-        props.multiline && { minHeight: 96, textAlignVertical: 'top' }, noOutline, style]} />
+    <View>
+      <TextInput ref={input} accessibilityLabel={label} placeholderTextColor={c.secondary} selectionColor={c.accent} maxFontSizeMultiplier={1.4} {...props} secureTextEntry={!!secureTextEntry && !shown}
+        onFocus={(event) => { setFocused(true); reveal(input.current); props.onFocus?.(event); }} onBlur={(event) => { setFocused(false); props.onBlur?.(event); }}
+        style={[type.body, { minHeight: 52, borderRadius: radius.md, backgroundColor: c.surface, color: c.text, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1.5, borderColor: error ? c.danger : focused ? c.accent : c.border, ...curve },
+          !!secureTextEntry && { paddingRight: 52 }, props.multiline && { minHeight: 96, textAlignVertical: 'top' }, noOutline, style]} />
+      {!!secureTextEntry && <Pressable accessibilityRole="button" accessibilityLabel={shown ? 'Hide password' : 'Show password'} hitSlop={8} onPress={() => setShown((v) => !v)}
+        style={{ position: 'absolute', right: 6, top: 0, bottom: 0, width: 44, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={shown ? 'eye-off-outline' : 'eye-outline'} size={21} color={c.secondary} />
+      </Pressable>}
+    </View>
     {!!(error || hint) && <T v="footnote" tone={error ? 'danger' : 'secondary'}>{error || hint}</T>}
   </View>;
 }
@@ -228,8 +239,11 @@ export function Sheet({ visible, onClose, title, children, action }: { visible: 
           <T v="headline" center style={{ flex: 1 }} accessibilityRole="header" numberOfLines={1}>{title}</T>
           <Pressable accessibilityRole="button" accessibilityLabel="Done" hitSlop={10} onPress={onClose} style={{ width: 70, alignItems: 'flex-end' }}><T v="headline" tone="accent">Done</T></Pressable>
         </View>
-        <View style={{ flex: 1 }}>{children}</View>
-        {action && <View style={{ paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.md, borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.hairline }}>{action}</View>}
+        {/* Sheets are their own window, so they make room for the keyboard themselves. */}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'web' ? undefined : 'padding'}>
+          <View style={{ flex: 1 }}>{children}</View>
+          {action && <View style={{ paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.md, borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.hairline }}>{action}</View>}
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </SafeAreaProvider>
   </Modal>;
@@ -241,7 +255,7 @@ export function Dialog({ visible, title, description, confirmLabel = 'Confirm', 
 }) {
   const { c } = useTheme();
   return <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel} statusBarTranslucent>
-    <View style={{ flex: 1, backgroundColor: c.scrim, alignItems: 'center', justifyContent: 'center', padding: space.xxl }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'web' ? undefined : 'padding'} style={{ flex: 1, backgroundColor: c.scrim, alignItems: 'center', justifyContent: 'center', padding: space.xxl }}>
       <View accessibilityViewIsModal style={[{ backgroundColor: c.elevated, borderRadius: radius.xl, padding: space.xl, width: '100%', maxWidth: 380, gap: space.md, ...curve }, shadow(c, 3)]}>
         <T v="title3" accessibilityRole="header">{title}</T>
         <T v="subhead" tone="secondary">{description}</T>
@@ -251,7 +265,7 @@ export function Dialog({ visible, title, description, confirmLabel = 'Confirm', 
           <Button label="Cancel" variant="plain" disabled={busy} onPress={onCancel} />
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   </Modal>;
 }
 

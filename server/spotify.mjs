@@ -156,6 +156,17 @@ export function spotifyService(db, key, fetcher = fetch) {
         throw error;
       }
     },
+    /** Every track of a public playlist through the app's own credentials (no listener login), with covers. */
+    async playlistTracks(id, limit = 500) {
+      const p = await call(null, `/playlists/${id}?fields=name`);
+      const items = [];
+      for (let offset = 0; items.length < limit; offset += 100) {
+        const page = await call(null, `/playlists/${id}/items?limit=100&offset=${offset}`);
+        items.push(...(page.items || []).map((i) => i.item ?? i.track).filter((t) => t?.id && t.type === 'track' && !t.is_local).map((t) => item(t)));
+        if (!page.next) break;
+      }
+      return { title: p.name, items: items.slice(0, limit), more: items.length > limit };
+    },
     async playlists(userId, offset) {
       const data = await call(userId, `/me/playlists?limit=50&offset=${offset}`);
       return { items: (data.items || []).filter(Boolean).map((p) => ({ id: p.id, name: p.name, artwork: p.images?.[0]?.url, count: p.items?.total ?? p.tracks?.total ?? 0 })), nextOffset: data.next ? offset + data.items.length : null };

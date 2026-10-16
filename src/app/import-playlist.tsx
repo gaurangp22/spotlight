@@ -14,7 +14,8 @@ import { Button, Card, IconButton, SectionHeader, T, TextField } from '../ui/pri
 import { space } from '../ui/theme';
 
 type Target = 'pod' | 'ranking' | 'moodboard';
-const LIMIT = 100, MOOD_SONGS = 30;
+// Pods hold whole playlists; a ranking stays short enough to order, a mood board shorter still.
+const LIMITS: Record<Target, number> = { pod: 500, ranking: 100, moodboard: 30 }, MOOD_SONGS = LIMITS.moodboard;
 const norm = (value: string) => value.toLowerCase().replace(/\(.*?\)|\[.*?\]|feat\..*$/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 const unique = (items: MusicItem[]) => items.filter((item, i, list) => list.findIndex((x) => x.id === item.id) === i);
 
@@ -32,6 +33,7 @@ function ImportForm() {
   const { target: rawTarget } = useLocalSearchParams<{ target?: string }>();
   const target: Target = rawTarget === 'ranking' || rawTarget === 'moodboard' ? rawTarget : 'pod';
   const { user, savePod, setDraft, setMoodDraft } = useApp();
+  const LIMIT = LIMITS[target];
   const { busy, run } = useTask();
   const [link, setLink] = useState(''), [source, setSource] = useState(''), [title, setTitle] = useState(''), [note, setNote] = useState('');
   const [raw, setRaw] = useState(''), [items, setItems] = useState<MusicItem[]>([]), [misses, setMisses] = useState<string[]>([]);

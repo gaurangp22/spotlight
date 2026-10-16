@@ -27,6 +27,7 @@ export function tierScores(tier, count) {
   return Array.from({ length: count }, (_, i) => Math.round((lo + (hi - lo) * (count - i) / count) * 10) / 10);
 }
 const ITEM_ID = /^[A-Za-z0-9_.:-]{1,150}$/;
+export const POD_LIMIT = 500;
 
 function profile(row) { return { id: row.id, handle: `@${row.handle}`, name: row.name, ...(row.is_bot ? { bot: true } : {}), bio: row.bio, status: row.status || '', avatar: row.avatar || undefined, favoriteArtists: JSON.parse(row.favorite_artists || '[]'), onboardingComplete: !!row.onboarding_complete, emailVerified: !!row.email_verified, followers: row.followers || 0, following: row.following || 0 }; }
 function avatarData(value) {
@@ -114,7 +115,9 @@ export function validatePost(body) {
   const kind = ['moodboard', 'pod', 'take'].includes(body.kind) ? body.kind : 'ranking';
   if (!['public', 'followers', 'private'].includes(body.visibility)) fail(400, 'Choose a valid visibility.');
   const items = Array.isArray(body.items) ? body.items : [];
-  if (items.length > 100 || (kind === 'ranking' && items.length < 2)) fail(400, 'Rank between 2 and 100 picks.');
+  // Pods hold whole playlists; rankings stay short enough to actually order.
+  if (items.length > (kind === 'pod' ? POD_LIMIT : 100)) fail(400, kind === 'pod' ? `A pod holds up to ${POD_LIMIT} songs.` : 'Rank between 2 and 100 picks.');
+  if (kind === 'ranking' && items.length < 2) fail(400, 'Rank between 2 and 100 picks.');
   // A take is a short opinion with at most one attached pick, or a this-or-that poll between exactly two.
   const poll = kind === 'take' && body.poll === true;
   if (poll && items.length !== 2) fail(400, 'A poll needs exactly two picks.');
@@ -307,7 +310,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
       const user = await userFor(req);
       await beta.seen(user);
       const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ? await readBody(req) : {};
-      if (path === '/api/catalog/playlist-link' && method === 'POST') { requireUser(user); rate(`playlist-link:${user.id}`, 20, 60000); const imported = await playlistLink(body.url, fetcher); return send({ ...imported, items: imported.items.flatMap((item) => { try { return [validateItem(item)]; } catch { return []; } }) }); }
+      if (path === '/api/catalog/playlist-link' && method === 'POST') { requireUser(user); rate(`playlist-link:${user.id}`, 20, 60000); const imported = await playlistLink(body.url, fetcher, spotify); return send({ ...imported, items: imported.items.flatMap((item) => { try { return [validateItem(item)]; } catch { return []; } }) }); }
       if (await expansion({ path, method, body, user, url, send, rate, req })) return;
       if (await community({ path, method, body, user, url, send, rate })) return;
       if (await beta.routes({ path, method, body, user, url, send, rate, peer })) return;
@@ -642,7 +645,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
           if (!owner && !JSON.parse(p.meta || '{}').open) fail(403, 'This pod is closed to contributions.');
           const item = validateItem(body.item);
           if (items.some((i) => i.id === item.id)) fail(409, 'That’s already in this pod.');
-          if (items.length >= 100) fail(400, 'This pod is full (100 items).');
+          if (items.length >= POD_LIMIT) fail(400, `This pod is full (${POD_LIMIT} items).`);
           items = [...items, owner ? item : { ...item, addedBy: `@${user.handle}` }];
         } else {
           let itemId;

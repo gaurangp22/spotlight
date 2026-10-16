@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, View } from 'react-native';
 import { errorMessage } from '../lib/api';
 import { activeKinds, categories } from '../lib/categories';
 import { searchCatalog, storefront } from '../lib/music';
-import { starterAlbums, starterSongs } from '../lib/starter';
+import { starterAlbums, starterArtists, starterSongs } from '../lib/starter';
 import { MusicItem, MusicKind } from '../lib/types';
 import { useApp } from '../store/AppContext';
 import { MusicRow } from './components';
@@ -29,7 +29,7 @@ export function useStarterPicks(kind: MusicKind, enabled = true) {
   const { user } = useApp();
   const musical = kind === 'song' || kind === 'album';
   const { data } = useRemote<{ items: StarterPick[]; personalized: boolean; basis: string[] }>(`/recommendations?${new URLSearchParams({ kind, country: storefront() })}`, enabled && !!user && musical);
-  const stock = kind === 'song' ? starterSongs : kind === 'album' ? starterAlbums : [];
+  const stock = kind === 'song' ? starterSongs : kind === 'album' ? starterAlbums : kind === 'artist' ? starterArtists : [];
   if (user && musical && data?.personalized && data.items.length) return { items: data.items, personalized: true, basis: data.basis };
   return { items: stock as StarterPick[], personalized: false, basis: [] as string[] };
 }
