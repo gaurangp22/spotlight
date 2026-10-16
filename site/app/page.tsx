@@ -88,7 +88,6 @@ const faq = [
   ['Is Riffs free?', 'Yes. Riffs is free to use — rate, rank, film, and chat without paying anything.'],
   ['Does Riffs play music?', 'No. Riffs is where you talk about music. Songs open in the music app you already use, and short previews play where they are available.'],
   ['Do I need Spotify or Apple Music?', 'No account connection is needed. Search the whole catalog, or paste a public playlist link to bring your songs in.'],
-  ['What are the bots?', 'Riffs has a few clearly labelled house bots that post daily picks and polls so the app never feels empty. You can hide them in Settings.'],
 ];
 
 export default function Home() {

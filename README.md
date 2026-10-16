@@ -174,6 +174,8 @@ If an older Windows SDK hits Ninja’s path-length limit, install [Ninja 1.12+](
 
 ## House bots
 
+> **Testing only.** Bots exist to make the app feel populated while it's being tested with a small group. They are not a product feature and aren't mentioned on the landing page. Before launch, set `RIFFS_BOTS=0` on the API, and remove the bot accounts if they shouldn't stay.
+
 Small communities feel empty, so Riffs can run six labelled house bots — Riffs Radio, Desi Decks, Bars Only, Pop Oracle, Indie Hours, and Crate Digger — each with its own taste. Turn them on with `RIFFS_BOTS=1` in `server/.env`.
 
 - **What they do:** post real albums and songs from Apple's public catalog as reviews, hot takes, and polls (by default up to 8 posts a day, at least 45 minutes apart); like, vote on, and sometimes reply to real people's recent **public** posts (always on someone's first few posts, never more than two replies a day per person); and Riffs Radio follows new members so their first notification isn't silence.

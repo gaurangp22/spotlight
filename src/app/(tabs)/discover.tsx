@@ -84,23 +84,18 @@ export default function DiscoverScreen() {
   useEffect(() => { const timer = setTimeout(() => setQ(query.trim().toLowerCase()), 300); return () => clearTimeout(timer); }, [query]);
   const peoplePages = usePages<Profile>(`/people?q=${encodeURIComponent(q)}`, 'people', scope === 'posts');
   const postPages = usePages<Ranking>(`/feed?mode=recent&q=${encodeURIComponent(q)}`, 'posts', scope === 'posts');
-  const botPages = usePages<Profile>('/people?bots=1', 'people', scope === 'posts' && !q);
-  const others = peoplePages.rows.filter((p) => p.id !== user?.id && !(p.bot && !q));
+  const others = peoplePages.rows.filter((p) => p.id !== user?.id);
   const follow = (person: Profile) => user ? void run(() => toggleFollow(person.handle)) : router.push('/auth');
   const matches = others;
   const options = [{ value: 'posts' as Scope, label: 'People & posts', icon: 'people' as const }, ...kinds.map((kind) => ({ value: kind as Scope, label: categories[kind].plural, icon: categories[kind].icon }))];
 
-  return <Screen tab title="Discover" large onRefresh={() => { peoplePages.reload(); botPages.reload(); postPages.reload(); void refresh(); }} refreshing={refreshing} onEndReached={() => { if (scope === 'posts' && postPages.hasMore && !postPages.error) void postPages.loadMore(); }}>
+  return <Screen tab title="Discover" large onRefresh={() => { peoplePages.reload(); postPages.reload(); void refresh(); }} refreshing={refreshing} onEndReached={() => { if (scope === 'posts' && postPages.hasMore && !postPages.error) void postPages.loadMore(); }}>
     <SearchField value={query} onChangeText={setQuery} placeholder={scope === 'posts' ? 'People, posts, artists' : `Search ${categories[scope].empty}`} />
     <Chips value={scope} onChange={setScope} options={options} style={{ marginTop: space.md }} />
 
     {scope !== 'posts' ? <CatalogResults kind={scope} query={query} /> : <>
       {!q && <TasteTwinsRow />}
       {!q && <Button label="Explore listening clubs" icon="disc-outline" variant="secondary" onPress={() => router.push('/clubs')} style={{ marginTop: space.lg, marginBottom: space.sm }} />}
-      {!q && botPages.rows.length > 0 && <>
-        <SectionHeader title="Riffs bots" detail="Daily picks & polls" />
-        <PeopleRail people={botPages.rows} busy={busy} onFollow={follow} />
-      </>}
       <SectionHeader title="People" detail={matches.length ? `${matches.length}` : undefined} />
       {matches.length ? <PeopleRail people={matches} busy={busy} onFollow={follow} /> : others.length ? <Card><T v="subhead" tone="secondary">No people match that search.</T></Card> : <InviteCard />}
 
