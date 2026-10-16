@@ -75,7 +75,7 @@ export default function BuilderScreen() {
       setDraft((current) => ({ ...current, title: current.title || result.title, items: [...current.items, ...result.items.filter((i) => !current.items.some((x) => x.id === i.id))].slice(0, 100) }));
     }} />}
     <ListGroup>
-      <ListRow icon="musical-notes" iconColor="#1DB954" title={spotifyConnected ? 'Import a Spotify playlist' : 'Connect Spotify'} subtitle={spotifyConnected ? 'Replaces the picks in this draft' : 'Import playlists and search your library'} onPress={() => router.push(spotifyConnected ? '/spotify' : '/settings')} />
+      <ListRow icon="download-outline" iconColor="#0FA3B1" title="Import a playlist" subtitle="Paste a Spotify playlist link to fill this draft" onPress={() => router.push({ pathname: '/import-playlist', params: { target: 'ranking' } })} />
       {draft.items.length >= 2 && !battle && <ListRow icon="flash" iconColor="#007AFF" title="Sort with Battle Mode" subtitle="Pick favourites head-to-head" onPress={() => router.push('/battle')} />}
     </ListGroup>
 

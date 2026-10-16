@@ -22,7 +22,7 @@
     "android": {
       "package": "com.marginmusic.app",
       "adaptiveIcon": {
-        "backgroundColor": "#FF2D55",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
@@ -52,9 +52,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 180,
+          "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#F2F2F7",
+          "backgroundColor": "#000000",
           "dark": {
             "image": "./assets/splash-icon-dark.png",
             "backgroundColor": "#000000"

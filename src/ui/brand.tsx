@@ -1,8 +1,7 @@
 import { Image } from 'expo-image';
-import { useTheme } from './theme';
+import { radius } from './theme';
 
-/** The Riffs wordmark, tinted to the current text colour so it reads in light and dark mode. */
-export function RiffsWordmark({ width = 112 }: { width?: number }) {
-  const { c } = useTheme();
-  return <Image source={require('../../assets/brand/riffs-wordmark.png')} tintColor={c.text} style={{ width, height: width * 148 / 430 }} contentFit="contain" accessibilityLabel="Riffs" accessibilityRole="image" />;
+/** The Riffs logo tile: the R with a record, on its own black square. Reads the same in light and dark mode. */
+export function RiffsLogo({ size = 56 }: { size?: number }) {
+  return <Image source={require('../../assets/brand/riffs-logo-small.png')} style={{ width: size, height: size, borderRadius: size >= 48 ? radius.md : radius.xs + 2 }} contentFit="cover" accessibilityLabel="Riffs" accessibilityRole="image" />;
 }

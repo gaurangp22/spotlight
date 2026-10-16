@@ -1,7 +1,8 @@
 import { randomUUID, createHmac } from 'node:crypto';
 import { fail, text, digest } from './security.mjs';
+import { feedWeights } from './taste.mjs';
 
-export function expansionRoutes({ db, key, profile, validateItem, getPost, postJSON, visibleSQL, viewerArgs, emailOtp, push }) {
+export function expansionRoutes({ db, key, profile, validateItem, getPost, postJSON, visibleSQL, viewerArgs, emailOtp, push, taste }) {
   const blocked = (column) => `NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.user_id=? AND b.blocked_id=${column}) OR (b.blocked_id=? AND b.user_id=${column}))`;
   const seal = (data) => { const json = Buffer.from(JSON.stringify(data)).toString('base64url'); return `${json}.${createHmac('sha256', key).update(json).digest('base64url')}`; };
   function cursor(input, scope) {
@@ -40,28 +41,49 @@ export function expansionRoutes({ db, key, profile, validateItem, getPost, postJ
       const mode = url.searchParams.get('mode') === 'following' ? 'following' : url.searchParams.get('mode') === 'recent' ? 'recent' : 'you';
       const query = (url.searchParams.get('q') || '').trim().slice(0, 100), scope = `feed:${viewer}:${mode}:${query}`;
       const page = cursor(url.searchParams.get('cursor'), scope), time = page?.time || Date.now();
-      let artists = page?.artists || [], follows = page?.follows || [];
+      // The taste snapshot rides in the cursor so later pages rank with the same weights as the first.
+      let items = page?.items || {}, artists = page?.artists || {}, genres = page?.genres || {}, decades = page?.decades || {}, follows = page?.follows || [];
       if (!page && user && mode === 'you') {
-        const rows = await db.all('SELECT item FROM ratings WHERE user_id=? AND tier=2 ORDER BY updated_at DESC LIMIT 40', viewer);
-        const history = await db.all('SELECT item FROM listening_history WHERE user_id=? ORDER BY played_at DESC LIMIT 30', viewer);
-        const all = [...JSON.parse(user.favorite_artists || '[]'), ...rows.map((r) => JSON.parse(r.item)), ...history.map((r) => JSON.parse(r.item))];
-        artists = [...new Set(all.map((i) => (i.kind === 'artist' ? i.title : i.artist).toLowerCase()).filter((name) => name && name.length <= 150))].slice(0, 16);
-        follows = (await db.all('SELECT followed_id FROM follows WHERE follower_id=? ORDER BY followed_id LIMIT 50', viewer)).map((r) => r.followed_id);
+        const mine = await taste.profile(viewer);
+        ({ items, artists, genres, decades } = feedWeights(mine)); follows = mine.follows;
       }
-      const score = mode === 'you' && user ? `8*EXISTS(SELECT 1 FROM json_each(p.items) i JOIN json_each(?) a ON lower(json_extract(i.value,'$.artist'))=a.value OR (json_extract(i.value,'$.kind')='artist' AND lower(json_extract(i.value,'$.title'))=a.value))
+      // Best match across a post's picks for each signal, so one strong pick lifts a post and disliked ones pull it down:
+      // the exact song or album (yours or a taste twin's favourite), the artist (including related artists), the genre,
+      // and the decade. Then follows and a recency boost that fades over ~2 weeks.
+      const name = `lower(CASE WHEN json_extract(i.value,'$.kind')='artist' THEN json_extract(i.value,'$.title') ELSE json_extract(i.value,'$.artist') END)`;
+      // Taste matching skips your own posts: they match your taste by definition and would always lead the feed.
+      const score = mode === 'you' && user ? `(p.user_id<>?)*(8*coalesce((SELECT max(x.value) FROM json_each(p.items) i JOIN json_each(?) x ON json_extract(i.value,'$.id')=x.key),0)
+        +10*coalesce((SELECT max(a.value) FROM json_each(p.items) i JOIN json_each(?) a ON ${name}=a.key OR ${name} LIKE a.key||' &%' OR ${name} LIKE a.key||', %' OR ${name} LIKE a.key||' feat%'),0)
+        +6*coalesce((SELECT max(g.value) FROM json_each(p.items) i JOIN json_each(?) g ON lower(json_extract(i.value,'$.genre'))=g.key),0)
+        +2*coalesce((SELECT max(d.value) FROM json_each(p.items) i JOIN json_each(?) d ON (CAST(json_extract(i.value,'$.year') AS INTEGER)/10*10)||'s'=d.key),0))
         +4*EXISTS(SELECT 1 FROM json_each(?) f WHERE f.value=p.user_id)+max(0,6-(julianday(?)-julianday(p.created_at))*.4)` : '0';
-      const args = mode === 'you' && user ? [JSON.stringify(artists), JSON.stringify(follows), new Date(time).toISOString()] : [];
+      const args = mode === 'you' && user ? [viewer, JSON.stringify(items), JSON.stringify(artists), JSON.stringify(genres), JSON.stringify(decades), JSON.stringify(follows), new Date(time).toISOString()] : [];
       const filter = (mode === 'following' ? 'AND (p.user_id=? OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.followed_id=p.user_id))' : '') + (user && user.show_bots === 0 ? ' AND u.is_bot=0' : '');
       const wherePage = page ? 'WHERE (rank_score<? OR (rank_score=? AND (created_at<? OR (created_at=? AND id<?))))' : '';
       const rows = await db.all(`WITH ranked AS (SELECT p.*,u.handle,u.name,u.avatar, ${score} AS rank_score FROM posts p JOIN users u ON u.id=p.user_id
         WHERE ${visibleSQL} AND p.visibility<>'private' AND p.created_at<=? ${filter} AND (?='' OR lower(p.title||' '||p.subtitle||' '||p.items||' '||u.name) LIKE ?))
         SELECT * FROM ranked ${wherePage} ORDER BY rank_score DESC,created_at DESC,id DESC LIMIT 31`, ...args, ...viewerArgs(viewer), new Date(time).toISOString(), ...(mode === 'following' ? [viewer, viewer] : []), query, `%${query.toLowerCase()}%`, ...(page ? [page.score, page.score, page.date, page.date, page.id] : []));
       const more = rows.length > 30; rows.splice(30); const last = rows.at(-1);
-      return done({ posts: await Promise.all(rows.map((r) => postJSON(r, viewer))), nextCursor: more ? seal({ scope, time, artists, follows, score: last.rank_score, date: last.created_at, id: last.id }) : null, personalized: !!(user && mode === 'you' && (artists.length || follows.length)) });
+      return done({ posts: await Promise.all(rows.map((r) => postJSON(r, viewer))), nextCursor: more ? seal({ scope, time, items, artists, genres, decades, follows, score: last.rank_score, date: last.created_at, id: last.id }) : null, personalized: !!(user && mode === 'you' && ([items, artists, genres].some((m) => Object.keys(m).length) || follows.length)) });
+    }
+    if (path === '/api/recommendations' && method === 'GET') {
+      const kind = url.searchParams.get('kind') === 'album' ? 'album' : 'song', country = (url.searchParams.get('country') || 'US').toUpperCase();
+      // Signed-out and brand-new listeners get personalized: false, and the app shows its stock starter list.
+      if (!user) return done({ items: [], personalized: false, basis: [] });
+      rate(`recommendations:${viewer}`, 30, 60000);
+      return done(await taste.recommendations(viewer, kind, /^[A-Z]{2}$/.test(country) ? country : 'US'));
+    }
+    const opened = path.match(/^\/api\/posts\/([a-zA-Z0-9-]+)\/open$/);
+    if (opened && method === 'POST') {
+      signed(); rate(`post-open:${viewer}`, 120, 60000);
+      const p = await getPost(opened[1], viewer);
+      // Opens are a faint signal, so they refresh the profile on its normal schedule rather than invalidating it.
+      if (p.user_id !== viewer) await db.run("INSERT OR REPLACE INTO post_engagements VALUES (?,?,'open',?)", viewer, p.id, new Date().toISOString());
+      return done({ ok: true });
     }
     if (path === '/api/people' && method === 'GET') {
-      const q = (url.searchParams.get('q') || '').slice(0, 100), scope = `people:${viewer}:${q}`, page = cursor(url.searchParams.get('cursor'), scope), time = page?.time || Date.now();
-      const rows = await db.all(`SELECT u.* FROM users u WHERE ${blocked('u.id')} AND created_at<=? AND (handle LIKE ? OR name LIKE ?)
+      const q = (url.searchParams.get('q') || '').slice(0, 100), bots = url.searchParams.get('bots') === '1', scope = `people:${viewer}:${q}:${bots}`, page = cursor(url.searchParams.get('cursor'), scope), time = page?.time || Date.now();
+      const rows = await db.all(`SELECT u.* FROM users u WHERE ${blocked('u.id')} AND created_at<=? AND (handle LIKE ? OR name LIKE ?)${bots ? ' AND is_bot=1' : ''}
         ${page ? 'AND (created_at<? OR (created_at=? AND id<?))' : ''} ORDER BY created_at DESC,id DESC LIMIT 31`, viewer, viewer, new Date(time).toISOString(), `%${q}%`, `%${q}%`, ...(page ? [page.date, page.date, page.id] : []));
       const more = rows.length > 30; rows.splice(30); const last = rows.at(-1);
       return done({ people: rows.map(profile), nextCursor: more ? seal({ scope, time, date: last.created_at, id: last.id }) : null });
@@ -97,6 +119,7 @@ export function expansionRoutes({ db, key, profile, validateItem, getPost, postJ
         if (!['song','album','artist'].includes(item.kind)) fail(400, 'Log a song, album, or artist.');
         const playedAt = new Date().toISOString();
         await db.run('INSERT INTO listening_history VALUES (?,?,?,?) ON CONFLICT DO NOTHING', viewer, item.id, playedAt, JSON.stringify(item));
+        taste.invalidate(viewer);
         return done({ playedAt }, 201);
       }
       if (method === 'DELETE') { await db.run('DELETE FROM listening_history WHERE user_id=?', viewer); return done({ ok: true }); }

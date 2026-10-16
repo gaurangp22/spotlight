@@ -28,7 +28,6 @@ export function TrackPill({ item }: { item: MusicItem }) {
   const preview = usePreview();
   const playable = canPreview(item);
   const playing = preview.item?.id === item.id && preview.playing;
-  const service = item.externalUrl?.includes('spotify.com') ? 'Spotify' : 'Apple Music';
   return <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.fill, padding: space.sm, paddingRight: space.xs, borderRadius: radius.md, gap: space.sm, borderWidth: 1, borderColor: c.border, ...curve }}>
     <Pressable accessibilityRole="button" accessibilityLabel={`View ${item.title} by ${item.artist}`} onPress={() => { rememberItem(item); router.push(`/item/${encodeURIComponent(item.id)}`); }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, flex: 1, minHeight: 52 }}>
       <Artwork item={item} size={52} rounded={10} />
@@ -37,7 +36,7 @@ export function TrackPill({ item }: { item: MusicItem }) {
     {playable ? <Pressable accessibilityRole="button" accessibilityLabel={`${playing ? 'Pause' : 'Preview'} ${item.title}`} onPress={() => preview.toggle(item)} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
       <Ionicons name={playing ? 'pause' : 'play'} size={18} color={c.onAccent} style={{ marginLeft: playing ? 0 : 2 }} />
     </Pressable>
-      : item.externalUrl ? <IconButton icon="open-outline" label={`Open ${item.title} in ${service}`} size={44} filled={false} tone="secondary" onPress={() => void Linking.openURL(item.externalUrl!).catch((e) => setNotice(errorMessage(e)))} /> : null}
+      : item.externalUrl ? <IconButton icon="open-outline" label={`Listen to ${item.title}`} size={44} filled={false} tone="secondary" onPress={() => void Linking.openURL(item.externalUrl!).catch((e) => setNotice(errorMessage(e)))} /> : null}
   </View>;
 }
 

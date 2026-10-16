@@ -11,7 +11,7 @@ Read this first; the sections below remain accurate for everything else.
 - Settings-style solid icon tiles, the iOS segmented control and search bar, and content-unavailable empty states.
 - An iOS 26-style frosted floating tab bar (Home, Discover, Messages, Profile) with a separate + button. Messages is now a tab (`src/app/(tabs)/inbox.tsx`).
 - Home and Create were rebuilt for hierarchy; the feed cards were rebuilt artwork-first, with like / reply / send / share.
-- New gradient app icon and splash: `scripts/generate-icons.cjs`.
+- New gradient app icon and splash: `scripts/brand-from-logo.cjs`.
 - Removed font packages: Archivo Black, Space Mono, Bricolage, Geist. Added `expo-blur`, a native module, so a new build is needed.
 
 **House bots** (`server/bots.mjs`, enable with `RIFFS_BOTS=1`).
@@ -108,7 +108,7 @@ Pasting a public Deezer playlist can import its tracks when the provider is avai
 | `src/store/AppContext.tsx`, `src/ui/pages.ts`, `remote.ts` | Account state, drafts and remote/paged loading |
 | `src/lib/push.native.ts`, `push.ts`, `api.ts` | Native push, explicit web fallback and session-change guard |
 | `src/ui/components.tsx`, `primitives.tsx`, `theme.ts` | Shared layout, composer scrolling, controls and retained dark design system |
-| `assets/brand/`, `scripts/generate-icons.cjs` | Original Riffs branding and generated app assets |
+| `assets/brand/`, `scripts/brand-from-logo.cjs` | Original Riffs branding and generated app assets |
 | `server/test/`, `scripts/test-core.cjs`, `test-push-session.cjs` | API integration, parser/scoring and push-session checks |
 
 ### Verification completed
@@ -178,7 +178,7 @@ TypeScript, lint, core math/playlist parsing checks, push-registration account-s
 
 The later social expansion above supersedes this section's future-work list. Its final documentation comparison is complete in `.impeccable/review/expansion/documentation-check.md`; the incumbent design files were preserved, with stale feature wording and pre-existing sidecar drift reported.
 
-The owner renamed the app **Riffs**. Display branding and legal copy now use that name. `assets/brand/` contains an original vector r mark and wordmark; `scripts/generate-icons.cjs` regenerates app/adaptive/splash/favicon assets and embeds raster provenance. Legacy bundle identifiers, URL scheme, storage keys, and demo credentials are deliberately preserved for compatibility. Rebuild native apps for the new installed name and icons.
+The owner renamed the app **Riffs**. Display branding and legal copy now use that name. `assets/brand/` contains an original vector r mark and wordmark; `scripts/brand-from-logo.cjs` regenerates app/adaptive/splash/favicon assets and embeds raster provenance. Legacy bundle identifiers, URL scheme, storage keys, and demo credentials are deliberately preserved for compatibility. Rebuild native apps for the new installed name and icons.
 
 The approved feature batch is implemented: optional three-step onboarding, favourite artists, cropped profile photos, paginated follow lists, private Listen Later and saved posts, comment replies and linked @mentions with activity, and public weekly album clubs with membership and archives. New additive database migrations preserve existing accounts and posts. `server/community.mjs` holds the community routes; five new integration tests cover persistence, visibility/blocks, reply/mention deduplication, club ownership, concurrent weekly picks, and cascaded cleanup. Demo seeding adds three labelled clubs and their initial weekly discussions, bringing the initial seed to 178 posts.
 
@@ -317,5 +317,5 @@ npm ci && npm --prefix server ci
 npm run api              # API on :8787 (local SQLite in server/data/)
 npx expo start --web     # web app on :8081
 npx tsc --noEmit && npm run lint && npm test
-node scripts/generate-icons.cjs   # regenerate the "M." icon set
+node scripts/brand-from-logo.cjs   # regenerate the "M." icon set
 ```

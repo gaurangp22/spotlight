@@ -1,27 +1,84 @@
 import { fail, text } from './security.mjs';
 
-/** Fixed provider hosts only. A Spotify link supplies metadata, not permission to read tracks. */
+const LIMIT = 100;
+const BROWSER = { 'user-agent': 'Mozilla/5.0 (compatible; RiffsBot/1.0; +https://riffs.app)', 'accept-language': 'en' };
+
+/** Reads the JSON a public page embeds in a <script> tag, or fails with a message the person can act on. */
+function embeddedJson(html, pattern, message) {
+  const match = html.match(pattern);
+  if (!match) fail(422, message);
+  try { return JSON.parse(match[1]); } catch { fail(422, message); }
+}
+
+async function page(fetcher, url, message) {
+  let response;
+  try { response = await fetcher(url, { headers: BROWSER, signal: AbortSignal.timeout(15000) }); } catch { fail(502, message); }
+  if (!response.ok) fail(response.status === 404 ? 404 : 422, message);
+  return response.text();
+}
+
+/**
+ * Spotify's public embed player carries the playlist's track list, so public playlists import without
+ * anyone connecting an account. The embed has no per-track artwork; the app fills covers in afterwards.
+ */
+async function spotifyPlaylist(id, sourceUrl, fetcher) {
+  const message = 'This Spotify playlist couldn’t be read. Make sure it’s public, or paste the track list instead.';
+  const html = await page(fetcher, `https://open.spotify.com/embed/playlist/${id}`, message);
+  const data = embeddedJson(html, /<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/, message);
+  const entity = data?.props?.pageProps?.state?.data?.entity;
+  if (!entity || !Array.isArray(entity.trackList)) fail(422, message);
+  const items = entity.trackList.flatMap((track) => {
+    const trackId = /^spotify:track:([A-Za-z0-9]{22})$/.exec(track?.uri || '')?.[1];
+    if (!trackId || !track.title || !track.subtitle) return [];
+    return [{ id: `spotify-song-${trackId}`, kind: 'song', title: String(track.title).slice(0, 300), artist: String(track.subtitle).replace(/ /g, ' ').slice(0, 300), externalUrl: `https://open.spotify.com/track/${trackId}`, spotifyId: trackId }];
+  });
+  const total = Number(entity.trackCount ?? entity.trackList.length);
+  return { title: String(entity.name || entity.title || 'My playlist').slice(0, 100), sourceUrl, items: items.slice(0, LIMIT), note: total > LIMIT || items.length > LIMIT ? `Imported the first ${LIMIT} tracks.` : '' };
+}
+
+/** Apple Music playlist pages include their track list (with artwork) as server data. */
+async function applePlaylist(sourceUrl, fetcher) {
+  const message = 'This Apple Music playlist couldn’t be read. Make sure it’s public, or paste the track list instead.';
+  const html = await page(fetcher, sourceUrl, message);
+  const data = embeddedJson(html, /<script type="application\/json" id="serialized-server-data">([\s\S]+?)<\/script>/, message);
+  const sections = (Array.isArray(data) ? data : data?.data)?.[0]?.data?.sections;
+  if (!Array.isArray(sections)) fail(422, message);
+  const header = sections.find((s) => s.itemKind === 'containerDetailHeaderLockup')?.items?.[0];
+  const tracks = sections.filter((s) => s.itemKind === 'trackLockup').flatMap((s) => s.items || []);
+  const items = tracks.flatMap((track) => {
+    const id = track?.contentDescriptor?.identifiers?.storeAdamID;
+    const artist = (track?.subtitleLinks || []).map((l) => l.title).filter(Boolean).join(', ');
+    if (!id || !/^\d+$/.test(String(id)) || !track.title || !artist) return [];
+    const art = track.artwork?.dictionary?.url;
+    const url = track.contentDescriptor.url;
+    return [{ id: `song-${id}`, kind: 'song', title: String(track.title).slice(0, 300), artist: artist.slice(0, 300),
+      ...(track.tertiaryLinks?.[0]?.title ? { album: String(track.tertiaryLinks[0].title).slice(0, 300) } : {}),
+      ...(typeof art === 'string' && art.startsWith('https://') ? { artwork: art.replace('{w}x{h}bb.{f}', '600x600bb.jpg') } : {}),
+      ...(typeof url === 'string' && url.startsWith('https://music.apple.com/') ? { externalUrl: url } : {}) }];
+  });
+  return { title: String(header?.title || 'My playlist').slice(0, 100), sourceUrl, items: items.slice(0, LIMIT), note: items.length > LIMIT ? `Imported the first ${LIMIT} tracks.` : '' };
+}
+
+async function deezerPlaylist(id, sourceUrl, fetcher) {
+  const response = await fetcher(`https://api.deezer.com/playlist/${id}`, { signal: AbortSignal.timeout(15000) });
+  const data = await response.json();
+  if (!response.ok || data.error || !data.title) fail(422, 'This playlist is unavailable. Try a public link or paste the track list.');
+  let tracks = data.tracks?.data || [];
+  if (tracks.length < Math.min(Number(data.nb_tracks) || 0, LIMIT)) { const r = await fetcher(`https://api.deezer.com/playlist/${id}/tracks?limit=${LIMIT}`, { signal: AbortSignal.timeout(15000) }); const more = await r.json(); if (r.ok && !more.error) tracks = more.data || tracks; }
+  return { title: data.title.slice(0, 100), sourceUrl, items: tracks.slice(0, LIMIT).filter((t) => t.id && t.title && t.artist?.name).map((t) => ({ id: `deezer-song-${t.id}`, kind: 'song', title: t.title, artist: t.artist.name, artwork: t.album?.cover_medium, externalUrl: `https://www.deezer.com/track/${t.id}` })), note: Number(data.nb_tracks) > LIMIT ? `Imported the first ${LIMIT} tracks.` : '' };
+}
+
+/** Reads a public playlist link from a fixed set of provider hosts. Nothing else is ever fetched. */
 export async function playlistLink(input, fetcher = fetch) {
-  let url; try { url = new URL(text(input, 'Playlist link', 10, 1000)); } catch { fail(400, 'Paste a playlist link from Spotify, Apple Music, or Deezer.'); }
+  let url; try { url = new URL(text(input, 'Playlist link', 10, 1000).trim()); } catch { fail(400, 'Paste a full playlist link, like open.spotify.com/playlist/…'); }
   if (url.protocol !== 'https:' || url.username || url.password || url.port) fail(400, 'Use an HTTPS playlist link.');
-  const sourceUrl = url.origin + url.pathname;
-  if (url.hostname === 'open.spotify.com' && /^\/(?:intl-[a-z-]+\/)?playlist\/[A-Za-z0-9]{22}\/?$/.test(url.pathname)) {
-    let title = 'My playlist';
-    try { const response = await fetcher(`https://open.spotify.com/oembed?url=${encodeURIComponent(sourceUrl)}`, { signal: AbortSignal.timeout(10000) }); if (response.ok) title = (await response.json()).title?.slice(0, 100) || title; } catch {}
-    return { title, sourceUrl, items: [], note: 'Source link saved. Spotify does not provide playlist tracks through this metadata endpoint. Paste your track list below or add picks manually.' };
-  }
-  if (url.hostname === 'music.apple.com' && /\/playlist\/[^/]+\/(pl\.[A-Za-z0-9.-]+)\/?$/.test(url.pathname)) return { title: 'My playlist', sourceUrl, items: [], note: 'Source link saved. Paste the track list below or add picks manually; automatic Apple Music playlist import needs a provider integration.' };
-  const deezer = url.hostname === 'www.deezer.com' || url.hostname === 'deezer.com';
-  const match = deezer && url.pathname.match(/^\/(?:[a-z]{2}\/)?playlist\/(\d+)\/?$/);
-  if (match) {
-    const response = await fetcher(`https://api.deezer.com/playlist/${match[1]}`, { signal: AbortSignal.timeout(15000) });
-    const data = await response.json();
-    if (!response.ok || data.error || !data.title) fail(422, 'This Deezer playlist is unavailable. Try a public link or paste the track list.');
-    let tracks = data.tracks?.data || [];
-    if (tracks.length < Math.min(Number(data.nb_tracks) || 0, 100)) { const r = await fetcher(`https://api.deezer.com/playlist/${match[1]}/tracks?limit=100`, { signal: AbortSignal.timeout(15000) }); const page = await r.json(); if (r.ok && !page.error) tracks = page.data || tracks; }
-    return { title: data.title.slice(0, 100), sourceUrl, items: tracks.slice(0, 100).filter((t) => t.id && t.title && t.artist?.name).map((t) => ({ id: `deezer-song-${t.id}`, kind: 'song', title: t.title, artist: t.artist.name, artwork: t.album?.cover_medium, externalUrl: `https://www.deezer.com/track/${t.id}` })), note: Number(data.nb_tracks) > 100 ? 'Imported the first 100 tracks. Review them before publishing.' : 'Review the imported picks before publishing.' };
-  }
-  fail(400, 'Use a full Spotify, Apple Music, or Deezer playlist link.');
+  const sourceUrl = url.origin + url.pathname.replace(/\/$/, '');
+  const spotify = url.hostname === 'open.spotify.com' && url.pathname.match(/^\/(?:intl-[a-z-]+\/)?(?:embed\/)?playlist\/([A-Za-z0-9]{22})\/?$/);
+  if (spotify) return spotifyPlaylist(spotify[1], `https://open.spotify.com/playlist/${spotify[1]}`, fetcher);
+  if (url.hostname === 'music.apple.com' && /^\/[a-z]{2}\/playlist\/[^/]+\/pl\.[A-Za-z0-9.-]+\/?$/.test(url.pathname)) return applePlaylist(sourceUrl, fetcher);
+  const deezer = (url.hostname === 'www.deezer.com' || url.hostname === 'deezer.com') && url.pathname.match(/^\/(?:[a-z]{2}\/)?playlist\/(\d+)\/?$/);
+  if (deezer) return deezerPlaylist(deezer[1], sourceUrl, fetcher);
+  fail(400, 'That doesn’t look like a playlist link. Copy it from Share → Copy link in your music app.');
 }
 
 export function playlistSource(value) {

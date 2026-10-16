@@ -2,19 +2,36 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 import { errorMessage } from '../lib/api';
 import { activeKinds, categories } from '../lib/categories';
-import { searchCatalog } from '../lib/music';
-import { sampleMusic } from '../lib/sample';
+import { searchCatalog, storefront } from '../lib/music';
+import { starterAlbums, starterSongs } from '../lib/starter';
 import { MusicItem, MusicKind } from '../lib/types';
 import { useApp } from '../store/AppContext';
 import { MusicRow } from './components';
 import { haptic } from './haptics';
-import { Badge, Button, Chips, Ionicons, SearchField, Segmented, Sheet, T } from './primitives';
+import { useRemote } from './remote';
+import { Button, Chips, Ionicons, SearchField, Segmented, Sheet, T } from './primitives';
 import { gutter, space, useTheme } from './theme';
 
 /** Categories shown in the app and searchable on this server (movies also need a TMDB key). */
 export function useAvailableKinds(kinds: MusicKind[]) {
   const { config } = useApp();
   return kinds.filter((kind) => activeKinds.includes(kind) && (kind !== 'movie' || !!config?.catalog.movie));
+}
+
+/** A starter pick, with why it was chosen when personalised ("Because you rated Metallica"). */
+export type StarterPick = MusicItem & { reason?: string };
+
+/**
+ * What to show before someone searches: picks built from their taste when signed in and the server has
+ * enough signal, otherwise the stock popular list.
+ */
+export function useStarterPicks(kind: MusicKind, enabled = true) {
+  const { user } = useApp();
+  const musical = kind === 'song' || kind === 'album';
+  const { data } = useRemote<{ items: StarterPick[]; personalized: boolean; basis: string[] }>(`/recommendations?${new URLSearchParams({ kind, country: storefront() })}`, enabled && !!user && musical);
+  const stock = kind === 'song' ? starterSongs : kind === 'album' ? starterAlbums : [];
+  if (user && musical && data?.personalized && data.items.length) return { items: data.items, personalized: true, basis: data.basis };
+  return { items: stock as StarterPick[], personalized: false, basis: [] as string[] };
 }
 
 /**
@@ -55,10 +72,8 @@ export function MusicPicker({ visible, onClose, selected = [], onToggle, onPick,
 
   const ids = new Set(selected.map((item) => item.id));
   const full = !onPick && selected.length >= limit;
-  const data = term.length < 2 ? sampleMusic.filter((item) => item.kind === kind) : results;
-  const source = kind === 'song' || kind === 'album' || kind === 'artist'
-    ? spotifyConnected || spotifyCatalog ? 'Spotify' : kind === 'artist' ? 'Deezer' : 'Apple'
-    : { movie: 'TMDB', show: 'TVmaze', podcast: 'Apple', book: 'Open Library' }[kind];
+  const starter = useStarterPicks(kind, visible);
+  const data = term.length < 2 ? starter.items : results;
   const choose = (item: MusicItem) => {
     rememberItem(item);
     if (onPick) { haptic.select(); onPick(item); setQuery(''); return; }
@@ -75,10 +90,7 @@ export function MusicPicker({ visible, onClose, selected = [], onToggle, onPick,
       {kinds.length > 1 && (kinds.length > 3
         ? <Chips value={kind} onChange={setKind} options={options} />
         : <Segmented value={kind} onChange={setKind} options={options} />)}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <T v="overline" tone="secondary">{term.length < 2 ? (data.length ? 'Starter picks' : `Search ${categories[kind].empty}`) : loading ? 'Searching…' : `${results.length} results`}</T>
-        <Badge label={source} icon={source === 'Spotify' ? 'musical-notes' : 'library-outline'} />
-      </View>
+      <T v="overline" tone="secondary">{term.length < 2 ? (data.length ? (starter.personalized ? 'Picked for you' : 'Popular picks') :`Search ${categories[kind].empty}`) : loading ? 'Searching…' : `${results.length} results`}</T>
     </View>
     <FlatList data={data} keyExtractor={(item) => item.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
       contentContainerStyle={{ paddingHorizontal: gutter, paddingBottom: space.xxl }}
@@ -89,7 +101,7 @@ export function MusicPicker({ visible, onClose, selected = [], onToggle, onPick,
         </View>}
       renderItem={({ item }) => {
         const chosen = ids.has(item.id);
-        return <MusicRow item={item} onPress={() => choose(item)}
+        return <MusicRow item={item} note={term.length < 2 ? (item as StarterPick).reason : undefined} onPress={() => choose(item)}
           trailing={<Ionicons name={onPick ? 'chevron-forward' : chosen ? 'checkmark-circle' : 'add-circle-outline'} size={onPick ? 18 : 26} color={chosen ? c.accent : full || onPick ? c.tertiary : c.secondary} accessibilityLabel={onPick ? 'Choose' : chosen ? 'Selected' : 'Add'} />} />;
       }} />
     {full && <T v="footnote" tone="secondary" center style={{ paddingBottom: space.sm }}>You’ve reached the limit of {limit} picks.</T>}

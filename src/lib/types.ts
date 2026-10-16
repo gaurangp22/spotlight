@@ -6,6 +6,8 @@ export type MusicItem = {
   title: string;
   artist: string;
   album?: string;
+  /** Catalog genre (Apple's primary genre, or Deezer's), used to personalise For You. */
+  genre?: string;
   artwork?: string;
   kind: MusicKind;
   color?: string;

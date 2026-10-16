@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ranking } from '../../lib/types';
 import { useApp } from '../../store/AppContext';
-import { RiffsWordmark } from '../../ui/brand';
+import { RiffsLogo } from '../../ui/brand';
 import { RankingCard, Screen } from '../../ui/components';
 import { StoryRail, UnderlineTabs } from '../../ui/equals';
 import { usePages } from '../../ui/pages';
@@ -16,8 +16,8 @@ function Welcome() {
   const { c } = useTheme();
   return <LinearGradient colors={[c.glowA, c.glowB]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: space.xl, paddingTop: space.xxl, marginBottom: space.xl, overflow: 'hidden', ...curve }}>
     <T v="overline" style={{ color: '#FFFFFFCC' }}>Music, out loud</T>
-    <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.heavy, fontSize: 36, lineHeight: 40, letterSpacing: -1.1, color: '#FFFFFF', marginTop: space.sm }}>Your taste deserves an audience.</Text>
-    <T v="body" style={{ color: '#FFFFFFE6', marginTop: space.md }}>Rate albums head-to-head, post hot takes, and find the people whose taste matches yours.</T>
+    <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.heavy, fontSize: 36, lineHeight: 40, letterSpacing: -1.1, color: '#FFFFFF', marginTop: space.sm }}>Your music taste deserves a mic.</Text>
+    <T v="body" style={{ color: '#FFFFFFE6', marginTop: space.md }}>Rate your favourite tracks, drop album reviews, and record videos featuring your ratings.</T>
     <View style={{ gap: space.sm, marginTop: space.xl }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Join Riffs" onPress={() => router.push('/auth')} style={{ minHeight: 52, borderRadius: radius.md, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', ...curve }}>
         <T v="label" style={{ color: '#D9124B' }}>Join Riffs — it’s free</T>
@@ -58,7 +58,7 @@ export default function HomeScreen() {
   const hasDraft = draft.items.length > 0 || !!draft.title.trim();
 
   return <Screen tab onRefresh={() => { pages.reload(); void refresh(); }} refreshing={refreshing || pages.loading} onEndReached={() => { if (pages.hasMore && !pages.busy && !pages.error) void pages.loadMore(); }}
-    left={<RiffsWordmark width={76} />}
+    left={<RiffsLogo size={34} />}
     right={user ? <IconButton icon="notifications-outline" label={unread ? `Activity, ${unread} unread` : 'Activity'} badge={unread > 0} onPress={() => router.push('/notifications')} />
       : <Button label="Sign in" size="sm" variant="secondary" inline onPress={() => router.push({ pathname: '/auth', params: { mode: 'login' } })} />}>
     <View style={{ height: space.sm }} />

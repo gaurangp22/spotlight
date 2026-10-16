@@ -47,6 +47,9 @@ export default function RankingScreen() {
   const input = useRef<TextInput>(null);
   const { busy, run } = useTask();
   useEffect(() => { let active = true; loadPost(id).then(() => { if (active) setLoadError(''); }).catch((e) => { if (active) setLoadError(errorMessage(e)); }); return () => { active = false; }; }, [id, loadPost]);
+  // A light taste signal: opening a post nudges For You and starter picks toward its genres.
+  const userId = user?.id;
+  useEffect(() => { if (userId && id) api(`/posts/${encodeURIComponent(id)}/open`, { method: 'POST' }).catch(() => {}); }, [id, userId]);
 
   if (!ranking) return <Screen back title="Post">{loadError
     ? <Card style={{ marginTop: space.xl, gap: space.md }}><T v="headline">This post isn’t available</T><T v="subhead" tone="secondary">{loadError}</T><Button label="Try again" variant="secondary" onPress={() => void run(() => loadPost(id))} /></Card>
@@ -136,6 +139,10 @@ export default function RankingScreen() {
         onPress={() => { rememberItem(reviewed); router.push(owned ? { pathname: '/video', params: { itemId: reviewed.id } } : { pathname: '/rate', params: { itemId: reviewed.id } }); }} />}
       {canContribute && <Button label="Add to pod" icon="add" size="md" style={{ flex: 1.6 }} onPress={() => user ? setAdding(true) : router.push('/auth')} />}
     </View>
+
+    {owned && !isMood && !isReview && !isPod && !isTake && ranking.items.length >= 2 && <ListGroup style={{ marginTop: space.lg }}>
+      <ListRow icon="videocam" iconColor="#FF2D55" title="Film a countdown video" subtitle={`Reveal your top ${Math.min(ranking.items.length, 10)} on camera`} onPress={() => router.push({ pathname: '/countdown', params: { postId: ranking.id } })} />
+    </ListGroup>}
 
     {origin && <ListGroup style={{ marginTop: space.lg }}>
       <ListRow icon="git-branch-outline" iconColor="#007AFF" title={`Remixed from ${origin.author}`} subtitle={origin.title} onPress={() => router.push(`/ranking/${origin.id}`)} />

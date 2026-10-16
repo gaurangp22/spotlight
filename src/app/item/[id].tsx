@@ -18,8 +18,6 @@ type ItemData = { item: MusicItem | null; average: number | null; count: number;
 
 function linkLabel(url: string) {
   if (url.includes('spotify.com')) return 'Open in Spotify';
-  if (url.includes('apple.com')) return 'Open in Apple';
-  if (url.includes('deezer.com')) return 'Open in Deezer';
   if (url.includes('themoviedb.org')) return 'Open on TMDB';
   if (url.includes('tvmaze.com')) return 'Open on TVmaze';
   if (url.includes('openlibrary.org')) return 'Open in Open Library';

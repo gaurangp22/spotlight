@@ -119,7 +119,7 @@ export function Loading({ label }: { label: string }) {
   return <View style={{ paddingVertical: space.xxxl * 1.5, alignItems: 'center', gap: space.md }}><ActivityIndicator color={c.secondary} /><T v="footnote" tone="secondary">{label}</T></View>;
 }
 
-export function MusicRow({ item, index, trailing, onPress, separator = true, size = 48 }: { item: MusicItem; index?: number; trailing?: React.ReactNode; onPress?: () => void; separator?: boolean; size?: number }) {
+export function MusicRow({ item, index, trailing, onPress, separator = true, size = 48, note }: { item: MusicItem; index?: number; trailing?: React.ReactNode; onPress?: () => void; separator?: boolean; size?: number; note?: string }) {
   const { c } = useTheme();
   const content = <>
     {index !== undefined && <T v="headline" tabular tone={index < 3 ? 'primary' : 'secondary'} center style={{ width: 26 }}>{index + 1}</T>}
@@ -127,6 +127,7 @@ export function MusicRow({ item, index, trailing, onPress, separator = true, siz
     <View style={{ flex: 1, gap: 2, alignSelf: 'stretch', justifyContent: 'center', borderBottomWidth: separator ? StyleSheet.hairlineWidth : 0, borderColor: c.hairline, paddingVertical: 14 }}>
       <T v="headline" weight="medium" numberOfLines={1}>{item.title}</T>
       <T v="footnote" tone="secondary" numberOfLines={1}>{item.artist}{item.album && item.kind === 'song' ? ` · ${item.album}` : ''}</T>
+      {!!note && <T v="caption" tone="accent" numberOfLines={1}>{note}</T>}
     </View>
     {trailing}
   </>;

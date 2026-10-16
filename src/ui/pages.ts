@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../lib/api';
 import { useApp } from '../store/AppContext';
 
+// First page per viewer and path, shown immediately on revisit while the fresh page loads.
+const firstPages = new Map<string, { rows: unknown[]; next: string | null }>();
+
 /** Cursor pages stay scoped to the viewer and query; stale account requests cannot append. */
 export function usePages<T extends { id?: string }>(path: string, field: string, enabled = true) {
   const { user } = useApp(); const key = `${user?.id || 'guest'}:${path}`;
@@ -13,7 +16,7 @@ export function usePages<T extends { id?: string }>(path: string, field: string,
   useEffect(() => {
     if (!enabled) return;
     let active = true; const controller = new AbortController(); lock.current = false;
-    api<Record<string, unknown>>(path, { signal: controller.signal }).then((data) => { if (active) setState({ key, request, rows: data[field] as T[], next: data.nextCursor as string | null, error: '', busy: false }); })
+    api<Record<string, unknown>>(path, { signal: controller.signal }).then((data) => { if (active) { setState({ key, request, rows: data[field] as T[], next: data.nextCursor as string | null, error: '', busy: false }); firstPages.set(key, { rows: data[field] as T[], next: data.nextCursor as string | null }); } })
       .catch((e) => { if (active) setState({ key, request, rows: [], next: null, error: errorMessage(e), busy: false }); });
     return () => { active = false; controller.abort(); };
   }, [key, path, field, request, enabled]);
@@ -26,5 +29,5 @@ export function usePages<T extends { id?: string }>(path: string, field: string,
     } catch (e) { if (live.current === key) setState((s) => ({ ...s, error: errorMessage(e), busy: false })); }
     finally { lock.current = false; }
   }, [state, key, path, field]);
-  return { rows: state.key === key ? state.rows : [], error: state.key === key ? state.error : '', loading: enabled && state.request !== request, busy: state.key === key && state.busy, hasMore: state.key === key && !!state.next, loadMore, reload };
+  return { rows: state.key === key ? state.rows : (firstPages.get(key)?.rows as T[] | undefined) ?? [], error: state.key === key ? state.error : '', loading: enabled && state.request !== request, busy: state.key === key && state.busy, hasMore: state.key === key && !!state.next, loadMore, reload };
 }

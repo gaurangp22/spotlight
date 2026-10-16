@@ -79,6 +79,14 @@ CREATE TABLE IF NOT EXISTS reactions (
  PRIMARY KEY (user_id, post_id)
 );
 CREATE INDEX IF NOT EXISTS reactions_post ON reactions(post_id);
+-- Light implicit feedback for taste: when someone last opened or liked a post.
+CREATE TABLE IF NOT EXISTS post_engagements (
+ user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+ kind TEXT NOT NULL CHECK(kind IN ('open','like')), created_at TEXT NOT NULL,
+ PRIMARY KEY (user_id, post_id, kind)
+);
+CREATE INDEX IF NOT EXISTS post_engagements_user ON post_engagements(user_id, kind, created_at DESC);
 CREATE TABLE IF NOT EXISTS comments (
  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, text TEXT NOT NULL,

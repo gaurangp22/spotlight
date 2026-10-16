@@ -1,10 +1,10 @@
-import Constants, { ExecutionEnvironment } from 'expo-constants';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { useEffect, useState } from 'react';
-import { Linking, Platform, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, View } from 'react-native';
 import { api } from '../lib/api';
 import { useApp } from '../store/AppContext';
 import { Screen } from '../ui/components';
@@ -39,25 +39,14 @@ function About({ feedback = false }: { feedback?: boolean }) {
 }
 
 export default function Settings() {
-  const { user, updateProfile, logout, deleteAccount, spotifyConnected, refresh, blocks, blockUser, setNotice } = useApp();
+  const { user, updateProfile, logout, deleteAccount, blocks, blockUser, setNotice } = useApp();
   const [name, setName] = useState(user?.name || ''), [bio, setBio] = useState(user?.bio || '');
   const [status, setStatus] = useState(user?.status || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   const [password, setPassword] = useState(''), [newPassword, setNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
   const [deleting, setDeleting] = useState(false), [deletePassword, setDeletePassword] = useState('');
-  const [config, setConfig] = useState<{ spotify: boolean; passwordRecovery: boolean } | null>(null);
   const { busy, run } = useTask();
-  useEffect(() => { api<{ spotify: boolean; passwordRecovery: boolean }>('/config').then(setConfig).catch(() => {}); }, []);
-
-  async function connect() {
-    if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient && Platform.OS !== 'web') throw new Error('Connect Spotify using an installed build of Riffs. Expo Go cannot receive this login callback.');
-    const returnUri = Platform.OS === 'web' ? `${window.location.origin}/spotify-callback` : 'marginmusic://spotify-callback';
-    const result = await api<{ url: string }>('/spotify/start', { method: 'POST', body: { returnUri } });
-    if (Platform.OS === 'web') { window.location.assign(result.url); return; }
-    const auth = await WebBrowser.openAuthSessionAsync(result.url, returnUri);
-    if (auth.type === 'success') { await refresh(); if (auth.url.includes('status=failed')) throw new Error('Spotify connection was not completed. Try again.'); haptic.success(); }
-  }
 
   if (!user) return <Screen back title="Settings" large>
     <Card style={{ gap: space.md }}>
@@ -109,13 +98,6 @@ export default function Settings() {
       <ListRow icon="disc-outline" title="Listening clubs" onPress={() => router.push('/clubs')} />
       <ListRow icon="musical-notes-outline" title="Set up your music profile" onPress={() => router.push('/onboarding')} />
     </ListGroup>
-
-    {(config?.spotify || spotifyConnected) && <ListGroup header="Connections" footer="Riffs never posts to Spotify. We only read your playlists and top music, and search the catalog.">
-      <ListRow icon="musical-notes" iconColor="#1DB954" title="Spotify" value={spotifyConnected ? 'Connected' : 'Not connected'} disabled={busy || (!spotifyConnected && config?.spotify === false)}
-        onPress={() => void run(async () => { if (spotifyConnected) { await api('/spotify', { method: 'DELETE' }); await refresh(); setNotice('Spotify disconnected.'); } else await connect(); })} />
-      {spotifyConnected && <ListRow icon="stats-chart" iconColor="#1DB954" title="Your top music" subtitle="Rate your most-played songs and artists" onPress={() => router.push('/spotify-top')} />}
-      {spotifyConnected && <ListRow icon="albums-outline" iconColor="#1DB954" title="Browse my playlists" onPress={() => router.push('/spotify')} />}
-    </ListGroup>}
 
     <ListGroup header="Security">
       <ListRow icon="key-outline" iconColor="#8E8E93" title="Change password" chevron={!changingPassword} onPress={() => setChangingPassword((v) => !v)} />
