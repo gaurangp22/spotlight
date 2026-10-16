@@ -9,12 +9,12 @@ import { curve, font, radius, shadow, space, tints, useTheme } from '../../ui/th
 /** The two things most people come here to do, as big tiles. */
 function Hero({ icon, title, text, onPress, volt }: { icon: IconName; title: string; text: string; onPress: () => void; volt?: boolean }) {
   const { c } = useTheme();
-  const ink = '#FFFFFF';
+  const ink = volt ? c.onAccent : c.onGlow;
   const body = <>
-    <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', ...curve }}><Ionicons name={icon} size={22} color={ink} /></View>
+    <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.1)', alignItems: 'center', justifyContent: 'center', ...curve }}><Ionicons name={icon} size={22} color={ink} /></View>
     <View style={{ gap: 4 }}>
       <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: font.bold, fontSize: 22, lineHeight: 26, letterSpacing: -0.5, color: ink }}>{title}</Text>
-      <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: font.medium, fontSize: 13, lineHeight: 17, color: 'rgba(255,255,255,0.88)' }}>{text}</Text>
+      <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: font.medium, fontSize: 13, lineHeight: 17, color: ink, opacity: 0.75 }}>{text}</Text>
     </View>
   </>;
   const tile = { flex: 1, minHeight: 186, borderRadius: radius.lg, padding: space.lg, justifyContent: 'space-between' as const, ...curve };

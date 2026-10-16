@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import Animated, { Extrapolation, FadeInUp, FadeOutUp, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { Extrapolation, FadeInUp, FadeOutUp, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
-import { categories, formatScore, scoreColor, scoreInk } from '../lib/categories';
+import { categories, formatScore, scoreColor } from '../lib/categories';
 import { displayDate } from '../lib/dates';
 import { MusicItem, Rating, Ranking } from '../lib/types';
 import { useApp } from '../store/AppContext';
@@ -13,7 +13,7 @@ import { PostActions, TakeCard } from './equals';
 import { MINI_PLAYER_HEIGHT, usePreview } from './preview';
 import { useTabBarSpace } from './tabbar';
 import { Artwork, Avatar, Badge, BotBadge, Card, IconButton, Ionicons, T } from './primitives';
-import { curve, font, gutter, makeStyles, maxContent, radius, space, useTheme } from './theme';
+import { curve, font, gutter, makeStyles, maxContent, radius, shadow, space, useTheme } from './theme';
 import { visibilityIcon, visibilityLabel } from './visibility';
 
 export { visibilityIcon, visibilityLabel } from './visibility';
@@ -137,11 +137,28 @@ export function MusicRow({ item, index, trailing, onPress, separator = true, siz
 }
 
 /** A score on a tier-coloured rounded square: green for loved, orange for fine, red for nope. */
+/** The score ring: the same treatment as the cards in Riffs videos, so the app and the videos match. */
 export function ScoreBadge({ score, size = 44, ring = false }: { score: number; size?: number; ring?: boolean }) {
   const { c } = useTheme();
-  return <View accessible accessibilityLabel={`Score ${formatScore(score)} out of 10`} style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: scoreColor(score), alignItems: 'center', justifyContent: 'center', ...curve, ...(ring ? { borderWidth: 2.5, borderColor: c.surface } : {}) }}>
-    <Text maxFontSizeMultiplier={1} style={{ fontFamily: font.bold, color: scoreInk, fontSize: size * 0.4, letterSpacing: -0.6, fontVariant: ['tabular-nums'] }}>{formatScore(score)}</Text>
+  return <View accessible accessibilityLabel={`Score ${formatScore(score)} out of 10`} style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.surface, borderWidth: Math.max(2, size * 0.085), borderColor: scoreColor(score), alignItems: 'center', justifyContent: 'center' }, ring && shadow(c, 2)]}>
+    <Text maxFontSizeMultiplier={1} style={{ fontFamily: font.heavy, color: c.text, fontSize: size * 0.34, letterSpacing: -0.5, fontVariant: ['tabular-nums'] }}>{formatScore(score)}</Text>
   </View>;
+}
+
+/** Placeholder cards shown while a feed loads, shaped like the posts that will replace them. */
+export function FeedSkeleton({ count = 2 }: { count?: number }) {
+  const { c } = useTheme();
+  const pulse = useSharedValue(0.55);
+  useEffect(() => { pulse.value = withRepeat(withTiming(1, { duration: 700 }), -1, true); }, [pulse]);
+  const style = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  const block = (w: number | `${number}%`, h: number, round = 6) => <View style={{ width: w, height: h, borderRadius: round, backgroundColor: c.fill }} />;
+  return <Animated.View style={style} accessibilityLabel="Loading posts">
+    {Array.from({ length: count }, (_, i) => <View key={i} style={[{ backgroundColor: c.surface, borderRadius: radius.lg, padding: space.lg, marginBottom: space.lg, gap: space.md, ...curve }, shadow(c, 1)]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>{block(36, 36, 18)}<View style={{ gap: 6, flex: 1 }}>{block('55%', 12)}{block('35%', 10)}</View></View>
+      <View style={{ flexDirection: 'row', gap: space.md }}>{block(96, 96, 10)}<View style={{ gap: 8, flex: 1, justifyContent: 'center' }}>{block('30%', 10)}{block('80%', 16)}{block('50%', 12)}</View></View>
+      {block('90%', 12)}
+    </View>)}
+  </Animated.View>;
 }
 
 const article = (word: string) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
@@ -256,7 +273,7 @@ function ListCard({ ranking }: { ranking: Ranking }) {
         {top.map((item, index) => <View key={item.id} style={{ flex: 1, gap: 6 }}>
           <View>
             <Artwork item={item} fill rounded={radius.sm} />
-            <View style={[s.rank, index === 0 && { backgroundColor: c.accentFill }]}><Text style={{ fontFamily: font.bold, fontSize: 14, color: '#FFFFFF' }}>{index + 1}</Text></View>
+            <View style={[s.rank, index === 0 && { backgroundColor: c.accentFill }]}><Text style={{ fontFamily: font.bold, fontSize: 14, color: index === 0 ? c.onAccent : '#FFFFFF' }}>{index + 1}</Text></View>
           </View>
           <T v="caption" weight="semibold" numberOfLines={1}>{item.title}</T>
         </View>)}

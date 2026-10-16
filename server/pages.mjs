@@ -8,8 +8,8 @@ function layout(title, body) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(title)} · Riffs</title>
 <style>
-:root{--bg:#F7F5F1;--fg:#121211;--muted:#6B6862;--accent:#C63A22;--line:rgba(18,18,17,.1)}
-@media (prefers-color-scheme:dark){:root{--bg:#0E0E0F;--fg:#F5F3EE;--muted:#A09D97;--accent:#FF6B4A;--line:rgba(255,255,255,.1)}}
+:root{--bg:#F7F5F1;--fg:#121211;--muted:#6B6862;--accent:#3F6E00;--line:rgba(18,18,17,.1)}
+@media (prefers-color-scheme:dark){:root{--bg:#0E0E0F;--fg:#F5F3EE;--muted:#A09D97;--accent:#C6FF3D;--line:rgba(255,255,255,.1)}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 main{max-width:680px;margin:0 auto;padding:48px 20px 80px}.brand{font-weight:800;letter-spacing:-.04em;font-size:20px;text-decoration:none;color:var(--fg)}.brand span{color:var(--accent)}
 h1{font-size:34px;line-height:1.15;letter-spacing:-.03em;margin:40px 0 6px}h2{font-size:19px;letter-spacing:-.01em;margin:36px 0 8px}.updated{color:var(--muted);font-size:14px;margin:0 0 24px}

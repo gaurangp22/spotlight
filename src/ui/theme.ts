@@ -3,30 +3,32 @@ import { ImageStyle, Platform, StyleSheet, TextStyle, useColorScheme, ViewStyle 
 
 // Riffs follows Apple's Human Interface Guidelines: system grouped backgrounds, quiet chrome, one accent,
 // and album art supplying the colour. Light and dark follow the device setting.
+// Brand colour is Riffs Volt, an electric lime that no major music service owns. Volt fills carry
+// near-black text; in light mode accent text uses a deep olive so it stays readable on white.
 // Contrast (WCAG AA): body text ≥ 15:1, secondary ≥ 5:1 on every surface it sits on; accent text ≥ 4.6:1;
-// white on accent fills ≥ 4.6:1.
+// ink on accent fills ≥ 12:1.
 const light = {
   bg: '#F2F2F7', surface: '#FFFFFF', elevated: '#FFFFFF', fill: '#EEEEF2', fillStrong: '#E1E1E6',
   text: '#000000', secondary: '#6C6C70', tertiary: '#AEAEB2',
   separator: 'rgba(60,60,67,0.18)', hairline: 'rgba(60,60,67,0.22)', border: 'rgba(60,60,67,0.08)',
-  accent: '#D9124B', accentFill: '#E8174A', accentSoft: 'rgba(232,23,74,0.10)', onAccent: '#FFFFFF',
+  accent: '#3F6E00', accentFill: '#B4F03A', accentSoft: 'rgba(120,180,0,0.14)', onAccent: '#0B0B0C',
   violet: '#7A38C4', violetSoft: 'rgba(175,82,222,0.12)',
-  heart: '#E8174A', heartSoft: 'rgba(232,23,74,0.10)',
+  heart: '#F0443A', heartSoft: 'rgba(240,68,58,0.10)',
   danger: '#D70015', success: '#248A3D', scrim: 'rgba(0,0,0,0.4)', inverse: '#000000', onInverse: '#FFFFFF',
   tabBar: 'rgba(249,249,251,0.78)', shadow: '#000000', material: 'light' as 'light' | 'dark',
-  /** Brand gradient for rare celebratory moments: rose into purple. */
-  glowA: '#FF2D55', glowB: '#AF52DE',
+  /** Brand gradient for rare celebratory moments: volt into aqua, with dark ink on top. */
+  glowA: '#C6FF3D', glowB: '#2EE6C5', onGlow: '#0B0B0C',
 };
 const dark: typeof light = {
   bg: '#000000', surface: '#1C1C1E', elevated: '#2C2C2E', fill: '#2C2C2E', fillStrong: '#3A3A3C',
   text: '#FFFFFF', secondary: '#98989F', tertiary: '#636366',
   separator: 'rgba(84,84,88,0.55)', hairline: 'rgba(84,84,88,0.65)', border: 'rgba(255,255,255,0.06)',
-  accent: '#FF4D74', accentFill: '#E8174A', accentSoft: 'rgba(255,55,95,0.16)', onAccent: '#FFFFFF',
+  accent: '#C6FF3D', accentFill: '#C6FF3D', accentSoft: 'rgba(198,255,61,0.14)', onAccent: '#0B0B0C',
   violet: '#D08CFF', violetSoft: 'rgba(191,90,242,0.18)',
-  heart: '#FF4D74', heartSoft: 'rgba(255,55,95,0.16)',
+  heart: '#FF5E54', heartSoft: 'rgba(255,94,84,0.16)',
   danger: '#FF453A', success: '#30D158', scrim: 'rgba(0,0,0,0.6)', inverse: '#FFFFFF', onInverse: '#000000',
   tabBar: 'rgba(30,30,32,0.72)', shadow: '#000000', material: 'dark',
-  glowA: '#FF375F', glowB: '#BF5AF2',
+  glowA: '#C6FF3D', glowB: '#2EE6C5', onGlow: '#0B0B0C',
 };
 export type Palette = typeof light;
 export const palettes = { light, dark };

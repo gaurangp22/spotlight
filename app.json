@@ -40,7 +40,7 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "name": "Riffs",
-      "themeColor": "#E8174A"
+      "themeColor": "#0B0B0C"
     },
     "plugins": [
       "expo-router",

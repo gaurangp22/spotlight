@@ -4,11 +4,11 @@ import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 import { canComposeTimed, composeTimed } from '../../modules/video-overlay';
-import { formatScore, scoreColor } from '../lib/categories';
+import { formatScore } from '../lib/categories';
 import { errorMessage } from '../lib/api';
 import { saveVideoToLibrary } from '../lib/saveVideo';
 import { MusicItem } from '../lib/types';
@@ -17,51 +17,12 @@ import { goBack, MusicRow, Screen } from '../ui/components';
 import { useTask } from '../ui/forms';
 import { haptic } from '../ui/haptics';
 import { MusicPicker } from '../ui/MusicPicker';
-import { Artwork, Avatar, Button, Card, EmptyState, IconButton, Ionicons, SectionHeader, T, TextField } from '../ui/primitives';
-import { font, radius, space, useTheme } from '../ui/theme';
+import { Button, Card, EmptyState, IconButton, Ionicons, SectionHeader, T, TextField } from '../ui/primitives';
+import { CountdownCard } from '../ui/reelCards';
+import { font, noOutline, radius, space, useTheme } from '../ui/theme';
 
 const MAX_SECONDS = 90, MAX_ITEMS = 10;
 type Stage = 'setup' | 'camera' | 'preview';
-
-/**
- * The countdown card burned into the video, on a 360-wide grid scaled to its drawn width.
- * Ranks fill from the bottom up: `revealed` is how many picks are showing, counting from last place.
- */
-function CountdownOverlay({ items, scores, title, name, handle, avatar, revealed, width }: {
-  items: MusicItem[]; scores: (number | undefined)[]; title: string; name: string; handle: string; avatar?: string; revealed: number; width: number;
-}) {
-  const k = width / 360, n = items.length;
-  const latest = revealed > 0 ? n - revealed : -1;
-  const row = Math.min(44, 460 / Math.max(n, 1)) * k;
-  const shadowText = { textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 * k, textShadowOffset: { width: 0, height: 1 } };
-  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { paddingHorizontal: 18 * k, paddingTop: 56 * k }]}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * k }}>
-      <Avatar size={30 * k} name={name} uri={avatar} seed={handle} />
-      <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.semibold, fontSize: 13 * k, color: '#FFFFFF' }, shadowText]}>{handle}</Text>
-    </View>
-    <Text maxFontSizeMultiplier={1} numberOfLines={2} style={[{ fontFamily: font.heavy, fontSize: 24 * k, lineHeight: 28 * k, letterSpacing: -0.6 * k, color: '#FFFFFF', marginTop: 8 * k }, shadowText]}>{title || 'My ranking'}</Text>
-    <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.semibold, fontSize: 12 * k, color: '#FFFFFFCC', marginBottom: 10 * k }, shadowText]}>on Riffs</Text>
-    <View style={{ backgroundColor: 'rgba(16,16,18,0.62)', borderRadius: 18 * k, paddingVertical: 8 * k, paddingHorizontal: 10 * k }}>
-      {items.map((item, index) => {
-        const shown = index >= n - revealed, hot = index === latest, score = scores[index];
-        return <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * k, minHeight: hot ? row + 18 * k : row, paddingHorizontal: hot ? 6 * k : 0, marginVertical: hot ? 4 * k : 0,
-          backgroundColor: hot ? 'rgba(255,255,255,0.14)' : 'transparent', borderRadius: 12 * k }}>
-          <Text maxFontSizeMultiplier={1} style={{ width: 26 * k, fontFamily: font.heavy, fontSize: (hot ? 24 : 18) * k, color: index === 0 && shown ? '#FFD60A' : '#FFFFFF', textAlign: 'center' }}>{index + 1}</Text>
-          {shown && <>
-            <Artwork item={item} size={(hot ? 46 : 32) * k} rounded={6 * k} />
-            <View style={{ flex: 1 }}>
-              <Text maxFontSizeMultiplier={1} numberOfLines={1} style={{ fontFamily: font.bold, fontSize: (hot ? 15 : 13) * k, color: '#FFFFFF' }}>{item.title}</Text>
-              <Text maxFontSizeMultiplier={1} numberOfLines={1} style={{ fontFamily: font.medium, fontSize: (hot ? 12 : 10.5) * k, color: '#FFFFFFB3' }}>{item.artist}</Text>
-            </View>
-            {score !== undefined && <View style={{ width: (hot ? 40 : 30) * k, height: (hot ? 40 : 30) * k, borderRadius: 20 * k, borderWidth: 2.5 * k, borderColor: scoreColor(score), alignItems: 'center', justifyContent: 'center' }}>
-              <Text maxFontSizeMultiplier={1} style={{ fontFamily: font.heavy, fontSize: (hot ? 13 : 10.5) * k, color: '#FFFFFF', fontVariant: ['tabular-nums'] }}>{formatScore(score)}</Text>
-            </View>}
-          </>}
-        </View>;
-      })}
-    </View>
-  </View>;
-}
 
 function Clip({ uri }: { uri: string }) {
   const player = useVideoPlayer(uri, (p) => { p.loop = true; p.play(); });
@@ -82,6 +43,9 @@ export default function CountdownScreen() {
   const [items, setItems] = useState<MusicItem[]>(() => (source?.items || draft.items).slice(0, MAX_ITEMS));
   const [title, setTitle] = useState(() => source?.title || draft.title || '');
   const [picking, setPicking] = useState(false);
+  // A one-liner and a score per pick, shown when that pick is revealed. Scores start from your ratings.
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [stage, setStage] = useState<Stage>('setup');
   const [facing, setFacing] = useState<CameraType>('front');
   const [sound, setSound] = useState(true);
@@ -99,7 +63,9 @@ export default function CountdownScreen() {
   const startedAt = useRef(0);
   const discard = useRef(false);
 
-  const scores = items.map((item) => ratingFor(item.id)?.score);
+  const scoreOf = (item: MusicItem) => { const typed = overrides[item.id]; if (typed !== undefined) { const v = Number(typed.replace(',', '.')); return typed.trim() && Number.isFinite(v) ? Math.max(0, Math.min(10, Math.round(v * 10) / 10)) : undefined; } return ratingFor(item.id)?.score; };
+  const scores = items.map(scoreOf);
+  const lines = items.map((item) => notes[item.id] || '');
   const stageWidth = Math.floor(Math.min(screen.width, (screen.height - insets.top - insets.bottom - 150) * 9 / 16));
   const stageHeight = Math.round(stageWidth * 16 / 9);
 
@@ -172,22 +138,29 @@ export default function CountdownScreen() {
       <Button label="Open camera" icon="videocam" disabled={items.length < 2} loading={busy} onPress={() => void openCamera()} />
     </View>}>
     <T v="title1" style={{ marginTop: space.sm }}>Count it down on camera</T>
-    <T v="subhead" tone="secondary" style={{ marginTop: space.xs }}>Film your reaction and tap to reveal each pick, from #{Math.max(items.length, 2)} up to #1. Your scores show next to each song.</T>
+    <T v="subhead" tone="secondary" style={{ marginTop: space.xs }}>Film your reaction and tap to reveal each pick, from #{Math.max(items.length, 2)} up to #1. Add a score and a line for each — they appear as you reveal.</T>
     <SectionHeader title="Title" />
     <TextField label="Shown at the top of the video" value={title} onChangeText={setTitle} maxLength={60} placeholder="My Discovery ranking" />
     <SectionHeader title={`Your order · ${items.length}/${MAX_ITEMS}`} detail="#1 is revealed last" />
     {items.length ? <Card padded={false} style={{ paddingHorizontal: space.md }}>
-      {items.map((item, index) => <MusicRow key={item.id} item={item} index={index} size={40} separator={index < items.length - 1}
+      {items.map((item, index) => <View key={item.id} style={{ paddingBottom: space.sm, borderBottomWidth: index < items.length - 1 ? StyleSheet.hairlineWidth : 0, borderColor: c.hairline }}><MusicRow item={item} index={index} size={40} separator={false}
         trailing={<View style={{ flexDirection: 'row' }}>
           <IconButton icon="chevron-up" label={`Move ${item.title} up`} size={32} filled={false} tone="secondary" disabled={index === 0} onPress={() => setItems((list) => { const next = [...list]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} />
           <IconButton icon="close" label={`Remove ${item.title}`} size={32} filled={false} tone="secondary" onPress={() => setItems((list) => list.filter((x) => x.id !== item.id))} />
-        </View>} />)}
+        </View>} />
+        <View style={{ flexDirection: 'row', gap: space.sm, marginLeft: 38 }}>
+          <TextInput value={notes[item.id] || ''} onChangeText={(v) => setNotes((m) => ({ ...m, [item.id]: v }))} maxLength={60} placeholder="Say something (optional)" placeholderTextColor={c.tertiary} accessibilityLabel={`What you say about ${item.title}`}
+            style={[styles.input, { flex: 1, backgroundColor: c.fill, color: c.text }]} />
+          <TextInput value={overrides[item.id] ?? (ratingFor(item.id) ? formatScore(ratingFor(item.id)!.score) : '')} onChangeText={(v) => setOverrides((m) => ({ ...m, [item.id]: v.replace(/[^0-9.,]/g, '').slice(0, 4) }))} keyboardType="decimal-pad" placeholder="Score" placeholderTextColor={c.tertiary} accessibilityLabel={`Score for ${item.title}`}
+            style={[styles.input, { width: 64, textAlign: 'center', backgroundColor: c.fill, color: c.text }]} />
+        </View>
+      </View>)}
     </Card> : <Card><EmptyState icon="podium-outline" title="Pick what you’re ranking" text="Add up to 10 songs or albums, best first." /></Card>}
     <Button label="Add songs" icon="add" variant="secondary" disabled={items.length >= MAX_ITEMS} onPress={() => setPicking(true)} style={{ marginTop: space.md }} />
     {items.length >= 2 && <>
       <SectionHeader title="Preview" />
       <View style={{ alignSelf: 'center', width: 200, height: 356, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: '#1E1D1B' }}>
-        <CountdownOverlay items={items} scores={scores} title={title} name={name} handle={handle} avatar={user?.avatar} revealed={Math.min(3, items.length)} width={200} />
+        <CountdownCard items={items} scores={scores} notes={lines} title={title} name={name} handle={handle} avatar={user?.avatar} revealed={Math.min(3, items.length)} width={200} />
       </View>
     </>}
     <T v="footnote" tone="secondary" center style={{ marginTop: space.xl }}>Made on your phone. Nothing is uploaded unless you share it.</T>
@@ -204,7 +177,7 @@ export default function CountdownScreen() {
         : clip ? <Clip uri={clip} /> : null}
       <ViewShot ref={overlay} options={{ format: 'png', quality: 1, result: 'tmpfile', width: 1080, height: 1920 }} style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent' }]}>
         <View collapsable={false} style={StyleSheet.absoluteFill}>
-          <CountdownOverlay items={items} scores={scores} title={title} name={name} handle={handle} avatar={user?.avatar} revealed={stage === 'preview' && !busy ? reveals.length : shown} width={stageWidth} />
+          <CountdownCard items={items} scores={scores} notes={lines} title={title} name={name} handle={handle} avatar={user?.avatar} revealed={stage === 'preview' && !busy ? reveals.length : shown} width={stageWidth} />
         </View>
       </ViewShot>
       <View style={styles.topBar}>
@@ -251,4 +224,5 @@ const styles = StyleSheet.create({
   hint: { fontFamily: font.medium, fontSize: 13, color: '#FFFFFFB3', textAlign: 'center' },
   busy: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', gap: space.sm },
   busyText: { fontFamily: font.semibold, fontSize: 15, color: '#FFFFFF' },
+  input: { minHeight: 36, borderRadius: radius.sm, paddingHorizontal: 10, fontFamily: font.regular, fontSize: 14, ...noOutline },
 });

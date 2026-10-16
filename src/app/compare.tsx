@@ -87,7 +87,7 @@ export default function CompareScreen() {
 const useStyles = makeStyles(() => ({
   hero: { backgroundColor: '#161514', borderRadius: radius.xl, padding: space.xl, marginTop: space.xs, ...curve },
   meter: { height: 6, borderRadius: 3, backgroundColor: '#FFFFFF26', marginTop: space.lg, overflow: 'hidden' },
-  meterFill: { height: 6, borderRadius: 3, backgroundColor: '#FF6B4A' },
+  meterFill: { height: 6, borderRadius: 3, backgroundColor: '#2EE6C5' },
   row: { flexDirection: 'row', paddingHorizontal: space.md, minHeight: 50, alignItems: 'center' },
   cell: { flex: 1, paddingRight: space.sm },
   cellRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },

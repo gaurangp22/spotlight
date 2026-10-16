@@ -14,7 +14,7 @@ import { Artwork, Button, Segmented, T } from './primitives';
 import { curve, font, radius, shadow, space, useTheme } from './theme';
 
 export const templates = {
-  night: { bg: '#141413', fg: '#FFFFFF', muted: '#FFFFFF99', rule: '#FFFFFF1F', accent: '#FF6B4A' },
+  night: { bg: '#141413', fg: '#FFFFFF', muted: '#FFFFFF99', rule: '#FFFFFF1F', accent: '#C6FF3D' },
   paper: { bg: '#F7F3EA', fg: '#141413', muted: '#14141399', rule: '#1414131A', accent: '#C63A22' },
   red: { bg: '#C63A22', fg: '#FFFFFF', muted: '#FFFFFFB3', rule: '#FFFFFF33', accent: '#FFFFFF' },
 };
