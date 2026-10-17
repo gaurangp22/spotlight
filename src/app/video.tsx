@@ -18,6 +18,7 @@ import { useTask } from '../ui/forms';
 import { haptic } from '../ui/haptics';
 import { MusicPicker } from '../ui/MusicPicker';
 import { ReviewCard } from '../ui/reelCards';
+import { LayoutControls, LayoutGestures, useCardLayout } from '../ui/videoLayout';
 import { Artwork, Button, Card, EmptyState, IconButton, Ionicons, SectionHeader, T, Tap, TextField } from '../ui/primitives';
 import { curve, font, radius, space, useTheme } from '../ui/theme';
 
@@ -43,6 +44,7 @@ export default function VideoReviewScreen() {
   const [item, setItem] = useState<MusicItem | undefined>(start);
   const [score, setScore] = useState(() => (start ? ratingFor(start.id)?.score : undefined) ?? 8);
   const [caption, setCaption] = useState('');
+  const [layout, setLayout] = useCardLayout('review');
   const [picking, setPicking] = useState(false);
   const [stage, setStage] = useState<Stage>('setup');
   const [facing, setFacing] = useState<CameraType>('front');
@@ -173,7 +175,7 @@ export default function VideoReviewScreen() {
     {item && <>
       <SectionHeader title="Preview" />
       <View style={{ alignSelf: 'center', width: 180, height: 320, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: '#1E1D1B', ...curve }}>
-        <ReviewCard item={item} score={score} take={caption} name={user?.name || 'You'} handle={user?.handle || '@you'} avatar={user?.avatar} width={180} />
+        <ReviewCard item={item} score={score} take={caption} name={user?.name || 'You'} handle={user?.handle || '@you'} avatar={user?.avatar} width={180} layout={layout} />
       </View>
     </>}
     <T v="footnote" tone="secondary" center style={{ marginTop: space.xl }}>Recorded and made on your phone. Nothing is uploaded unless you share it.</T>
@@ -185,7 +187,7 @@ export default function VideoReviewScreen() {
   // Camera and preview share one dark stage with the overlay drawn on top of it.
   const overlayLayer = item && <ViewShot ref={overlay} options={{ format: 'png', quality: 1, result: 'tmpfile', width: 1080, height: 1920 }}
     style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent' }]}>
-    <View collapsable={false} style={StyleSheet.absoluteFill}><ReviewCard item={item} score={score} take={caption} name={user?.name || 'You'} handle={user?.handle || '@you'} avatar={user?.avatar} width={stageWidth} /></View>
+    <View collapsable={false} style={StyleSheet.absoluteFill}><ReviewCard item={item} score={score} take={caption} name={user?.name || 'You'} handle={user?.handle || '@you'} avatar={user?.avatar} width={stageWidth} layout={layout} /></View>
   </ViewShot>;
 
   return <View style={{ flex: 1, backgroundColor: '#000000', paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, space.md) }}>
@@ -195,6 +197,7 @@ export default function VideoReviewScreen() {
         onCameraReady={() => setReady(true)} onMountError={(e) => setNotice(e.message)} />
         : clip ? <Clip uri={clip} /> : null}
       {overlayLayer}
+      <LayoutGestures layout={layout} onChange={setLayout} width={stageWidth} height={stageHeight} enabled={!recording && !busy} />
       <View style={styles.topBar}>
         <IconButton icon="close" label="Close" onPress={() => { if (recording) { discard.current = true; stop(); } setStage('setup'); }} size={40} tone="white" filled={false} />
         {recording ? <View style={styles.timer}><View style={styles.dot} /><Text style={styles.timerText}>{seconds(elapsed)} / {seconds(MAX_SECONDS)}</Text></View> : <View />}
@@ -210,12 +213,14 @@ export default function VideoReviewScreen() {
 
     <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space.xl }}>
       {stage === 'camera' ? <View style={{ alignItems: 'center', gap: space.sm }}>
+        {!recording && <LayoutControls layout={layout} onChange={setLayout} />}
         <Pressable accessibilityRole="button" accessibilityLabel={recording ? 'Stop recording' : 'Start recording'} disabled={!ready}
           onPress={() => (recording ? stop() : void record())} style={[styles.shutter, !ready && { opacity: 0.4 }]}>
           <View style={recording ? styles.stopSquare : styles.recordDot} />
         </Pressable>
-        <Text style={styles.hint}>{recording ? 'Tap to stop' : ready ? `Tap to record · up to ${MAX_SECONDS}s` : 'Starting camera…'}</Text>
+        <Text style={styles.hint}>{recording ? 'Tap to stop' : ready ? 'Drag or pinch the card to place it, then record' : 'Starting camera…'}</Text>
       </View> : <View style={{ gap: space.sm }}>
+        {!busy && <LayoutControls layout={layout} onChange={setLayout} />}
         <View style={{ flexDirection: 'row', gap: space.sm }}>
           <Button label="Retake" icon="refresh" variant="secondary" size="md" style={{ flex: 1 }} disabled={busy} onPress={() => { setOutput(null); setReady(false); setStage('camera'); }} />
           <Button label="Save" icon="download-outline" size="md" style={{ flex: 1 }} disabled={busy} onPress={() => void save()} />

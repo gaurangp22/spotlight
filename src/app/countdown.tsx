@@ -19,6 +19,7 @@ import { haptic } from '../ui/haptics';
 import { MusicPicker } from '../ui/MusicPicker';
 import { Button, Card, EmptyState, IconButton, Ionicons, SectionHeader, T, TextField } from '../ui/primitives';
 import { CountdownCard } from '../ui/reelCards';
+import { LayoutControls, LayoutGestures, useCardLayout } from '../ui/videoLayout';
 import { font, noOutline, radius, space, useTheme } from '../ui/theme';
 
 const MAX_SECONDS = 90, MAX_ITEMS = 10;
@@ -43,6 +44,7 @@ export default function CountdownScreen() {
   const [items, setItems] = useState<MusicItem[]>(() => (source?.items || draft.items).slice(0, MAX_ITEMS));
   const [title, setTitle] = useState(() => source?.title || draft.title || '');
   const [picking, setPicking] = useState(false);
+  const [layout, setLayout] = useCardLayout('countdown');
   // A one-liner and a score per pick, shown when that pick is revealed. Scores start from your ratings.
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [overrides, setOverrides] = useState<Record<string, string>>({});
@@ -160,7 +162,7 @@ export default function CountdownScreen() {
     {items.length >= 2 && <>
       <SectionHeader title="Preview" />
       <View style={{ alignSelf: 'center', width: 200, height: 356, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: '#1E1D1B' }}>
-        <CountdownCard items={items} scores={scores} notes={lines} title={title} name={name} handle={handle} avatar={user?.avatar} revealed={Math.min(3, items.length)} width={200} />
+        <CountdownCard items={items} scores={scores} notes={lines} title={title} name={name} handle={handle} avatar={user?.avatar} revealed={Math.min(3, items.length)} width={200} layout={layout} />
       </View>
     </>}
     <T v="footnote" tone="secondary" center style={{ marginTop: space.xl }}>Made on your phone. Nothing is uploaded unless you share it.</T>
@@ -177,9 +179,10 @@ export default function CountdownScreen() {
         : clip ? <Clip uri={clip} /> : null}
       <ViewShot ref={overlay} options={{ format: 'png', quality: 1, result: 'tmpfile', width: 1080, height: 1920 }} style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent' }]}>
         <View collapsable={false} style={StyleSheet.absoluteFill}>
-          <CountdownCard items={items} scores={scores} notes={lines} title={title} name={name} handle={handle} avatar={user?.avatar} revealed={stage === 'preview' && !busy ? reveals.length : shown} width={stageWidth} />
+          <CountdownCard items={items} scores={scores} notes={lines} title={title} name={name} handle={handle} avatar={user?.avatar} revealed={stage === 'preview' && !busy ? reveals.length : shown} width={stageWidth} layout={layout} />
         </View>
       </ViewShot>
+      <LayoutGestures layout={layout} onChange={setLayout} width={stageWidth} height={stageHeight} enabled={!recording && !busy} />
       <View style={styles.topBar}>
         <IconButton icon="close" label="Close" onPress={() => { if (recording) { discard.current = true; stop(); } setStage('setup'); }} size={40} tone="white" filled={false} />
         {recording ? <View style={styles.timer}><View style={styles.dot} /><Text style={styles.timerText}>{seconds(elapsed)}</Text></View> : <View />}
@@ -189,24 +192,28 @@ export default function CountdownScreen() {
     </View>
 
     <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space.xl }}>
-      {stage === 'camera' ? <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xl }}>
+      {stage === 'camera' ? <View style={{ gap: space.md }}>
+        {!recording && <LayoutControls layout={layout} onChange={setLayout} />}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xl }}>
         <Pressable accessibilityRole="button" accessibilityLabel={recording ? 'Stop recording' : 'Start recording'} disabled={!ready}
           onPress={() => (recording ? stop() : void record())} style={[styles.shutter, !ready && { opacity: 0.4 }]}>
           <View style={recording ? styles.stopSquare : styles.recordDot} />
         </Pressable>
         {recording && <Pressable accessibilityRole="button" accessibilityLabel={done ? 'All picks revealed' : `Reveal number ${items.length - shown}`} disabled={done} onPress={reveal}
           style={[styles.reveal, { backgroundColor: done ? 'rgba(255,255,255,0.15)' : c.accentFill }]}>
-          <Ionicons name={done ? 'checkmark' : 'eye'} size={20} color="#FFFFFF" />
-          <Text style={styles.revealText}>{done ? 'All in' : `Reveal #${items.length - shown}`}</Text>
+          <Ionicons name={done ? 'checkmark' : 'eye'} size={20} color={done ? '#FFFFFF' : c.onAccent} />
+          <Text style={[styles.revealText, { color: done ? '#FFFFFF' : c.onAccent }]}>{done ? 'All in' : `Reveal #${items.length - shown}`}</Text>
         </Pressable>}
+        </View>
       </View> : <View style={{ gap: space.sm }}>
+        {!busy && <LayoutControls layout={layout} onChange={setLayout} />}
         <View style={{ flexDirection: 'row', gap: space.sm }}>
           <Button label="Retake" icon="refresh" variant="secondary" size="md" style={{ flex: 1 }} disabled={busy} onPress={() => { setOutput(null); setReady(false); setReveals([]); setShown(0); setStage('camera'); }} />
           <Button label="Save" icon="download-outline" size="md" style={{ flex: 1 }} disabled={busy} onPress={() => void save()} />
           <Button label="Share" icon="logo-instagram" variant="inverse" size="md" style={{ flex: 1 }} disabled={busy} onPress={() => void share()} />
         </View>
       </View>}
-      <Text style={[styles.hint, { marginTop: space.sm }]}>{stage === 'preview' ? `${reveals.length} of ${items.length} picks revealed` : recording ? 'Talk it through, then tap Reveal' : ready ? 'Start recording, then reveal from the bottom up' : 'Starting camera…'}</Text>
+      <Text style={[styles.hint, { marginTop: space.sm }]}>{stage === 'preview' ? `${reveals.length} of ${items.length} picks revealed` : recording ? 'Talk it through, then tap Reveal' : ready ? 'Drag or pinch the card to place it, then record' : 'Starting camera…'}</Text>
     </View>
   </View>;
 }

@@ -6,7 +6,7 @@ import { Screen } from '../../ui/components';
 import { IconName, Ionicons, ListGroup, ListRow, T, Tap } from '../../ui/primitives';
 import { curve, font, radius, shadow, space, tints, useTheme } from '../../ui/theme';
 
-/** The two things most people come here to do, as big tiles. */
+/** Video is the headline: the two reel formats get the big tiles. */
 function Hero({ icon, title, text, onPress, volt }: { icon: IconName; title: string; text: string; onPress: () => void; volt?: boolean }) {
   const { c } = useTheme();
   const ink = volt ? c.onAccent : c.onGlow;
@@ -44,18 +44,18 @@ export default function CreateScreen() {
       {hasMood && <ListRow icon="images-outline" iconColor={tints.violet} title={moodDraft.title.trim() || 'Untitled mood board'} subtitle={`${moodDraft.items.length} songs · ${moodDraft.tiles.length} tiles`} onPress={() => router.push('/moodboard')} />}
     </ListGroup>}
     <View style={{ flexDirection: 'row', gap: space.md }}>
-      <Hero volt icon="flame" title="Hot take" text="One opinion, 280 characters." onPress={() => { startTake(undefined, false); router.push('/take'); }} />
-      <Hero icon="star" title="Rate it" text="Head-to-heads give you a score." onPress={() => router.push('/rate')} />
+      <Hero volt icon="videocam" title="Video review" text="Flip the camera and record your reaction." onPress={() => router.push('/video')} />
+      <Hero icon="podium" title="Countdown video" text="Reveal your top 10, #10 to #1, on camera." onPress={() => router.push('/countdown')} />
     </View>
     <T v="overline" tone="secondary" style={{ marginTop: space.xxl, marginBottom: space.md }}>More to make</T>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+      <Tile icon="star" tint={tints.pink} title="Rate it" text="Head-to-heads give you a score." onPress={() => router.push('/rate')} />
+      <Tile icon="flame" tint={tints.coral} title="Hot take" text="One opinion, 280 characters." onPress={() => { startTake(undefined, false); router.push('/take'); }} />
+      <Tile icon="list" tint={tints.amber} title="Ranking" text="Your exact order, no hedging." onPress={() => { startDraft(); router.push('/builder'); }} />
       <Tile icon="stats-chart" tint={tints.violet} title="This or that" text="Two picks. Let friends settle it." onPress={() => { startTake(undefined, true); router.push('/take'); }} />
-      <Tile icon="videocam" tint={tints.pink} title="Video review" text="Flip the camera and record your reaction." onPress={() => router.push('/video')} />
-      <Tile icon="podium" tint={tints.amber} title="Ranking" text="Your exact order, no hedging." onPress={() => { startDraft(); router.push('/builder'); }} />
-      <Tile icon="albums" tint={tints.teal} title="Pod" text="Collect music; friends add theirs." onPress={() => router.push('/pod')} />
     </View>
     <ListGroup style={{ marginTop: space.md }}>
-      <ListRow icon="podium" iconColor={tints.pink} title="Ranking countdown video" subtitle="Film yourself revealing your top 10, #10 to #1" onPress={() => router.push('/countdown')} />
+      <ListRow icon="albums" iconColor={tints.teal} title="Pod" subtitle="Collect music; friends add theirs" onPress={() => router.push('/pod')} />
       <ListRow icon="flash" iconColor={tints.sky} title="Battle Mode" subtitle="Rank by picking favourites head-to-head" onPress={() => { startDraft(); router.push({ pathname: '/builder', params: { mode: 'battle' } }); }} />
       <ListRow icon="download-outline" iconColor={tints.teal} title="Bring a playlist" subtitle="Import a public playlist or paste a track list" onPress={() => router.push('/import-playlist')} />
       <ListRow icon="images" iconColor={tints.violet} title="Mood board" subtitle="Songs, photos, and notes on one page" onPress={() => router.push('/moodboard')} />

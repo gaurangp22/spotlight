@@ -4,6 +4,7 @@ import { categories, formatScore, scoreColor } from '../lib/categories';
 import { MusicItem } from '../lib/types';
 import { Artwork, Avatar } from './primitives';
 import { font } from './theme';
+import { CardLayout, cardTransform } from './videoLayout';
 
 // The cards burned into Riffs videos. They are drawn on a 360-wide grid and scaled by `k`, so the
 // on-screen preview and the 1080×1920 export match exactly. Frosted light glass over the camera,
@@ -28,11 +29,11 @@ function Byline({ name, handle, avatar, k, size = 26 }: { name: string; handle: 
 }
 
 /** One rating, as a frosted card in the upper third of the frame. The take sits inside the card as a quote. */
-export function ReviewCard({ item, score, take, name, handle, avatar, width }: { item: MusicItem; score: number; take: string; name: string; handle: string; avatar?: string; width: number }) {
+export function ReviewCard({ item, score, take, name, handle, avatar, width, layout }: { item: MusicItem; score: number; take: string; name: string; handle: string; avatar?: string; width: number; layout?: CardLayout }) {
   const k = width / 360;
   const sub = item.kind === 'song' && item.album ? `${item.artist} · ${item.album}` : `${item.artist} · ${categories[item.kind].label}`;
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { paddingHorizontal: 18 * k, paddingTop: 150 * k }]}>
-    <View style={{ backgroundColor: GLASS, borderRadius: 18 * k, padding: 14 * k, gap: 12 * k }}>
+    <View style={{ backgroundColor: GLASS, borderRadius: 18 * k, padding: 14 * k, gap: 12 * k, transform: cardTransform(layout, width, width * 16 / 9) }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Byline name={name} handle={handle} avatar={avatar} k={k} />
         <Image source={mark} style={{ width: 24 * k, height: 24 * k }} contentFit="contain" />
@@ -54,13 +55,14 @@ export function ReviewCard({ item, score, take, name, handle, avatar, width }: {
  * The ranking countdown: a frosted list that fills from last place up. `revealed` counts picks shown from the
  * bottom; the newest reveal is expanded with a bigger cover, its score, and the one-liner said about it.
  */
-export function CountdownCard({ items, scores, notes, title, name, handle, avatar, revealed, width }: {
-  items: MusicItem[]; scores: (number | undefined)[]; notes: string[]; title: string; name: string; handle: string; avatar?: string; revealed: number; width: number;
+export function CountdownCard({ items, scores, notes, title, name, handle, avatar, revealed, width, layout }: {
+  items: MusicItem[]; scores: (number | undefined)[]; notes: string[]; title: string; name: string; handle: string; avatar?: string; revealed: number; width: number; layout?: CardLayout;
 }) {
   const k = width / 360, n = items.length, latest = revealed > 0 ? n - revealed : -1;
   // Ten picks plus the expanded reveal must fit a 9:16 frame under the title.
   const row = Math.min(38, 330 / Math.max(n, 1)) * k;
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { paddingHorizontal: 16 * k, paddingTop: 54 * k }]}>
+    <View style={{ transform: cardTransform(layout, width, width * 16 / 9) }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * k }}>
       <Avatar size={30 * k} name={name} uri={avatar} seed={handle} />
       <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.semibold, fontSize: 13 * k, color: '#FFFFFF' }, shadowText(k)]}>{handle}</Text>
@@ -99,6 +101,7 @@ export function CountdownCard({ items, scores, notes, title, name, handle, avata
           </>}
         </View>;
       })}
+    </View>
     </View>
   </View>;
 }
