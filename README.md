@@ -242,7 +242,7 @@ npx eas-cli@latest build --platform android --profile production
 npx eas-cli@latest submit --platform android --profile production   # uploads to the internal track as a draft
 ```
 
-The bundle identifier (`com.marginmusic.app`), slug, and `marginmusic://` link scheme are unchanged from version 1 on purpose. Changing them would orphan existing installs and break the EAS project link.
+The bundle identifier and Android package are `com.riffs.app`, and links use `riffs://`. The app still registers the old `marginmusic://` scheme, so links shared before the rename keep opening it. The slug (`margin-music`) is unchanged because it is tied to the EAS project. Builds made before the rename were `com.marginmusic.app`, a separate app: installing a new build doesn't replace them, and their on-device drafts don't carry over. Accounts and posts live on the server, so they aren't affected.
 
 ### Store readiness
 
@@ -286,9 +286,12 @@ With `ADMIN_TOKEN` set, from `server/`:
 node --env-file=.env admin.mjs stats                   # people, daily/weekly/monthly active, retention by signup week, invites
 node --env-file=.env admin.mjs feedback                # open beta feedback, newest first
 node --env-file=.env admin.mjs resolve-feedback ID     # mark feedback as handled
-node --env-file=.env admin.mjs reports                 # list open post reports
-node --env-file=.env admin.mjs dismiss REPORT_ID       # keep the post
-node --env-file=.env admin.mjs remove REPORT_ID        # delete the post
+node --env-file=.env admin.mjs reports                 # open reports about posts, comments, and profiles
+node --env-file=.env admin.mjs dismiss REPORT_ID       # keep the post, comment, or profile; close the report
+node --env-file=.env admin.mjs remove REPORT_ID        # delete the reported post or comment
+node --env-file=.env admin.mjs suspend REPORT_ID       # suspend the profile a report is about
+node --env-file=.env admin.mjs suspend HANDLE          # suspend any account: signs it out, blocks sign-in, hides its content
+node --env-file=.env admin.mjs unsuspend HANDLE        # restore a suspended account
 ```
 
 Stats need no analytics SDK: the server stores one row per person per day they used the app, and counts posts, ratings, comments, and messages that already exist. Demo accounts are excluded.

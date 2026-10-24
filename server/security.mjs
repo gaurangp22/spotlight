@@ -47,6 +47,18 @@ export function text(value, label, min = 0, max = 200) {
   if (typeof value !== 'string' || value.trim().length < min || value.trim().length > max) fail(400, `${label} must be ${min}–${max} characters.`);
   return value.trim();
 }
+// Handles and names that would let someone pass as Riffs staff, or that collide with app routes.
+const RESERVED_HANDLES = new Set(['about', 'account', 'admin', 'administrator', 'api', 'app', 'auth', 'contact', 'everyone', 'help', 'here', 'info', 'invite', 'join', 'legal',
+  'login', 'logout', 'mail', 'margin', 'marginmusic', 'me', 'mod', 'moderator', 'moderators', 'moderation', 'news', 'null', 'official', 'press', 'privacy', 'root', 'safety',
+  'security', 'settings', 'signin', 'signup', 'staff', 'support', 'system', 'team', 'terms', 'trust', 'undefined', 'updates', 'you']);
+export function reservedHandle(handle) {
+  return RESERVED_HANDLES.has(handle) || /^riffs($|_|app|team|official|hq|staff|support|help)/.test(handle) || /(^|_)(admin|moderator|official|staff|support)(_|$)/.test(handle);
+}
+export function displayName(value) {
+  const name = text(value, 'Display name', 1, 50);
+  if (/^(the\s+)?riffs(\s*(app|team|official|support|staff|admin|help|safety|hq))?$/i.test(name.replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim())) fail(400, 'That name is reserved. Choose a different display name.');
+  return name;
+}
 export function password(value) {
   if (typeof value !== 'string' || value.length < 10 || value.length > 128) fail(400, 'Use a password of 10–128 characters.');
   return value;

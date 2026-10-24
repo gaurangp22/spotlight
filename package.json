@@ -1,5 +1,5 @@
 {
-  "name": "margin-music",
+  "name": "riffs",
   "version": "2.0.0",
   "main": "expo-router/entry",
   "dependencies": {
@@ -65,7 +65,8 @@
     "phone:web": "expo start --web --host lan",
     "build:dev": "npx eas-cli@latest build --profile development --platform android",
     "build:preview": "npx eas-cli@latest build --profile preview --platform android",
-    "update:preview": "npx eas-cli@latest update --channel preview"
+    "update:preview": "npx eas-cli@latest update --channel preview",
+    "update:production": "npx eas-cli@latest update --channel production"
   },
   "private": true
 }

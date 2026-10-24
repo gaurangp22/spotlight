@@ -15,6 +15,7 @@ import { useTask } from '../../ui/forms';
 import { haptic } from '../../ui/haptics';
 import { MoodGrid } from '../../ui/mood';
 import { PollCard, TrackPill } from '../../ui/equals';
+import { RankingReveal } from '../../ui/RankingReveal';
 import { SavePostRow } from '../../ui/library';
 import { Artwork, Avatar, Badge, BotBadge, Button, Card, Dialog, IconButton, Ionicons, ListGroup, ListRow, SectionHeader, T, Tap, TextField } from '../../ui/primitives';
 import { curve, makeStyles, noOutline, radius, space, type, useTheme } from '../../ui/theme';
@@ -34,7 +35,9 @@ function CommentText({ text }: { text: string }) {
 export default function RankingScreen() {
   const s = useStyles();
   const { c } = useTheme();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, reveal } = useLocalSearchParams<{ id: string; reveal?: string }>();
+  // Arriving from Publish plays a short countdown before the list appears.
+  const [revealing, setRevealing] = useState(reveal === '1');
   const { allRankings, reactions, toggleReaction, startDraft, startTake, addComment, commentsFor, user, loadPost, editRanking, startMood, deletePost, deleteComment, setNotice, rememberItem, contribute, removeFromPod, spotifyConnected } = useApp();
   const kinds = useAvailableKinds(activeKinds);
   const [adding, setAdding] = useState(false);
@@ -43,7 +46,7 @@ export default function RankingScreen() {
   const [replyItem, setReplyItem] = useState<string | undefined>();
   const [replyComment, setReplyComment] = useState<string | undefined>();
   const [loadError, setLoadError] = useState('');
-  const [deleting, setDeleting] = useState(false), [reporting, setReporting] = useState(false), [reason, setReason] = useState('');
+  const [deleting, setDeleting] = useState(false), [reporting, setReporting] = useState<false | { comment?: string; author?: string }>(false), [reason, setReason] = useState('');
   const input = useRef<TextInput>(null);
   const { busy, run } = useTask();
   useEffect(() => { let active = true; loadPost(id).then(() => { if (active) setLoadError(''); }).catch((e) => { if (active) setLoadError(errorMessage(e)); }); return () => { active = false; }; }, [id, loadPost]);
@@ -60,10 +63,11 @@ export default function RankingScreen() {
   const isReview = ranking.kind === 'review';
   const isPod = ranking.kind === 'pod';
   const isTake = ranking.kind === 'take';
+  const album = ranking.album;
   const reviewed = isReview ? ranking.items[0] : undefined;
   const canContribute = isPod && !ranking.clubId && !ranking.isSample && (owned || !!ranking.open);
   const openItem = (item: MusicItem) => { rememberItem(item); router.push(`/item/${encodeURIComponent(item.id)}`); };
-  const kindLabel = ranking.clubId ? 'Album club' : isTake ? ranking.poll ? 'Poll' : 'Hot take' : isMood ? 'Mood board' : isReview ? 'Review' : isPod ? 'Pod' : 'Ranking';
+  const kindLabel = ranking.clubId ? 'Album club' : album ? 'Album rating' : isTake ? ranking.poll ? 'Poll' : 'Hot take' : isMood ? 'Mood board' : isReview ? 'Review' : isPod ? 'Pod' : 'Ranking';
   const reacted = reactions.includes(ranking.id);
   const comments = commentsFor(ranking.id);
   const origin = allRankings.find((entry) => entry.id === ranking.originId);
@@ -74,7 +78,10 @@ export default function RankingScreen() {
     await addComment(ranking.id, comment.trim(), replyItem, replyComment);
     haptic.success(); setComment(''); setReplyItem(undefined); setReplyComment(undefined);
   };
-  const makeMine = () => { startDraft(ranking); router.push('/builder'); };
+  const makeMine = () => {
+    if (album) { rememberItem(album); router.push({ pathname: '/album-rate', params: { itemId: album.id } }); return; }
+    startDraft(ranking); router.push('/builder');
+  };
   const replyTo = (itemId: string) => { setReplyItem(itemId); setReplyComment(undefined); if (user && !ranking.isSample) input.current?.focus(); };
 
   const composer = ranking.isSample ? <T v="footnote" tone="secondary" center>This is an example. Make your own version to start a real conversation.</T>
@@ -134,7 +141,7 @@ export default function RankingScreen() {
       <Tap onPress={() => user && !ranking.isSample ? input.current?.focus() : undefined} accessibilityLabel={`${comments.length} comments`} style={s.action}>
         <Ionicons name="chatbubble-outline" size={19} color={c.text} /><T v="footnote" weight="semibold" tabular>{comments.length}</T>
       </Tap>
-      {!isMood && !isReview && !isPod && !isTake && <Button label="Make mine" icon="git-branch-outline" size="md" style={{ flex: 1.6 }} onPress={makeMine} />}
+      {!isMood && !isReview && !isPod && !isTake && <Button label={album ? 'Rate it too' : 'Make mine'} icon="git-branch-outline" size="md" style={{ flex: 1.6 }} onPress={makeMine} />}
       {reviewed && <Button label={owned ? 'Video review' : 'Rate it too'} icon={owned ? 'videocam' : 'star'} size="md" style={{ flex: 1.6 }}
         onPress={() => { rememberItem(reviewed); router.push(owned ? { pathname: '/video', params: { itemId: reviewed.id } } : { pathname: '/rate', params: { itemId: reviewed.id } }); }} />}
       {canContribute && <Button label="Add to pod" icon="add" size="md" style={{ flex: 1.6 }} onPress={() => user ? setAdding(true) : router.push('/auth')} />}
@@ -160,6 +167,7 @@ export default function RankingScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: index < ranking.items.length - 1 ? StyleSheet.hairlineWidth : 0, borderBottomColor: c.hairline }}>
               <View style={{ flex: 1, minWidth: 0 }}><MusicRow item={item} index={isMood || isPod ? undefined : index} separator={false} onPress={ranking.isSample ? undefined : () => openItem(item)} /></View>
               <View style={{ flexDirection: 'row' }}>
+                {item.score !== undefined && <View style={{ justifyContent: 'center', marginLeft: space.xs }}><ScoreBadge score={item.score} size={34} /></View>}
                 {removable && <IconButton icon="remove-circle-outline" label={`Remove ${item.title}`} filled={false} size={44} tone="tertiary" onPress={() => void run(() => removeFromPod(ranking.id, item.id))} />}
                 <IconButton icon={replyItem === item.id ? 'chatbubble' : 'chatbubble-outline'} label={`Comment on ${item.title}`} filled={false} size={44} tone={replyItem === item.id ? 'accent' : 'tertiary'} onPress={() => replyTo(item.id)} />
               </View>
@@ -189,6 +197,9 @@ export default function RankingScreen() {
             {(owned || entry.userId === user?.id) && !ranking.isSample && <Pressable accessibilityRole="button" disabled={busy} hitSlop={8} onPress={() => void run(() => deleteComment(entry.id))} style={{ alignSelf: 'flex-start', marginTop: 4 }}>
               <T v="caption" tone="secondary">Remove</T>
             </Pressable>}
+            {user && entry.userId !== user.id && !ranking.isSample && <Pressable accessibilityRole="button" accessibilityLabel={`Report ${entry.author}’s comment`} disabled={busy} hitSlop={8} onPress={() => setReporting({ comment: entry.id, author: entry.author })} style={{ alignSelf: 'flex-start', marginTop: 4 }}>
+              <T v="caption" tone="secondary">Report</T>
+            </Pressable>}
           </View>
         </View>;
       })}
@@ -201,26 +212,31 @@ export default function RankingScreen() {
       {ranking.clubId && <ListRow icon="disc-outline" title="Go to listening club" onPress={() => router.push(`/clubs/${ranking.clubId}`)} />}
       {!ranking.isSample && <ListRow icon="link-outline" iconColor="#8E8E93" title="Share link" onPress={() => void shareLink(ranking.title, postLink(ranking.id)).then((r) => { if (r === 'copied') setNotice('Link copied.'); }).catch((e) => setNotice(errorMessage(e)))} />}
       <ListRow icon="image-outline" iconColor="#AF52DE" title="Share as image" onPress={() => router.push(`/share/${ranking.id}`)} />
-      {owned && !ranking.clubId && <ListRow icon="pencil" iconColor="#007AFF" title={isTake ? 'Edit post' : isMood ? 'Edit mood board' : isReview ? 'Rate again' : isPod ? 'Edit pod' : 'Edit ranking'} onPress={() => {
+      {owned && !ranking.clubId && <ListRow icon="pencil" iconColor="#007AFF" title={isTake ? 'Edit post' : isMood ? 'Edit mood board' : isReview ? 'Rate again' : isPod ? 'Edit pod' : album ? 'Edit album rating' : 'Edit ranking'} onPress={() => {
         if (isTake) { startTake(ranking); router.push('/take'); }
         else if (isMood) { startMood(ranking); router.push('/moodboard'); }
         else if (reviewed) { rememberItem(reviewed); router.push({ pathname: '/rate', params: { itemId: reviewed.id } }); }
         else if (isPod) router.push({ pathname: '/pod', params: { editId: ranking.id } });
+        else if (album) router.push({ pathname: '/album-rate', params: { editId: ranking.id } });
         else { editRanking(ranking); router.push('/builder'); }
       }} />}
       {reviewed?.externalUrl && <ListRow icon="open-outline" iconColor="#1DB954" title="Open externally" subtitle={reviewed.externalUrl.replace(/^https:\/\/(www\.)?/, '').split('/')[0]} onPress={() => void run(() => Linking.openURL(reviewed.externalUrl!))} />}
       {owned && <ListRow title="Delete post" destructive chevron={false} onPress={() => setDeleting(true)} />}
-      {!owned && !ranking.isSample && user && <ListRow title="Report post" destructive chevron={false} onPress={() => setReporting(true)} />}
+      {!owned && !ranking.isSample && user && <ListRow title="Report post" destructive chevron={false} onPress={() => setReporting({})} />}
     </ListGroup>
 
     <MusicPicker visible={adding} onClose={() => setAdding(false)} kinds={kinds} title={`Add to ${ranking.title}`} spotifyConnected={spotifyConnected}
       onPick={(item) => void run(async () => { await contribute(ranking.id, item); setAdding(false); haptic.success(); setNotice(`Added ${item.title}.`); })} />
     <Dialog visible={deleting} title="Delete this post?" description={isReview ? 'This removes your review and your rating for this item, along with its comments and reactions.' : 'This permanently removes the post, its comments, and reactions for everyone.'} confirmLabel="Delete" destructive busy={busy}
       onCancel={() => setDeleting(false)} onConfirm={() => void run(async () => { await deletePost(ranking.id); setDeleting(false); router.replace('/(tabs)/profile'); })} />
-    <Dialog visible={reporting} title="Report this post" description="Tell us what’s wrong. Reports are private and reviewed by the Riffs team." confirmLabel="Send report" busy={busy}
-      onCancel={() => setReporting(false)} onConfirm={() => void run(async () => { await api(`/posts/${ranking.id}/report`, { method: 'POST', body: { reason } }); setReporting(false); setReason(''); setNotice('Thanks. Your report was sent.'); })}>
+    <Dialog visible={!!reporting} title={reporting && reporting.comment ? `Report ${reporting.author}’s comment` : 'Report this post'} description="Tell us what’s wrong. Reports are private and reviewed by the Riffs team." confirmLabel="Send report" busy={busy}
+      onCancel={() => setReporting(false)} onConfirm={() => void run(async () => {
+        await api(reporting && reporting.comment ? `/comments/${reporting.comment}/report` : `/posts/${ranking.id}/report`, { method: 'POST', body: { reason } });
+        setReporting(false); setReason(''); setNotice('Thanks. Your report was sent.');
+      })}>
       <TextField label="Reason" value={reason} onChangeText={setReason} maxLength={500} multiline placeholder="Spam, harassment, something else…" />
     </Dialog>
+    {!isMood && !isReview && !isPod && !isTake && <RankingReveal visible={revealing} title={ranking.title} cover={album} items={ranking.items} onDone={() => setRevealing(false)} />}
   </Screen>;
 }
 

@@ -72,7 +72,7 @@ export async function openDatabase({ url = process.env.TURSO_DATABASE_URL, token
   if (posts && !(await columnsOf('users')).includes('status')) await batch([{ sql: "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT ''", args: [] }]);
   if (posts) {
     const userColumns = await columnsOf('users');
-    for (const [name, definition] of [['avatar', "TEXT NOT NULL DEFAULT ''"], ['favorite_artists', "TEXT NOT NULL DEFAULT '[]'"], ['onboarding_complete', 'INTEGER NOT NULL DEFAULT 0'], ['email_verified', 'INTEGER NOT NULL DEFAULT 0'], ['push_enabled', 'INTEGER NOT NULL DEFAULT 0'], ['allow_messages', 'INTEGER NOT NULL DEFAULT 1'], ['invited_by', 'TEXT REFERENCES users(id) ON DELETE SET NULL'], ['is_bot', 'INTEGER NOT NULL DEFAULT 0'], ['show_bots', 'INTEGER NOT NULL DEFAULT 1']]) {
+    for (const [name, definition] of [['avatar', "TEXT NOT NULL DEFAULT ''"], ['favorite_artists', "TEXT NOT NULL DEFAULT '[]'"], ['onboarding_complete', 'INTEGER NOT NULL DEFAULT 0'], ['email_verified', 'INTEGER NOT NULL DEFAULT 0'], ['push_enabled', 'INTEGER NOT NULL DEFAULT 0'], ['allow_messages', 'INTEGER NOT NULL DEFAULT 1'], ['invited_by', 'TEXT REFERENCES users(id) ON DELETE SET NULL'], ['is_bot', 'INTEGER NOT NULL DEFAULT 0'], ['show_bots', 'INTEGER NOT NULL DEFAULT 1'], ['suspended', 'INTEGER NOT NULL DEFAULT 0']]) {
       if (!userColumns.includes(name)) await batch([{ sql: `ALTER TABLE users ADD COLUMN ${name} ${definition}`, args: [] }]);
     }
     if ((await columnsOf('comments')).length && !(await columnsOf('comments')).includes('parent_id')) await batch([{ sql: 'ALTER TABLE comments ADD COLUMN parent_id TEXT REFERENCES comments(id) ON DELETE SET NULL', args: [] }]);

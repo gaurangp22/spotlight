@@ -7,13 +7,13 @@ const publicBase = web || (/^https?:\/\//.test(API_URL) ? API_URL : '');
 
 export function postLink(id: string) {
   if (web) return `${web}/ranking/${id}`;
-  return publicBase ? `${publicBase}/p/${id}` : `marginmusic://ranking/${id}`;
+  return publicBase ? `${publicBase}/p/${id}` : `riffs://ranking/${id}`;
 }
 
 /** A personal invite: opens a landing page for new people, and the join screen in the app. */
 export function inviteLink(handle: string) {
   const name = handle.replace(/^@/, '');
-  return publicBase ? `${publicBase}/join/${name}` : `marginmusic://join/${name}`;
+  return publicBase ? `${publicBase}/join/${name}` : `riffs://join/${name}`;
 }
 
 /**

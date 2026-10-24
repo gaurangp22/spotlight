@@ -1,13 +1,13 @@
 import { createServer } from 'node:http';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { isIP } from 'node:net';
-import { digest, randomToken, hashPassword, verifyPassword, fail, text, password } from './security.mjs';
+import { digest, randomToken, hashPassword, verifyPassword, fail, text, password, reservedHandle, displayName } from './security.mjs';
 import { spotifyService } from './spotify.mjs';
 import { expansionRoutes } from './expansion.mjs';
 import { pushService } from './push.mjs';
 import { playlistLink, playlistSource } from './playlist.mjs';
 import { pages } from './pages.mjs';
-import { catalogService } from './catalog.mjs';
+import { ALBUM_LIMIT, catalogService } from './catalog.mjs';
 import { emailOtpService } from './email-otp.mjs';
 import { communityRoutes } from './community.mjs';
 import { betaRoutes } from './beta.mjs';
@@ -93,7 +93,7 @@ function safeUrl(value) {
   try { if (new URL(value).protocol !== 'https:') fail(400, 'Artwork links must use HTTPS.'); } catch { fail(400, 'Invalid artwork link.'); }
   return value;
 }
-export function validateItem(i, { allowAddedBy = false } = {}) {
+export function validateItem(i, { allowAddedBy = false, allowScore = false } = {}) {
   if (!i || typeof i !== 'object' || Array.isArray(i)) fail(400, 'Invalid pick.');
   const id = text(i.id, 'Item ID', 1, 150);
   if (!ITEM_ID.test(id)) fail(400, 'Invalid item ID.');
@@ -107,6 +107,7 @@ export function validateItem(i, { allowAddedBy = false } = {}) {
     ...(i.spotifyId ? { spotifyId: text(i.spotifyId, 'Spotify ID', 1, 50) } : {}),
     ...(i.previewUrl ? { previewUrl: previewUrl(i.previewUrl) } : {}),
     ...(allowAddedBy && typeof i.addedBy === 'string' && /^@[a-z0-9_]{3,24}$/.test(i.addedBy) ? { addedBy: i.addedBy } : {}),
+    ...(allowScore && i.score !== undefined ? { score: Number.isFinite(i.score) && i.score >= 0 && i.score <= 10 ? Math.round(i.score * 10) / 10 : fail(400, 'Scores run from 0 to 10.') } : {}),
   };
 }
 export function validatePost(body) {
@@ -115,16 +116,20 @@ export function validatePost(body) {
   const kind = ['moodboard', 'pod', 'take'].includes(body.kind) ? body.kind : 'ranking';
   if (!['public', 'followers', 'private'].includes(body.visibility)) fail(400, 'Choose a valid visibility.');
   const items = Array.isArray(body.items) ? body.items : [];
+  // An album rating scores every track, however long the album; it keeps a copy of the album itself.
+  const album = kind === 'ranking' && body.album ? validateItem(body.album) : null;
+  if (album && album.kind !== 'album') fail(400, 'Choose an album to rate.');
+  if (album && items.length > ALBUM_LIMIT) fail(400, `An album rating holds up to ${ALBUM_LIMIT} tracks.`);
   // Pods hold whole playlists; rankings stay short enough to actually order.
-  if (items.length > (kind === 'pod' ? POD_LIMIT : 100)) fail(400, kind === 'pod' ? `A pod holds up to ${POD_LIMIT} songs.` : 'Rank between 2 and 100 picks.');
-  if (kind === 'ranking' && items.length < 2) fail(400, 'Rank between 2 and 100 picks.');
+  if (!album && items.length > (kind === 'pod' ? POD_LIMIT : 100)) fail(400, kind === 'pod' ? `A pod holds up to ${POD_LIMIT} songs.` : 'Rank between 2 and 100 picks.');
+  if (kind === 'ranking' && items.length < 2) fail(400, album ? 'Score at least two tracks to post.' : 'Rank between 2 and 100 picks.');
   // A take is a short opinion with at most one attached pick, or a this-or-that poll between exactly two.
   const poll = kind === 'take' && body.poll === true;
   if (poll && items.length !== 2) fail(400, 'A poll needs exactly two picks.');
   if (kind === 'take' && !poll && items.length > 1) fail(400, 'Attach one pick to a take, or make it a poll.');
   const seen = new Set();
   const clean = items.map((i) => {
-    const item = validateItem(i, { allowAddedBy: kind === 'pod' });
+    const item = validateItem(i, { allowAddedBy: kind === 'pod', allowScore: !!album });
     if (seen.has(item.id)) fail(400, 'A pick can only appear once.');
     seen.add(item.id);
     return item;
@@ -146,7 +151,7 @@ export function validatePost(body) {
   return { kind, title: kind === 'take' ? text(body.title, 'Take', 1, 280) : text(body.title, 'Title', 1, 100), subtitle: text(body.subtitle || '', 'Description', 0, 500), items: clean, tiles: cleanTiles,
     theme: ['night', 'paper', 'rose', 'forest'].includes(body.theme) ? body.theme : 'night', visibility: body.visibility,
     originId: typeof body.originId === 'string' ? body.originId.slice(0, 150) : null,
-    meta: kind === 'pod' ? { open: body.open === true, ...(body.sourceUrl ? { sourceUrl: playlistSource(body.sourceUrl) } : {}) } : poll ? { poll: true } : {},
+    meta: kind === 'pod' ? { open: body.open === true, ...(body.sourceUrl ? { sourceUrl: playlistSource(body.sourceUrl) } : {}) } : poll ? { poll: true } : album ? { album } : {},
   };
 }
 
@@ -157,26 +162,34 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
   const rates = new Map();
   // Expiring, bounded buckets do not retain a history of client IPs.
   const rateCleanup = setInterval(() => { for (const [id, entry] of rates) if (entry.until < Date.now()) rates.delete(id); }, 60000).unref();
-  function rate(id, limit, windowMs) {
+  function hit(id, windowMs) {
     const current = rates.get(id);
-    if (!current || current.until < Date.now()) { rates.set(id, { count: 1, until: Date.now() + windowMs }); return; }
-    if (++current.count > limit) fail(429, 'Too many attempts. Please try again later.');
+    if (!current || current.until < Date.now()) { rates.set(id, { count: 1, until: Date.now() + windowMs }); return 1; }
+    return ++current.count;
+  }
+  function limited(id, limit, message = 'Too many attempts. Please try again later.') {
+    const current = rates.get(id);
+    if (current && current.until >= Date.now() && current.count >= limit) fail(429, message);
+  }
+  function rate(id, limit, windowMs) {
+    if (hit(id, windowMs) > limit) fail(429, 'Too many attempts. Please try again later.');
   }
   const production = process.env.NODE_ENV === 'production';
   const origins = (process.env.ALLOWED_ORIGINS || 'http://localhost:8081,http://127.0.0.1:8081').split(',');
   const webApp = (process.env.WEB_APP_URL || 'http://localhost:8081').replace(/\/$/, '');
   const blockedSQL = `NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.user_id = ? AND b.blocked_id = p.user_id) OR (b.blocked_id = ? AND b.user_id = p.user_id))`;
-  const visibleSQL = `(p.user_id = ? OR p.visibility = 'public' OR (p.visibility = 'followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followed_id = p.user_id))) AND ${blockedSQL}`;
+  const visibleSQL = `(p.user_id = ? OR p.visibility = 'public' OR (p.visibility = 'followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followed_id = p.user_id))) AND ${blockedSQL} AND NOT EXISTS (SELECT 1 FROM users su WHERE su.id = p.user_id AND su.suspended = 1)`;
   const viewerArgs = (id) => [id || anonymousId, id || anonymousId, id || anonymousId, id || anonymousId];
   const taste = tasteService({ db, catalog, fetcher, match: tasteMatch, visibleSQL, viewerArgs });
 
   async function userFor(req) {
     const token = req.headers.authorization?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];
     if (!token) return null;
-    return await db.get(`SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?`, digest(token), Date.now()) || null;
+    return await db.get(`SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.suspended=0`, digest(token), Date.now()) || null;
   }
   function requireUser(user) { if (!user) fail(401, 'Sign in to continue.'); return user; }
   async function session(user) {
+    if (user.suspended) fail(403, 'This account has been suspended. Contact support if you think this is a mistake.');
     const token = randomToken();
     await db.run('DELETE FROM sessions WHERE expires_at < ?', Date.now());
     await db.run('INSERT INTO sessions VALUES (?, ?, ?)', digest(token), user.id, Date.now() + SESSION_LIFETIME);
@@ -196,7 +209,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
   async function postJSON(p, viewer) {
     const bots = await botIds();
     const [comments, reaction] = await Promise.all([
-      db.all(`SELECT c.*, u.name, u.handle, u.avatar FROM comments c JOIN users u ON u.id=c.user_id WHERE c.post_id=? AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id)) ORDER BY c.created_at LIMIT 200`, p.id, viewer || '', viewer || ''),
+      db.all(`SELECT c.*, u.name, u.handle, u.avatar FROM comments c JOIN users u ON u.id=c.user_id WHERE c.post_id=? AND u.suspended=0 AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id)) ORDER BY c.created_at LIMIT 200`, p.id, viewer || '', viewer || ''),
       db.get('SELECT COUNT(*) AS count, MAX(CASE WHEN user_id=? THEN 1 ELSE 0 END) AS reacted FROM reactions WHERE post_id=?', viewer || '', p.id),
     ]);
     const meta = JSON.parse(p.meta || '{}');
@@ -212,7 +225,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
     return { id: p.id, userId: p.user_id, kind: p.kind, title: p.title, subtitle: p.subtitle,
       ...(rating ? { score: rating.score, tier: rating.tier } : {}), ...(p.kind === 'pod' ? { open: !!meta.open } : {}), ...(poll ? { poll } : {}),
       author: p.name, handle: `@${p.handle}`, ...(bots.has(p.user_id) ? { authorBot: true } : {}), avatar: p.avatar || undefined, clubId: meta.clubId, items: JSON.parse(p.items), tiles: JSON.parse(p.tiles), theme: p.theme,
-      sourceUrl: meta.sourceUrl,
+      sourceUrl: meta.sourceUrl, ...(meta.album ? { album: meta.album } : {}),
       createdAt: p.created_at, updatedAt: p.updated_at, visibility: p.visibility,
       reactionCount: reaction.count, reacted: !!reaction.reacted,
       comments: comments.map((c) => ({ id: c.id, userId: c.user_id, author: c.name, ...(bots.has(c.user_id) ? { bot: true } : {}), handle: `@${c.handle}`, avatar: c.avatar || undefined, text: c.text, itemId: c.item_id || undefined, parentId: c.parent_id || undefined, createdAt: c.created_at })),
@@ -245,7 +258,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
     await push.enqueue(target, actor, kind, postId);
   }
   async function people(viewer, query = '') {
-    return (await db.all(`SELECT ${PUBLIC_USER} FROM users u WHERE (handle LIKE ? OR name LIKE ?) AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.user_id=? AND b.blocked_id=u.id) OR (b.blocked_id=? AND b.user_id=u.id)) ORDER BY created_at DESC LIMIT 100`, `%${query}%`, `%${query}%`, viewer || '', viewer || '')).map(profile);
+    return (await db.all(`SELECT ${PUBLIC_USER} FROM users u WHERE (handle LIKE ? OR name LIKE ?) AND u.suspended=0 AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.user_id=? AND b.blocked_id=u.id) OR (b.blocked_id=? AND b.user_id=u.id)) ORDER BY created_at DESC LIMIT 100`, `%${query}%`, `%${query}%`, viewer || '', viewer || '')).map(profile);
   }
   async function readBody(req) {
     let bytes = 0; const chunks = [];
@@ -336,15 +349,50 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
           else await db.run('UPDATE reports SET resolved=1 WHERE id=?', row.id);
           return send({ ok: true });
         }
+        if (path === '/api/admin/comment-reports' && method === 'GET') return send({ reports: await db.all('SELECT r.id, r.reason, r.created_at, c.id AS comment_id, c.text, c.post_id, a.handle AS author, u.handle AS reporter FROM comment_reports r JOIN comments c ON c.id=r.comment_id JOIN users a ON a.id=c.user_id JOIN users u ON u.id=r.user_id WHERE r.resolved=0 ORDER BY r.created_at LIMIT 200') });
+        const commentReport = path.match(/^\/api\/admin\/comment-reports\/([a-zA-Z0-9-]+)$/);
+        if (commentReport && method === 'PATCH') {
+          const row = await db.get('SELECT * FROM comment_reports WHERE id=?', commentReport[1]);
+          if (!row) fail(404, 'Report not found.');
+          // Removing the comment also removes its reports.
+          if (body.removeComment === true) await db.run('DELETE FROM comments WHERE id=?', row.comment_id);
+          else await db.run('UPDATE comment_reports SET resolved=1 WHERE id=?', row.id);
+          return send({ ok: true });
+        }
+        if (path === '/api/admin/user-reports' && method === 'GET') return send({ reports: await db.all('SELECT r.id, r.reason, r.created_at, t.handle AS target, t.name AS target_name, t.suspended, u.handle AS reporter FROM user_reports r JOIN users t ON t.id=r.target_id JOIN users u ON u.id=r.user_id WHERE r.resolved=0 ORDER BY r.created_at LIMIT 200') });
+        const userReport = path.match(/^\/api\/admin\/user-reports\/([a-zA-Z0-9-]+)$/);
+        if (userReport && method === 'PATCH') {
+          const row = await db.get('SELECT * FROM user_reports WHERE id=?', userReport[1]);
+          if (!row) fail(404, 'Report not found.');
+          await db.batch([
+            ...(body.suspend === true ? [{ sql: 'UPDATE users SET suspended=1 WHERE id=?', args: [row.target_id] }, { sql: 'DELETE FROM sessions WHERE user_id=?', args: [row.target_id] }] : []),
+            { sql: 'UPDATE user_reports SET resolved=1 WHERE id=?', args: [row.id] },
+          ]);
+          return send({ ok: true });
+        }
+        const suspendRoute = path.match(/^\/api\/admin\/users\/([a-z0-9_]{3,24})$/);
+        if (suspendRoute && method === 'PATCH') {
+          if (typeof body.suspended !== 'boolean') fail(400, 'Send suspended: true or false.');
+          const target = await db.get('SELECT id FROM users WHERE handle=?', suspendRoute[1]);
+          if (!target) fail(404, 'No account has that username.');
+          // Suspending signs the person out everywhere; their push registrations go with their sessions.
+          await db.batch([
+            { sql: 'UPDATE users SET suspended=? WHERE id=?', args: [body.suspended ? 1 : 0, target.id] },
+            ...(body.suspended ? [{ sql: 'DELETE FROM sessions WHERE user_id=?', args: [target.id] }] : []),
+          ]);
+          return send({ ok: true, suspended: body.suspended });
+        }
         fail(404, 'Administrative endpoint not found.');
       }
       if (path === '/api/auth/register' && method === 'POST') {
-        rate(`auth:${peer}`, 20, 900000);
+        // Signups have their own bucket, so failed sign-ins on a shared network can't block new accounts.
+        rate(`signup:${peer}`, 30, 900000);
         const email = text(body.email, 'Email', 3, 254).toLowerCase();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Enter a valid email address.');
         const handle = text(body.handle, 'Username', 3, 24).toLowerCase().replace(/^@/, '');
         if (!/^[a-z0-9_]{3,24}$/.test(handle)) fail(400, 'Use 3–24 letters, numbers, or underscores for your username.');
-        const name = text(body.name, 'Display name', 1, 50);
+        if (reservedHandle(handle)) fail(400, 'That username is reserved. Choose a different one.');
+        const name = displayName(body.name);
         const encoded = await hashPassword(password(body.password));
         const id = randomUUID();
         if (await db.get('SELECT 1 FROM users WHERE email=? OR handle=?', email, handle)) fail(409, 'That email or username is already registered.');
@@ -356,12 +404,19 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
         return send(await session(await db.get('SELECT * FROM users WHERE id=?', id)), 201);
       }
       if (path === '/api/auth/login' && method === 'POST') {
-        rate(`auth:${peer}`, 20, 900000);
+        // Only failures count. The per-account limit stops guessing one password from many addresses;
+        // it applies whether or not the email is registered, so it reveals nothing about accounts.
         const email = text(body.email, 'Email', 3, 254).toLowerCase();
+        limited(`login-fail:${peer}`, 30);
+        limited(`login-fail:${email}`, 8, 'Too many incorrect passwords for this email. Try again in 15 minutes.');
         const candidate = await db.get('SELECT * FROM users WHERE email=?', email);
         const input = typeof body.password === 'string' && body.password.length <= 128 ? body.password : '';
         const dummy = '00000000000000000000000000000000:' + '00'.repeat(64);
-        if (!await verifyPassword(input, candidate?.password || dummy) || !candidate) fail(401, 'Email or password is incorrect.');
+        if (!await verifyPassword(input, candidate?.password || dummy) || !candidate) {
+          hit(`login-fail:${peer}`, 900000); hit(`login-fail:${email}`, 900000);
+          fail(401, 'Email or password is incorrect.');
+        }
+        rates.delete(`login-fail:${email}`);
         return send(await session(candidate));
       }
       if (path === '/api/auth/otp/request' && method === 'POST') {
@@ -409,7 +464,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
         requireUser(user);
         const status = body.status === undefined ? user.status || '' : text(body.status || '', 'Status', 0, 60);
         const avatar = body.avatar === undefined ? user.avatar || '' : avatarData(body.avatar);
-        await db.run('UPDATE users SET name=?, bio=?, status=?, avatar=? WHERE id=?', text(body.name, 'Display name', 1, 50), text(body.bio || '', 'Bio', 0, 160), status, avatar, user.id);
+        await db.run('UPDATE users SET name=?, bio=?, status=?, avatar=? WHERE id=?', body.name === user.name ? user.name : displayName(body.name), text(body.bio || '', 'Bio', 0, 160), status, avatar, user.id);
         return send({ user: profile(await db.get('SELECT * FROM users WHERE id=?', user.id)) });
       }
       if (path === '/api/me/password' && method === 'PUT') {
@@ -567,7 +622,7 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
         if (parent) targets.set(parent.user_id, 'reply');
         const handles = [...new Set([...commentText.matchAll(/(?:^|[^a-zA-Z0-9_])@([a-z0-9_]{3,24})(?![a-z0-9_])/gi)].map((m) => m[1].toLowerCase()))].slice(0, 5);
         for (const handle of handles) {
-          const mentioned = await db.get('SELECT id FROM users WHERE handle=?', handle);
+          const mentioned = await db.get('SELECT id FROM users WHERE handle=? AND suspended=0', handle);
           if (mentioned && !targets.has(mentioned.id)) targets.set(mentioned.id, 'mention');
         }
         for (const [target, kind] of targets) {
@@ -589,11 +644,36 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
         await db.run('INSERT INTO reports VALUES (?,?,?,?,?,0)', randomUUID(), user.id, p.id, text(body.reason, 'Reason', 3, 500), now());
         return send({ ok: true }, 201);
       }
+      const commentReportRoute = path.match(/^\/api\/comments\/([a-zA-Z0-9-]+)\/report$/);
+      if (commentReportRoute && method === 'POST') {
+        requireUser(user); rate(`reports:${user.id}`, 10, 3600000);
+        const c = await db.get('SELECT * FROM comments WHERE id=?', commentReportRoute[1]);
+        if (!c) fail(404, 'This comment is unavailable.');
+        await getPost(c.post_id, user.id);
+        if (c.user_id === user.id) fail(400, 'You can remove your own comment instead.');
+        await db.run('INSERT INTO comment_reports VALUES (?,?,?,?,?,0)', randomUUID(), user.id, c.id, text(body.reason, 'Reason', 3, 500), now());
+        return send({ ok: true }, 201);
+      }
+      const personReportRoute = path.match(/^\/api\/people\/([a-z0-9_]{3,24})\/report$/);
+      if (personReportRoute && method === 'POST') {
+        requireUser(user); rate(`reports:${user.id}`, 10, 3600000);
+        const target = (await people(user.id, personReportRoute[1])).find((p) => p.handle === `@${personReportRoute[1]}`);
+        if (!target) fail(404, 'Profile unavailable.');
+        if (target.id === user.id) fail(400, 'You can’t report your own profile.');
+        await db.run('INSERT INTO user_reports VALUES (?,?,?,?,?,0)', randomUUID(), user.id, target.id, text(body.reason, 'Reason', 3, 500), now());
+        return send({ ok: true }, 201);
+      }
       if (path === '/api/catalog' && method === 'GET') {
         rate(`catalog:${peer}`, 90, 60000);
         const kind = url.searchParams.get('kind') || '', q = text(url.searchParams.get('q'), 'Search', 2, 100);
         if (['song', 'album', 'artist'].includes(kind) && spotify.catalog) return send({ items: await spotify.search(null, q, kind), source: 'spotify' });
         return send({ items: await catalog.search(kind, q, (url.searchParams.get('country') || 'US').toUpperCase()) });
+      }
+      if (path === '/api/catalog/album-tracks' && method === 'GET') {
+        rate(`catalog:${peer}`, 90, 60000);
+        const id = text(url.searchParams.get('id'), 'Album', 3, 150);
+        const spotifyAlbum = id.match(/^spotify-album-([A-Za-z0-9]{22})$/)?.[1];
+        return send(spotifyAlbum ? await spotify.albumTracks(spotifyAlbum, ALBUM_LIMIT) : await catalog.albumTracks(id));
       }
       if (path === '/api/catalog/spotify-link' && method === 'GET') {
         rate(`catalog:${peer}`, 90, 60000);

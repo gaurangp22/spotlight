@@ -3,6 +3,8 @@ import { fail } from './security.mjs';
 // Keyless public catalogs (Apple's search with Deezer as a fallback, TVmaze, Open Library) plus TMDB when TMDB_API_KEY is set.
 // Results are cached briefly so repeated searches don't hit the upstream rate limits.
 const TTL = 10 * 60 * 1000, MAX_ENTRIES = 500;
+/** Box sets and deluxe editions can run long; an album rating holds up to this many tracks. */
+export const ALBUM_LIMIT = 500;
 const year = (date) => (typeof date === 'string' && /^\d{4}/.test(date) ? date.slice(0, 4) : '');
 const https = (url) => (typeof url === 'string' && url.startsWith('https://') ? url : undefined);
 // Deezer's top-level genre ids; album search results carry one, track results don't.
@@ -52,7 +54,7 @@ export function catalogService(fetcher = fetch) {
       const data = await json(`https://api.deezer.com/search/artist?${new URLSearchParams({ q, limit: '30' })}`);
       return (data.data || []).filter((a) => a?.id && a.name).map((a) => ({
         id: `artist-dz${a.id}`, kind: 'artist', title: a.name,
-        artist: a.nb_fan ? `${Intl.NumberFormat('en', { notation: 'compact' }).format(a.nb_fan)} fans` : 'Artist',
+        artist: a.nb_fan ? `${Intl.NumberFormat('en', { notation: 'compact' }).format(a.nb_fan)} ${a.nb_fan === 1 ? 'fan' : 'fans'}` : 'Artist',
         artwork: https(a.picture_xl || a.picture_big), externalUrl: https(a.link),
       }));
     },
@@ -84,8 +86,53 @@ export function catalogService(fetcher = fetch) {
       }));
     },
   };
+  /** Every track on an album, in disc and track order, as songs that link back to the album. */
+  const tracklists = {
+    async apple(id) {
+      const data = await json(`https://itunes.apple.com/lookup?${new URLSearchParams({ id, entity: 'song', limit: '200' })}`);
+      const results = data.results || [];
+      const a = results.find((r) => r.wrapperType === 'collection');
+      if (!a?.collectionName) fail(404, 'That album couldn’t be found.');
+      const art = https(a.artworkUrl100?.replace('100x100bb', '600x600bb'));
+      const album = { id: `album-${id}`, kind: 'album', title: a.collectionName, artist: a.artistName || 'Unknown', ...(art ? { artwork: art } : {}), ...(https(a.collectionViewUrl) ? { externalUrl: a.collectionViewUrl } : {}),
+        ...genre(a.primaryGenreName), ...(year(a.releaseDate) ? { year: year(a.releaseDate) } : {}) };
+      const items = results.filter((r) => r.wrapperType === 'track' && r.trackId && r.trackName)
+        .sort((x, y) => (x.discNumber || 1) - (y.discNumber || 1) || (x.trackNumber || 0) - (y.trackNumber || 0))
+        .map((r) => ({ id: `song-${r.trackId}`, kind: 'song', title: r.trackName, artist: r.artistName || album.artist, album: album.title, ...(art ? { artwork: art } : {}),
+          ...(https(r.trackViewUrl) ? { externalUrl: r.trackViewUrl } : {}), ...(https(r.previewUrl) ? { previewUrl: r.previewUrl } : {}), ...(album.genre ? { genre: album.genre } : {}), ...(album.year ? { year: album.year } : {}) }));
+      return { album, items };
+    },
+    async deezer(id) {
+      const a = await json(`https://api.deezer.com/album/${id}`);
+      if (!a?.id || !a.title || a.error) fail(404, 'That album couldn’t be found.');
+      const art = https(a.cover_xl);
+      const album = { id: `deezer-album-${id}`, kind: 'album', title: a.title, artist: a.artist?.name || 'Unknown', ...(art ? { artwork: art } : {}), ...(https(a.link) ? { externalUrl: a.link } : {}),
+        ...genre(DEEZER_GENRES[a.genre_id]), ...(year(a.release_date) ? { year: year(a.release_date) } : {}) };
+      const tracks = [];
+      for (let index = 0; tracks.length < ALBUM_LIMIT; index += 100) {
+        const page = await json(`https://api.deezer.com/album/${id}/tracks?limit=100&index=${index}`);
+        tracks.push(...(page.data || []));
+        if (!page.next) break;
+      }
+      const items = tracks.filter((t) => t?.id && t.title).slice(0, ALBUM_LIMIT).map((t) => ({ id: `deezer-song-${t.id}`, kind: 'song', title: t.title, artist: t.artist?.name || album.artist, album: album.title,
+        ...(art ? { artwork: art } : {}), ...(https(t.link) ? { externalUrl: t.link } : {}), ...(album.genre ? { genre: album.genre } : {}), ...(album.year ? { year: album.year } : {}) }));
+      return { album, items };
+    },
+  };
   return {
     kinds: { song: true, album: true, podcast: true, artist: true, movie: !!tmdbKey, show: true, book: true },
+    async albumTracks(albumId) {
+      const apple = albumId.match(/^album-(\d{1,15})$/)?.[1], deezerId = albumId.match(/^deezer-album-(\d{1,15})$/)?.[1];
+      if (!apple && !deezerId) fail(400, 'Choose an album to rate.');
+      const key = `tracks:${albumId}`;
+      const hit = cache.get(key);
+      if (hit && hit.until > Date.now()) return hit.items;
+      const result = apple ? await tracklists.apple(apple) : await tracklists.deezer(deezerId);
+      if (!result.items.length) fail(404, 'That album has no tracks to rate.');
+      if (cache.size >= MAX_ENTRIES) cache.delete(cache.keys().next().value);
+      cache.set(key, { items: result, until: Date.now() + TTL });
+      return result;
+    },
     async search(kind, q, country = 'US') {
       if (!Object.hasOwn(sources, kind)) fail(400, 'Choose a valid category.');
       if (!/^[A-Z]{2}$/.test(country)) country = 'US';

@@ -1,8 +1,20 @@
 # Riffs 2.0 handoff
 
-## Apple-style redesign, house bots, phone testing — 9 October 2026 (later)
+## Moderation and launch blockers — 19 October 2026
 
 Read this first; the sections below remain accurate for everything else.
+
+- **Rename.** Bundle ID and Android package are `com.riffs.app`; links use `riffs://`, and `marginmusic://` is still registered. The slug and EAS project are unchanged.
+- **Reserved names** (`server/security.mjs`). Signup rejects staff-looking usernames (`admin`, `support`, `riffs`, `riffs_…`, `…_official`, route words) and display names like “Riffs Official”. Profile edits re-check the display name only when it changes. Existing accounts and bots are untouched.
+- **Sign-in limits.** Only failed sign-ins count: 8 per email and 30 per network address in 15 minutes. Successful sign-ins never count, and signup has its own bucket (30 per 15 minutes). Unknown emails lock the same way, so nothing leaks about which accounts exist.
+- **Reports.** People can report comments (Report under each comment) and profiles (next to Block), in addition to posts and messages. New tables `comment_reports` and `user_reports`.
+- **Suspension.** `users.suspended` (additive migration). Suspending deletes the person’s sessions and blocks sign-in (403, shown only after a correct password). It also hides their posts, comments, profile, search results, invite page, mentions, and new direct messages. Not covered: messages already in existing conversations and club records they own. Manage it with `admin.mjs` (`suspend`, `unsuspend`, and report handling, per the README).
+- **Legal.** `server/legal.json` (dated 19 October 2026) now describes a music-only app. Spotify, TMDB, TVmaze and Open Library are removed, and search is correctly described as server-side. It also covers comment and profile reports, suspension, and reserved names. A **Contact** section is generated from the new `contact` field. Preflight fails until `contact` is a real email, and warns if `SPOTIFY_CLIENT_ID` is set. Still needs legal review.
+- **Verification.** `npm test`: 65 tests, including 4 new ones in `server/test/moderation.test.mjs`. Typecheck and lint pass. In the browser, against a throwaway database: the reserved-name error, comment and profile report dialogs and toasts, and the Contact section all worked. `admin.mjs` reports, dismiss, suspend and unsuspend worked against the running API.
+
+## Apple-style redesign, house bots, phone testing — 9 October 2026 (later)
+
+The sections below remain accurate for everything else.
 
 **Design.** The owner rejected both the dark coral/Archivo theme and an interim neon "Afterglow" exploration. They asked for "what Apple would make as a social app", so Riffs now follows Apple's Human Interface Guidelines. See `DESIGN.md`.
 - Light and dark mode follow the device.
@@ -306,7 +318,7 @@ npx eas-cli@latest build --platform android --profile production    # store buil
 | `TOKEN_ENCRYPTION_KEY`, `NODE_ENV=production`, `EXPO_PUBLIC_API_URL` | server env / EAS env | Required for production |
 | Store listing | Play Console / App Store | New screenshots (`docs/screenshots` are outdated), the Data safety form (camera and microphone are used on-device only), and **legal review of `server/legal.json`** |
 
-Bundle ID `com.marginmusic.app`, the slug, the `marginmusic://` scheme and the EAS project ID are unchanged on purpose.
+Bundle ID and package are `com.riffs.app` and the scheme is `riffs://` (renamed 18 October 2026; `marginmusic://` is still registered and accepted for Spotify returns). The slug and EAS project ID are unchanged.
 
 ---
 

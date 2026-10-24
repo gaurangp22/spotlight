@@ -1,5 +1,6 @@
 // Launch checklist for the server environment. Run before deploying:  npm --prefix server run preflight
 // Exits with a non-zero code when something would break or weaken a production launch.
+import { readFileSync } from 'node:fs';
 import { openDatabase } from './db.mjs';
 
 const env = process.env;
@@ -21,6 +22,9 @@ check('warn', !!env.TURSO_DATABASE_URL || !!env.DATABASE_PATH, 'Database locatio
 check('info', env.PUSH_ENABLED === '1', 'Push notifications are on', 'Off. Set PUSH_ENABLED=1 once FCM/APNs credentials are set up in EAS and tested on a phone.');
 check('info', !!env.ANDROID_DOWNLOAD_URL, 'Invite page offers an Android download', 'Optional: set ANDROID_DOWNLOAD_URL (Play Store or APK link).');
 check('error', env.MARGIN_DEMO_BOTS !== '1', 'Demo bots are off', 'Unset MARGIN_DEMO_BOTS in production.');
+const legal = JSON.parse(readFileSync(new URL('./legal.json', import.meta.url), 'utf8'));
+check('error', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(legal.contact || ''), 'legal.json has a support contact', 'Set "contact" in server/legal.json to a support email. App stores require one, and suspended people need it to appeal or delete their account. Rebuild the app afterwards; it bundles legal.json.');
+check('warn', !env.SPOTIFY_CLIENT_ID, 'Spotify is off, as the privacy policy describes', 'SPOTIFY_CLIENT_ID is set, but legal.json no longer mentions Spotify. Unset it, or add Spotify back to the privacy policy and terms.');
 
 try {
   const db = await openDatabase();
