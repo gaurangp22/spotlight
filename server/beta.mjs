@@ -46,7 +46,7 @@ export function betaRoutes({ db, profile, notify, webApp }) {
     await db.run('INSERT OR IGNORE INTO active_days (user_id, day) VALUES (?, ?)', userId, dayOf());
     const handle = typeof invite === 'string' ? invite.trim().toLowerCase().replace(/^@/, '') : '';
     if (!/^[a-z0-9_]{3,24}$/.test(handle)) return;
-    const inviter = await db.get('SELECT id FROM users WHERE handle=?', handle);
+    const inviter = await db.get('SELECT id FROM users WHERE handle=? AND suspended=0', handle);
     if (!inviter || inviter.id === userId) return;
     await db.batch([
       { sql: 'UPDATE users SET invited_by=? WHERE id=? AND invited_by IS NULL', args: [inviter.id, userId] },
@@ -57,8 +57,8 @@ export function betaRoutes({ db, profile, notify, webApp }) {
 
   /** Public landing page for an invite link, so it works for people who don't have the app yet. */
   async function landing(handle) {
-    const row = await db.get('SELECT handle, name, status, favorite_artists FROM users WHERE handle=?', handle);
-    const app = `marginmusic://join/${encodeURIComponent(handle)}`;
+    const row = await db.get('SELECT handle, name, status, favorite_artists FROM users WHERE handle=? AND suspended=0', handle);
+    const app = `riffs://join/${encodeURIComponent(handle)}`;
     const web = `${webApp}/join/${encodeURIComponent(handle)}`;
     const android = process.env.ANDROID_DOWNLOAD_URL;
     const artists = row ? JSON.parse(row.favorite_artists || '[]').slice(0, 4).map((a) => a?.title).filter(Boolean) : [];
@@ -78,7 +78,7 @@ ${android ? `<a class="button" href="${escape(android)}">Download for Android</a
    * and gives link unfurlers (WhatsApp, iMessage) a cover image. Only public posts are shown.
    */
   async function postLanding(id) {
-    const p = await db.get("SELECT p.*, u.handle, u.name FROM posts p JOIN users u ON u.id=p.user_id WHERE p.id=? AND p.visibility='public'", id);
+    const p = await db.get("SELECT p.*, u.handle, u.name FROM posts p JOIN users u ON u.id=p.user_id WHERE p.id=? AND p.visibility='public' AND u.suspended=0", id);
     const items = p ? JSON.parse(p.items || '[]') : [];
     const cover = items.find((i) => typeof i?.artwork === 'string' && i.artwork.startsWith('https://'))?.artwork;
     const rating = p?.kind === 'review' ? await db.get('SELECT score FROM ratings WHERE post_id=?', p.id) : null;
@@ -91,7 +91,7 @@ ${quote ? `<p class="quote">“${escape(quote)}”</p>` : ''}
 ${cover ? `<img class="cover" src="${escape(cover)}" alt="">` : ''}
 <p class="list">${items.slice(0, 5).map((i) => `<span>${escape(i.title)} · ${escape(i.artist)}</span>`).join('')}</p>
 <a class="button primary" href="${escape(web)}">See it on Riffs</a>
-<a class="button" href="marginmusic://ranking/${escape(encodeURIComponent(id))}">Open in the Riffs app</a>
+<a class="button" href="riffs://ranking/${escape(encodeURIComponent(id))}">Open in the Riffs app</a>
 <a class="button" href="/join/${escape(p.handle)}">Join @${escape(p.handle)} on Riffs</a>` : `<h1>This post isn’t available</h1><p class="lead">It may be private or deleted.</p><a class="button primary" href="${escape(webApp)}">Go to Riffs</a>`;
     return page(p ? lead : 'Riffs', body, cover, quote);
   }

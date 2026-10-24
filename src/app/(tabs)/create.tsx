@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { useApp } from '../../store/AppContext';
 import { Screen } from '../../ui/components';
 import { IconName, Ionicons, ListGroup, ListRow, T, Tap } from '../../ui/primitives';
@@ -37,17 +37,19 @@ export default function CreateScreen() {
   const hasDraft = draft.items.length > 0 || !!draft.title.trim();
   const hasMood = !!(moodDraft.title || moodDraft.tiles.length || moodDraft.items.length);
   const hasTake = !!takeDraft.title || takeDraft.items.length > 0;
+  const phone = Platform.OS !== 'web';
   return <Screen tab title="Create" large subtitle="Give people something to talk about.">
     {(hasDraft || hasMood || hasTake) && <ListGroup header="Pick up where you left off" style={{ marginTop: 0, marginBottom: space.xl }}>
       {hasTake && <ListRow icon="chatbubble-outline" title={takeDraft.title.trim() || 'Untitled take'} subtitle={takeDraft.poll ? 'Poll draft' : 'Take draft'} onPress={() => router.push('/take')} />}
       {hasDraft && <ListRow icon="list" iconColor={tints.amber} title={draft.title.trim() || 'Untitled ranking'} subtitle={`${draft.items.length} ${draft.items.length === 1 ? 'pick' : 'picks'}`} onPress={() => router.push('/builder')} />}
       {hasMood && <ListRow icon="images-outline" iconColor={tints.violet} title={moodDraft.title.trim() || 'Untitled mood board'} subtitle={`${moodDraft.items.length} songs · ${moodDraft.tiles.length} tiles`} onPress={() => router.push('/moodboard')} />}
     </ListGroup>}
-    <View style={{ flexDirection: 'row', gap: space.md }}>
+    {/* Video is recorded in the phone app; on the web these cards would only lead to a “use your phone” screen. */}
+    {phone && <View style={{ flexDirection: 'row', gap: space.md }}>
       <Hero volt icon="videocam" title="Video review" text="Flip the camera and record your reaction." onPress={() => router.push('/video')} />
       <Hero icon="podium" title="Countdown video" text="Reveal your top 10, #10 to #1, on camera." onPress={() => router.push('/countdown')} />
-    </View>
-    <T v="overline" tone="secondary" style={{ marginTop: space.xxl, marginBottom: space.md }}>More to make</T>
+    </View>}
+    {phone && <T v="overline" tone="secondary" style={{ marginTop: space.xxl, marginBottom: space.md }}>More to make</T>}
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
       <Tile icon="star" tint={tints.pink} title="Rate it" text="Head-to-heads give you a score." onPress={() => router.push('/rate')} />
       <Tile icon="flame" tint={tints.coral} title="Hot take" text="One opinion, 280 characters." onPress={() => { startTake(undefined, false); router.push('/take'); }} />
@@ -55,6 +57,7 @@ export default function CreateScreen() {
       <Tile icon="stats-chart" tint={tints.violet} title="This or that" text="Two picks. Let friends settle it." onPress={() => { startTake(undefined, true); router.push('/take'); }} />
     </View>
     <ListGroup style={{ marginTop: space.md }}>
+      <ListRow icon="disc" iconColor={tints.pink} title="Rate an album" subtitle="Score every track, then watch your order land" onPress={() => router.push('/album-rate')} />
       <ListRow icon="albums" iconColor={tints.teal} title="Pod" subtitle="Collect music; friends add theirs" onPress={() => router.push('/pod')} />
       <ListRow icon="flash" iconColor={tints.sky} title="Battle Mode" subtitle="Rank by picking favourites head-to-head" onPress={() => { startDraft(); router.push({ pathname: '/builder', params: { mode: 'battle' } }); }} />
       <ListRow icon="download-outline" iconColor={tints.teal} title="Bring a playlist" subtitle="Import a public playlist or paste a track list" onPress={() => router.push('/import-playlist')} />

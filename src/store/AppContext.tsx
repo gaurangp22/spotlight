@@ -14,6 +14,8 @@ const emptyTake: TakeDraft = { title: '', items: [], poll: false, visibility: 'p
 type LocalState = { draft: Draft; moodDraft: MoodDraft; takeDraft: TakeDraft; archivedDrafts: { id: string; draft: Draft }[]; archivedTakes: { id: string; draft: TakeDraft }[]; archivedMoods: { id: string; draft: MoodDraft }[] };
 type SyncData = { posts: Ranking[]; people: Profile[]; following: string[]; blocks: Profile[]; ratings: Rating[]; savedItems: MusicItem[]; savedPostIds: string[] };
 export type PodInput = { title: string; subtitle: string; items: MusicItem[]; visibility: Ranking['visibility']; open: boolean; sourceUrl?: string; editingId?: string };
+/** An album rated track by track: `items` are the scored tracks, best first, each carrying its score. */
+export type AlbumRatingInput = { album: MusicItem; title: string; subtitle: string; items: MusicItem[]; visibility: Ranking['visibility']; editingId?: string };
 type AppValue = LocalState & SyncData & {
   hydrated: boolean; user: Profile | null; allRankings: Ranking[]; rankings: Ranking[]; reactions: string[];
   spotifyConnected: boolean; refreshing: boolean; connected: boolean; notice: string; unread: number;
@@ -46,6 +48,7 @@ type AppValue = LocalState & SyncData & {
   ratingFor: (itemId: string) => Rating | undefined;
   rate: (input: { item: MusicItem; tier: Tier; position: number; review: string; visibility: Ranking['visibility'] }) => Promise<Ranking>;
   savePod: (input: PodInput) => Promise<Ranking>;
+  saveAlbumRating: (input: AlbumRatingInput) => Promise<Ranking>;
   contribute: (postId: string, item: MusicItem) => Promise<void>; removeFromPod: (postId: string, itemId: string) => Promise<void>;
 };
 const Context = createContext<AppValue | null>(null);
@@ -297,6 +300,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const data = await api<{ post: Ranking }>(editingId ? `/posts/${editingId}` : '/posts', { method: editingId ? 'PUT' : 'POST', body: { ...body, kind: 'pod' } });
     replacePost(data.post); return data.post;
   }, [user, replacePost]);
+  const saveAlbumRating = useCallback(async ({ editingId, ...body }: AlbumRatingInput) => {
+    if (!user) throw new ApiError('Sign in to post your album rating.', 401);
+    const data = await api<{ post: Ranking }>(editingId ? `/posts/${editingId}` : '/posts', { method: editingId ? 'PUT' : 'POST', body: { ...body, kind: 'ranking' } });
+    replacePost(data.post); return data.post;
+  }, [user, replacePost]);
   const contribute = useCallback(async (postId: string, item: MusicItem) => {
     const { color: _color, addedBy: _addedBy, ...clean } = item;
     replacePost((await api<{ post: Ranking }>(`/posts/${postId}/items`, { method: 'POST', body: { item: clean } })).post);
@@ -312,7 +320,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     rankings, reactions, allRankings, spotifyConnected, refreshing, connected, notice, unread, setUnread, setNotice, setDraft, setMoodDraft,
     startDraft, editRanking, startMood, openDraft, addMusic, removeMusic, moveMusic, publish, publishMood, refresh, loadPost,
     deletePost, toggleReaction, addComment, deleteComment, commentsFor, toggleFollow, blockUser, login, loginOtp, register, logout, updateProfile, completeOnboarding, deleteAccount,
-    ratings, savedItems, savedPostIds, toggleSavedItem, toggleSavedPost, config, rememberItem, itemFor, ratingFor, rate, savePod, contribute, removeFromPod,
+    ratings, savedItems, savedPostIds, toggleSavedItem, toggleSavedPost, config, rememberItem, itemFor, ratingFor, rate, savePod, saveAlbumRating, contribute, removeFromPod,
   };
   const ready = hydrated && loadedScope === (user?.id || 'guest');
   const { c } = useTheme();

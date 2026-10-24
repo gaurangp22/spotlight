@@ -168,12 +168,14 @@ test('Spotify PKCE, encrypted tokens, playlist paging, refresh, denial, and one-
   });
   const alice = await account('alice');
   assert.equal((await request('/spotify/start', { token: alice.token, method: 'POST', body: { returnUri: 'https://evil.example' } })).status, 400);
-  const start = await request('/spotify/start', { token: alice.token, method: 'POST', body: { returnUri: 'marginmusic://spotify-callback' } });
+  // Builds installed before the rename still register the old scheme.
+  assert.equal((await request('/spotify/start', { token: alice.token, method: 'POST', body: { returnUri: 'marginmusic://spotify-callback' } })).status, 200);
+  const start = await request('/spotify/start', { token: alice.token, method: 'POST', body: { returnUri: 'riffs://spotify-callback' } });
   const authUrl = new URL(start.data.url), state = authUrl.searchParams.get('state');
   assert.equal(authUrl.searchParams.get('code_challenge_method'), 'S256');
   assert.equal((await request(`/spotify/callback?state=wrong&code=x`)).status, 400);
   const callback = await request(`/spotify/callback?state=${state}&code=test-code`);
-  assert.equal(callback.status, 302); assert.equal(callback.headers.get('location'), 'marginmusic://spotify-callback?status=connected');
+  assert.equal(callback.status, 302); assert.equal(callback.headers.get('location'), 'riffs://spotify-callback?status=connected');
   assert.equal((await request(`/spotify/callback?state=${state}&code=test-code`)).status, 400);
   const stored = await db.get('SELECT credentials FROM spotify WHERE user_id=?', alice.user.id);
   assert.ok(!stored.credentials.includes('secret-access-token'));
@@ -228,8 +230,10 @@ test('behind a trusted platform proxy, rate limits apply per client, not per pro
   process.env.TRUSTED_PROXY_IPS = '*';
   t.after(() => { if (previous === undefined) delete process.env.TRUSTED_PROXY_IPS; else process.env.TRUSTED_PROXY_IPS = previous; });
   const { base } = await fixture(t);
-  const login = (ip) => fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip }, body: JSON.stringify({ email: 'nobody@example.com', password: 'wrong-password' }) });
+  // A different email each time, so only the per-network limit is in play.
+  let n = 0;
+  const login = (ip) => fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip }, body: JSON.stringify({ email: `nobody${++n}@example.com`, password: 'wrong-password' }) });
   for (let i = 0; i < 25; i++) assert.equal((await login(`203.0.113.${i + 1}`)).status, 401);
-  for (let i = 0; i < 20; i++) await login('198.51.100.7');
+  for (let i = 0; i < 30; i++) await login('198.51.100.7');
   assert.equal((await login('198.51.100.7')).status, 429);
 });

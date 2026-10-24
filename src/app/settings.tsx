@@ -1,4 +1,3 @@
-import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
@@ -6,6 +5,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useState } from 'react';
 import { Linking, View } from 'react-native';
 import { api } from '../lib/api';
+import { appVersion } from '../lib/version';
 import { useApp } from '../store/AppContext';
 import { Screen } from '../ui/components';
 import { useTask } from '../ui/forms';
@@ -15,7 +15,6 @@ import { Avatar, Button, Card, Dialog, ListGroup, ListRow, T, TextField } from '
 import { space } from '../ui/theme';
 
 WebBrowser.maybeCompleteAuthSession();
-const version = Constants.expoConfig?.version ?? '1.0.0';
 const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL;
 
 /** Early access: bring friends in and tell the founders what's working. */
@@ -34,7 +33,7 @@ function About({ feedback = false }: { feedback?: boolean }) {
     <ListRow icon="document-text-outline" iconColor="#8E8E93" title="Terms of Service" onPress={() => router.push({ pathname: '/legal/[doc]', params: { doc: 'terms' } })} />
     {!!supportEmail && <ListRow icon="mail-outline" iconColor="#007AFF" title="Contact support" onPress={() => void Linking.openURL(`mailto:${supportEmail}`)} />}
     {feedback && <ListRow icon="chatbox-ellipses-outline" iconColor="#007AFF" title="Send feedback" onPress={() => router.push({ pathname: '/feedback', params: { from: 'settings' } })} />}
-    <ListRow title="Version" value={version} chevron={false} />
+    <ListRow title="Version" value={appVersion} chevron={false} />
   </ListGroup>;
 }
 
@@ -117,7 +116,7 @@ export default function Settings() {
 
     <About />
 
-    <ListGroup footer="Deleting your account permanently removes your profile, posts, comments, and Spotify connection.">
+    <ListGroup footer="Deleting your account permanently removes your profile, posts, ratings, comments, and messages you sent.">
       <ListRow title="Sign out" chevron={false} disabled={busy} onPress={() => void run(async () => { await logout(); router.replace('/'); })} />
       <ListRow title="Delete account" destructive chevron={false} disabled={busy} onPress={() => { setDeletePassword(''); setDeleting(true); }} />
     </ListGroup>

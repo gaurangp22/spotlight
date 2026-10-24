@@ -2,7 +2,7 @@
   "expo": {
     "name": "Riffs",
     "slug": "margin-music",
-    "scheme": "marginmusic",
+    "scheme": ["riffs", "marginmusic"],
     "version": "2.0.0",
     "description": "Rate and review the music you love, film quick video reviews, and see exactly where your friends’ taste agrees.",
     "orientation": "portrait",
@@ -13,14 +13,14 @@
       "typedRoutes": true
     },
     "ios": {
-      "bundleIdentifier": "com.marginmusic.app",
+      "bundleIdentifier": "com.riffs.app",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.marginmusic.app",
+      "package": "com.riffs.app",
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",

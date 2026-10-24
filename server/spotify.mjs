@@ -73,7 +73,7 @@ export function spotifyService(db, key, fetcher = fetch) {
     catalog: !!(clientId && clientSecret),
     async start(userId, returnUri) {
       if (!clientId || !redirectUri) fail(503, 'Spotify has not been configured on this server yet.');
-      const allowed = ['marginmusic://spotify-callback', `${(process.env.WEB_APP_URL || 'http://localhost:8081').replace(/\/$/, '')}/spotify-callback`];
+      const allowed = ['riffs://spotify-callback', 'marginmusic://spotify-callback', `${(process.env.WEB_APP_URL || 'http://localhost:8081').replace(/\/$/, '')}/spotify-callback`];
       if (!allowed.includes(returnUri)) fail(400, 'Unsupported Spotify return address.');
       const state = randomToken(), verifier = randomToken() + randomToken();
       await db.run('DELETE FROM oauth_states WHERE expires_at < ?', Date.now());
@@ -155,6 +155,19 @@ export function spotifyService(db, key, fetcher = fetch) {
         if (error.status === 403 || error.status === 502) fail(404, 'Spotify didn’t share that link. Private playlists and Spotify’s own mixes can’t be imported — try a public playlist someone made.');
         throw error;
       }
+    },
+    /** Every track on an album, through the app's own credentials, for rating track by track. */
+    async albumTracks(id, limit = 500) {
+      if (!clientId || !clientSecret) fail(503, 'Spotify albums have not been set up on this server yet.');
+      const a = await call(null, `/albums/${id}`);
+      const album = { ...item(a, 'album'), artwork: a.images?.[0]?.url };
+      const tracks = [];
+      for (let offset = 0; tracks.length < limit; offset += 50) {
+        const page = await call(null, `/albums/${id}/tracks?limit=50&offset=${offset}`);
+        tracks.push(...(page.items || []).filter((t) => t?.id));
+        if (!page.next) break;
+      }
+      return { album, items: tracks.slice(0, limit).map((t) => item({ ...t, album: { name: a.name, images: a.images } })) };
     },
     /** Every track of a public playlist through the app's own credentials (no listener login), with covers. */
     async playlistTracks(id, limit = 500) {

@@ -84,7 +84,8 @@ export default function ItemScreen() {
       <Button label="Add to a pod" icon="albums-outline" variant="secondary" size="md" style={{ flex: 1 }} onPress={() => user ? setPodding(true) : router.push('/auth')} />
       {item.externalUrl && <Button label={linkLabel(item.externalUrl)} icon="open-outline" variant="secondary" size="md" style={{ flex: 1 }} onPress={() => void run(() => Linking.openURL(item.externalUrl!))} />}
     </View>
-    {mine?.review ? <Card style={{ marginTop: space.lg }}><T v="overline" tone="secondary">Your review · {formatScore(mine.score)}</T><T v="body" style={{ marginTop: space.xs }}>“{mine.review}”</T></Card> : null}
+    {item.kind === 'album' && <Button label="Rate every track" icon="list" variant="secondary" size="md" style={{ marginTop: space.sm }} onPress={() => router.push({ pathname: '/album-rate', params: { itemId: item.id } })} />}
+    {mine?.review ?<Card style={{ marginTop: space.lg }}><T v="overline" tone="secondary">Your review · {formatScore(mine.score)}</T><T v="body" style={{ marginTop: space.xs }}>“{mine.review}”</T></Card> : null}
 
     <View style={{ marginTop: space.md }}><SaveItemButton item={item} /></View>
     <SectionHeader title={friends.length ? 'Friends & everyone' : 'Reviews'} detail={ordered.length ? `${ordered.length}` : undefined} />

@@ -27,7 +27,8 @@ export default function BuilderScreen() {
   const onPublish = async () => {
     const ranking = await publish();
     haptic.success();
-    router.replace(`/ranking/${ranking.id}`);
+    // A new ranking opens with a short countdown reveal; an edit goes straight back to the list.
+    router.replace(draft.editingId ? `/ranking/${ranking.id}` : { pathname: '/ranking/[id]', params: { id: ranking.id, reveal: '1' } });
   };
   const title = draft.editingId ? 'Edit ranking' : battle ? 'Battle Mode' : 'New ranking';
 

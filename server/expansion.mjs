@@ -83,7 +83,7 @@ export function expansionRoutes({ db, key, profile, validateItem, getPost, postJ
     }
     if (path === '/api/people' && method === 'GET') {
       const q = (url.searchParams.get('q') || '').slice(0, 100), bots = url.searchParams.get('bots') === '1', scope = `people:${viewer}:${q}:${bots}`, page = cursor(url.searchParams.get('cursor'), scope), time = page?.time || Date.now();
-      const rows = await db.all(`SELECT u.* FROM users u WHERE ${blocked('u.id')} AND created_at<=? AND (handle LIKE ? OR name LIKE ?)${bots ? ' AND is_bot=1' : ''}
+      const rows = await db.all(`SELECT u.* FROM users u WHERE u.suspended=0 AND ${blocked('u.id')} AND created_at<=? AND (handle LIKE ? OR name LIKE ?)${bots ? ' AND is_bot=1' : ''}
         ${page ? 'AND (created_at<? OR (created_at=? AND id<?))' : ''} ORDER BY created_at DESC,id DESC LIMIT 31`, viewer, viewer, new Date(time).toISOString(), `%${q}%`, `%${q}%`, ...(page ? [page.date, page.date, page.id] : []));
       const more = rows.length > 30; rows.splice(30); const last = rows.at(-1);
       return done({ people: rows.map(profile), nextCursor: more ? seal({ scope, time, date: last.created_at, id: last.id }) : null });
@@ -144,7 +144,7 @@ export function expansionRoutes({ db, key, profile, validateItem, getPost, postJ
         if (!Array.isArray(body.handles) || !body.handles.length || body.handles.length > (kind === 'direct' ? 1 : 11)) fail(400, 'Choose one person for a message, or up to 11 for a group.');
         const chosen = new Set([viewer]);
         for (const handle of body.handles) {
-          const target = await db.get(`SELECT id FROM users WHERE handle=? AND allow_messages=1 AND ${blocked('id')}`, String(handle).replace(/^@/, '').toLowerCase(), viewer, viewer);
+          const target = await db.get(`SELECT id FROM users WHERE handle=? AND allow_messages=1 AND suspended=0 AND ${blocked('id')}`, String(handle).replace(/^@/, '').toLowerCase(), viewer, viewer);
           if (!target || target.id === viewer) fail(400, 'A selected person is unavailable for messages.'); chosen.add(target.id);
         }
         const ids = [...chosen]; if (ids.length < 2) fail(400, 'Choose another person.');

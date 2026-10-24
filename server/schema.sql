@@ -5,7 +5,9 @@ CREATE TABLE IF NOT EXISTS users (
  avatar TEXT NOT NULL DEFAULT '', favorite_artists TEXT NOT NULL DEFAULT '[]', onboarding_complete INTEGER NOT NULL DEFAULT 0,
  email_verified INTEGER NOT NULL DEFAULT 0, push_enabled INTEGER NOT NULL DEFAULT 0, allow_messages INTEGER NOT NULL DEFAULT 1,
  invited_by TEXT REFERENCES users(id) ON DELETE SET NULL,
- is_bot INTEGER NOT NULL DEFAULT 0, show_bots INTEGER NOT NULL DEFAULT 1
+ is_bot INTEGER NOT NULL DEFAULT 0, show_bots INTEGER NOT NULL DEFAULT 1,
+ -- Set by moderators. A suspended account can't sign in, and its posts, comments and profile are hidden.
+ suspended INTEGER NOT NULL DEFAULT 0
 );
 -- What each house bot has already done, so actions are idempotent and daily limits can be enforced.
 CREATE TABLE IF NOT EXISTS bot_actions (
@@ -126,6 +128,16 @@ CREATE INDEX IF NOT EXISTS blocks_target ON blocks(blocked_id);
 CREATE TABLE IF NOT EXISTS reports (
  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+ reason TEXT NOT NULL, created_at TEXT NOT NULL, resolved INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS comment_reports (
+ id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ comment_id TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+ reason TEXT NOT NULL, created_at TEXT NOT NULL, resolved INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS user_reports (
+ id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ target_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  reason TEXT NOT NULL, created_at TEXT NOT NULL, resolved INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS notifications (

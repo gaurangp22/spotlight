@@ -16,6 +16,8 @@ export type MusicItem = {
   previewUrl?: string;
   /** In a pod, the handle of the person who contributed this item. */
   addedBy?: string;
+  /** In an album rating, the score this track got, 0–10. */
+  score?: number;
 };
 
 export type Comment = { id: string; author: string; handle?: string; avatar?: string; bot?: boolean; text: string; itemId?: string; parentId?: string; userId?: string; createdAt?: string };
@@ -52,6 +54,8 @@ export type Ranking = {
   tier?: Tier;
   /** Pods: whether other people can add to it. */
   open?: boolean;
+  /** Album ratings: the album whose tracks are scored, best first, in `items`. */
+  album?: MusicItem;
 };
 
 /** Gut reaction: 2 loved it, 1 it was fine, 0 not for me. */

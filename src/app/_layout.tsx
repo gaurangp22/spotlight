@@ -39,6 +39,7 @@ export default function RootLayout() {
           <Stack.Screen name="share/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="battle" options={{ presentation: 'fullScreenModal', animation: 'fade_from_bottom', gestureEnabled: false }} />
           <Stack.Screen name="rate" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="album-rate" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="share/top" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="video" options={{ presentation: 'fullScreenModal', animation: 'fade_from_bottom', gestureEnabled: false }} />
         </Stack>

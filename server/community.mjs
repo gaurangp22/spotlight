@@ -40,7 +40,7 @@ export function communityRoutes({ db, profile, validateItem, getPost, postJSON, 
       const offset = Math.max(0, Math.min(10000, Number(url.searchParams.get('offset')) || 0));
       const followers = connections[2] === 'followers';
       const rows = await db.all(`SELECT u.* FROM follows f JOIN users u ON u.id=f.${followers ? 'follower_id' : 'followed_id'}
-        WHERE f.${followers ? 'followed_id' : 'follower_id'}=? AND ${unblocked('u.id')} ORDER BY u.name,u.id LIMIT 30 OFFSET ?`, target.id, viewer, viewer, offset);
+        WHERE f.${followers ? 'followed_id' : 'follower_id'}=? AND u.suspended=0 AND ${unblocked('u.id')} ORDER BY u.name,u.id LIMIT 30 OFFSET ?`, target.id, viewer, viewer, offset);
       return done({ people: rows.map(profile), nextOffset: rows.length === 30 ? offset + 30 : null });
     }
     if (path === '/api/library' && method === 'GET') {

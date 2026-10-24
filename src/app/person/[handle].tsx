@@ -9,17 +9,17 @@ import { Loading, RankingCard, Screen, TopFive } from '../../ui/components';
 import { useTask } from '../../ui/forms';
 import { CoverWall, FavoriteArtists, MatchCard, StatusBubble, TopArtists } from '../../ui/equals';
 import { haptic } from '../../ui/haptics';
-import { Avatar, Button, Card, Dialog, EmptyState, ListGroup, ListRow, SectionHeader, T, BotBadge } from '../../ui/primitives';
+import { Avatar, Button, Card, Dialog, EmptyState, ListGroup, ListRow, SectionHeader, T, BotBadge, TextField } from '../../ui/primitives';
 import { space } from '../../ui/theme';
 
 export default function Person() {
   const { handle } = useLocalSearchParams<{ handle: string }>();
-  const { user, following, toggleFollow, blockUser } = useApp();
+  const { user, following, toggleFollow, blockUser, setNotice } = useApp();
   const key = `${handle}:${user?.id ?? 'guest'}`;
   const [snapshot, setSnapshot] = useState<{ key: string; data: { user: Profile; posts: Ranking[]; ratings: Rating[] } } | null>(null), [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
   const data = snapshot?.key === key ? snapshot.data : null;
   const error = failure?.key === key ? failure.message : '';
-  const [blocking, setBlocking] = useState(false);
+  const [blocking, setBlocking] = useState(false), [reporting, setReporting] = useState(false), [reason, setReason] = useState('');
   const { busy, run } = useTask();
   useEffect(() => { let active = true; api<{ user: Profile; posts: Ranking[]; ratings: Rating[] }>(`/people/${encodeURIComponent(handle)}`).then((v) => { if (active) { setSnapshot({ key, data: v }); setFailure(null); } }).catch((e) => { if (active) setFailure({ key, message: errorMessage(e) }); }); return () => { active = false; }; }, [handle, following, key]);
 
@@ -55,9 +55,17 @@ export default function Person() {
     {data.posts.length ? data.posts.map((p) => <RankingCard key={p.id} ranking={p} />)
       : <Card><EmptyState icon="list" title="Nothing to see yet" text={`${person.name} hasn’t posted anything you can view.`} /></Card>}
 
-    {!me && user && <ListGroup footer="Blocking stops you following each other and hides each other’s posts and comments. You can unblock in Settings.">
+    {!me && user && <ListGroup footer="Blocking stops you following each other and hides each other’s posts and comments. You can unblock in Settings. Reports are private and reviewed by the Riffs team.">
       <ListRow title={`Block ${person.name}`} destructive chevron={false} onPress={() => setBlocking(true)} />
+      <ListRow title={`Report ${person.name}`} destructive chevron={false} onPress={() => setReporting(true)} />
     </ListGroup>}
+    <Dialog visible={reporting} title={`Report ${person.name}?`} description="Tell us what’s wrong with this profile. They won’t know who reported them." confirmLabel="Send report" busy={busy}
+      onCancel={() => setReporting(false)} onConfirm={() => void run(async () => {
+        await api(`/people/${person.handle.slice(1)}/report`, { method: 'POST', body: { reason } });
+        setReporting(false); setReason(''); setNotice('Thanks. Your report was sent.');
+      })}>
+      <TextField label="Reason" value={reason} onChangeText={setReason} maxLength={500} multiline placeholder="Impersonation, harassment, spam…" />
+    </Dialog>
     <Dialog visible={blocking} title={`Block ${person.name}?`} description="You’ll stop following each other and won’t see each other’s posts or comments. You can unblock them in Settings." confirmLabel="Block" destructive busy={busy}
       onCancel={() => setBlocking(false)} onConfirm={() => void run(async () => { await blockUser(person.handle); setBlocking(false); router.replace('/(tabs)/discover'); })} />
   </Screen>;

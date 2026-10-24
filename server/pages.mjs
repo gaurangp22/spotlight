@@ -18,15 +18,18 @@ p,li{color:var(--muted)}p.lead{color:var(--fg);font-size:17px}ol{padding-left:20
 <footer><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/delete-account">Delete your account</a></footer></main></body></html>`;
 }
 
+// Shown at the end of both documents. Set "contact" in legal.json before publishing to the stores.
+const contact = legal.contact ? `Email ${legal.contact}, or use Settings → Send feedback in the app.` : 'Use Settings → Send feedback in the app.';
+
 function legalPage(doc) {
-  const sections = doc.sections.map((section) => `<h2>${escape(section.heading)}</h2>${section.body.map((p) => `<p>${escape(p)}</p>`).join('')}`).join('');
+  const sections = [...doc.sections, { heading: 'Contact', body: [contact] }].map((section) => `<h2>${escape(section.heading)}</h2>${section.body.map((p) => `<p>${escape(p)}</p>`).join('')}`).join('');
   return layout(doc.title, `<h1>${escape(doc.title)}</h1><p class="updated">Last updated ${escape(legal.updated)}</p><p class="lead">${escape(doc.intro)}</p>${sections}`);
 }
 
 const deletion = layout('Delete your account', `<h1>Delete your Riffs account</h1><p class="updated">Last updated ${escape(legal.updated)}</p>
 <p class="lead">You can permanently delete your account and data at any time, directly in the app.</p>
 <ol><li>Open Riffs and go to <strong>Profile</strong>.</li><li>Tap the <strong>Settings</strong> icon.</li><li>Scroll down and tap <strong>Delete account</strong>.</li><li>Enter your password to confirm.</li></ol>
-<h2>What is deleted</h2><p>Deletion is immediate and permanent. It removes your profile, ratings and reviews, rankings, pods, mood boards and photos, comments, reactions, follows, blocks, sessions, and Spotify connection. Drafts stored on your device are removed when you delete the account from that device, or when you uninstall the app.</p>
-<h2>Can’t sign in?</h2><p>Reset your password from the sign-in screen first, then follow the steps above. If you no longer have access to your email address, contact us through the support address on our store listing and we will verify ownership before deleting the account.</p>`);
+<h2>What is deleted</h2><p>Deletion is immediate and permanent. It removes your profile, ratings and reviews, rankings, pods, mood boards and photos, comments, reactions, follows, blocks, and sessions. Drafts stored on your device are removed when you delete the account from that device, or when you uninstall the app.</p>
+<h2>Can’t sign in?</h2><p>Reset your password from the sign-in screen first, then follow the steps above. If you no longer have access to your email address, ${legal.contact ? `email ${escape(legal.contact)}` : 'contact us through the support address on our store listing'} and we will verify ownership before deleting the account. Suspended accounts can be deleted the same way.</p>`);
 
 export const pages = { '/privacy': legalPage(legal.privacy), '/terms': legalPage(legal.terms), '/delete-account': deletion };

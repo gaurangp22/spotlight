@@ -36,7 +36,7 @@ test('invite links: a public landing page, credit and a follow on signup, and no
   assert.match(page.headers.get('content-security-policy'), /default-src 'none'/);
   const html = await page.text();
   assert.match(html, /Mandi &lt;script&gt; wants you on Riffs/, 'names are escaped');
-  assert.match(html, /marginmusic:\/\/join\/mandi/);
+  assert.match(html, /riffs:\/\/join\/mandi/);
   assert.match(html, /On repeat: TPAB/);
   assert.match(await (await fetch(`${base}/join/nobody_here`)).text(), /This invite has expired/);
   assert.equal((await request('/invites/mandi')).data.inviter.handle, '@mandi');

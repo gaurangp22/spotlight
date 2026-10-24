@@ -1,8 +1,8 @@
-import Constants from 'expo-constants';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Platform, View } from 'react-native';
 import { api } from '../lib/api';
+import { appVersion } from '../lib/version';
 import { useApp } from '../store/AppContext';
 import { goBack, Screen } from '../ui/components';
 import { useTask } from '../ui/forms';
@@ -31,7 +31,7 @@ export default function FeedbackScreen() {
       text: `[${topics.find((t) => t.value === topic)!.label}] ${text.trim()}`,
       context: typeof from === 'string' ? from.slice(0, 200) : '',
       platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : 'web',
-      version: Constants.expoConfig?.version ?? '',
+      version: appVersion,
     } });
     haptic.success(); setSent(true);
   });
