@@ -8,6 +8,7 @@ import { categories, formatScore, scoreColor } from '../lib/categories';
 import { displayDate } from '../lib/dates';
 import { MusicItem, Rating, Ranking } from '../lib/types';
 import { useApp } from '../store/AppContext';
+import { GlassTile } from './glass';
 import { MoodGrid } from './mood';
 import { PostActions, TakeCard } from './equals';
 import { MINI_PLAYER_HEIGHT, usePreview } from './preview';
@@ -143,10 +144,10 @@ export function MusicRow({ item, index, trailing, onPress, separator = true, siz
 
 /** A score on a tier-coloured rounded square: green for loved, orange for fine, red for nope. */
 /** The score ring: the same treatment as the cards in Riffs videos, so the app and the videos match. */
-export function ScoreBadge({ score, size = 44, ring = false }: { score: number; size?: number; ring?: boolean }) {
+export function ScoreBadge({ score, size = 44, ring = false, glass = false }: { score: number; size?: number; ring?: boolean; glass?: boolean }) {
   const { c } = useTheme();
-  return <View accessible accessibilityLabel={`Score ${formatScore(score)} out of 10`} style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.surface, borderWidth: Math.max(2, size * 0.085), borderColor: scoreColor(score), alignItems: 'center', justifyContent: 'center' }, ring && shadow(c, 2)]}>
-    <Text maxFontSizeMultiplier={1} style={{ fontFamily: font.heavy, color: c.text, fontSize: size * 0.34, letterSpacing: -0.5, fontVariant: ['tabular-nums'] }}>{formatScore(score)}</Text>
+  return <View accessible accessibilityLabel={`Score ${formatScore(score)} out of 10`} style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: glass ? 'rgba(0,0,0,0.35)' : c.surface, borderWidth: Math.max(2, size * 0.085), borderColor: scoreColor(score), alignItems: 'center', justifyContent: 'center' }, ring && shadow(c, 2)]}>
+    <Text maxFontSizeMultiplier={1} style={{ fontFamily: font.heavy, color: glass ? '#FFFFFF' : c.text, fontSize: size * 0.34, letterSpacing: -0.5, fontVariant: ['tabular-nums'] }}>{formatScore(score)}</Text>
   </View>;
 }
 
@@ -187,18 +188,20 @@ export function ReviewCard({ ranking }: { ranking: Ranking }) {
   const category = categories[item.kind];
   return <Card style={{ marginBottom: space.lg }}>
     <Author ranking={ranking} label={`rated ${article(category.label.toLowerCase())}`} />
-    <Pressable accessibilityRole="button" accessibilityLabel={`${ranking.author} rated ${item.title} ${ranking.score ?? ''}`} onPress={() => router.push(`/ranking/${ranking.id}`)} style={{ flexDirection: 'row', gap: space.lg, marginTop: space.lg, alignItems: 'center' }}>
-      <View>
-        <Artwork item={item} size={112} rounded={radius.md} />
-        {ranking.score !== undefined && <View style={{ position: 'absolute', right: -10, bottom: -10 }}><ScoreBadge score={ranking.score} size={50} ring /></View>}
-      </View>
-      <View style={{ flex: 1, gap: 4 }}>
-        <T v="overline" tone="secondary">{category.label}</T>
-        <T v="title3" weight="bold" numberOfLines={3}>{item.title}</T>
-        <T v="subhead" tone="secondary" numberOfLines={1}>{item.artist}</T>
-      </View>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${ranking.author} rated ${item.title} ${ranking.score ?? ''}`} onPress={() => router.push(`/ranking/${ranking.id}`)} style={{ marginTop: space.md }}>
+      <GlassTile item={item} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md }}>
+        <Artwork item={item} size={76} rounded={radius.sm} />
+        <View style={{ flex: 1, gap: 3 }}>
+          <T v="headline" weight="bold" numberOfLines={2} style={{ color: '#FFFFFF' }}>{item.title}</T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Ionicons name={category.icon} size={13} color="rgba(255,255,255,0.72)" accessibilityLabel={category.label} />
+            <T v="footnote" numberOfLines={1} style={{ color: 'rgba(255,255,255,0.72)', flexShrink: 1 }}>{item.artist}</T>
+          </View>
+        </View>
+        {ranking.score !== undefined && <ScoreBadge score={ranking.score} size={54} glass />}
+      </GlassTile>
     </Pressable>
-    {!!ranking.subtitle && <Pressable accessibilityRole="button" accessibilityLabel="Open review" onPress={() => router.push(`/ranking/${ranking.id}`)} style={{ marginTop: space.lg }}>
+    {!!ranking.subtitle && <Pressable accessibilityRole="button" accessibilityLabel="Open review" onPress={() => router.push(`/ranking/${ranking.id}`)} style={{ marginTop: space.md }}>
       <T v="body" numberOfLines={5}>{ranking.subtitle}</T>
     </Pressable>}
     <PostActions ranking={ranking} />

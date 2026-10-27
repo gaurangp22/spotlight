@@ -2,9 +2,9 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api, errorMessage } from '../../lib/api';
-import { categories, formatScore } from '../../lib/categories';
+import { categories, formatScore, scoreColor } from '../../lib/categories';
 import { MusicItem, Ranking } from '../../lib/types';
 import { useApp } from '../../store/AppContext';
 import { Loading, RankingCard, Screen, ScoreBadge } from '../../ui/components';
@@ -12,9 +12,28 @@ import { useTask } from '../../ui/forms';
 import { SaveItemButton } from '../../ui/library';
 import { haptic } from '../../ui/haptics';
 import { Artwork, Badge, Button, Card, EmptyState, IconButton, ListRow, SectionHeader, Sheet, T } from '../../ui/primitives';
-import { curve, gutter, radius, space, useTheme } from '../../ui/theme';
+import { curve, font, gutter, radius, space, useTheme } from '../../ui/theme';
 
-type ItemData = { item: MusicItem | null; average: number | null; count: number; reviews: Ranking[]; pods: Ranking[] };
+type ItemData = { item: MusicItem | null; average: number | null; count: number; distribution?: number[]; reviews: Ranking[]; pods: Ranking[] };
+
+/** How everyone scored it, 0 to 10, with your own score marked on its bar. */
+function ScoreChart({ distribution, mine }: { distribution: number[]; mine?: number }) {
+  const { c } = useTheme();
+  const peak = Math.max(1, ...distribution);
+  const yours = mine === undefined ? -1 : Math.max(0, Math.min(10, Math.round(mine)));
+  return <View accessible accessibilityLabel={`Ratings by score: ${distribution.map((n, i) => `${i}: ${n}`).join(', ')}`} style={{ flex: 1 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 64 }}>
+      {distribution.map((n, i) => <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+        {i === yours && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent, marginBottom: 3 }} />}
+        <View style={{ width: '100%', height: n ? Math.max(6, (n / peak) * 52) : 3, borderRadius: 3, backgroundColor: n ? scoreColor(i) : c.fill, opacity: n ? 1 : 0.8 }} />
+      </View>)}
+    </View>
+    <LinearGradient colors={[scoreColor(0), scoreColor(5), scoreColor(10)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 2, borderRadius: 1, marginTop: 6, opacity: 0.7 }} />
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 3 }}>
+      {['0', '5', '10'].map((label) => <T key={label} v="caption" tone="tertiary">{label}</T>)}
+    </View>
+  </View>;
+}
 
 function linkLabel(url: string) {
   if (url.includes('spotify.com')) return 'Open in Spotify';
@@ -70,10 +89,22 @@ export default function ItemScreen() {
       <T v="body" center style={{ color: '#FFFFFFCC' }}>{item.artist}</T>
     </View>
 
-    <Card style={{ flexDirection: 'row', marginTop: space.lg, paddingVertical: space.lg }}>
-      {score('You', mine?.score, mine ? 'Your score' : 'Not rated')}
-      {score('Friends', friendAverage, friends.length ? `${friends.length} ${friends.length === 1 ? 'rating' : 'ratings'}` : 'No ratings yet')}
-      {score('Everyone', data?.average, data ? `${data.count} ${data.count === 1 ? 'rating' : 'ratings'}` : '…')}
+    <Card style={{ marginTop: space.lg, paddingVertical: space.lg }}>
+      {!!data?.count && !!data.distribution && <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.xl, paddingBottom: space.lg, marginBottom: space.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: c.hairline }}>
+        <View>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+            <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.heavy, fontSize: 44, lineHeight: 48, letterSpacing: -1.6, color: scoreColor(data.average ?? 0), fontVariant: ['tabular-nums'] }}>{formatScore(data.average ?? 0)}</Text>
+            <T v="subhead" tone="secondary">/10</T>
+          </View>
+          <T v="caption" tone="secondary">{data.count} {data.count === 1 ? 'rating' : 'ratings'}</T>
+        </View>
+        <ScoreChart distribution={data.distribution} mine={mine?.score} />
+      </View>}
+      <View style={{ flexDirection: 'row' }}>
+        {score('You', mine?.score, mine ? 'Your score' : 'Not rated')}
+        {score('Friends', friendAverage, friends.length ? `${friends.length} ${friends.length === 1 ? 'rating' : 'ratings'}` : 'No ratings yet')}
+        {score('Everyone', data?.average, data ? `${data.count} ${data.count === 1 ? 'rating' : 'ratings'}` : '…')}
+      </View>
     </Card>
 
     <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
