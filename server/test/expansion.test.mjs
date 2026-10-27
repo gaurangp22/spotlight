@@ -67,6 +67,53 @@ test('messages are member-only, idempotent, ordered, removable, and respect bloc
   assert.equal((await request('/conversations', a.token)).data.conversations.length, 0);
 });
 
+test('chats wake waiting members live, and carry typing, read receipts, replies and reactions', async (t) => {
+  const { request, account } = await fixture(t); const a = await account('alice'), b = await account('bobby'), c = await account('carol');
+  const id = (await request('/conversations', a.token, 'POST', { handles: ['@bobby'] })).data.conversation.id;
+  const first = await request(`/conversations/${id}/updates`, b.token);
+  assert.equal(first.status, 200); assert.deepEqual(first.data.typing, []); assert.equal(first.data.reads[0].userId, a.user.id);
+  assert.equal((await request(`/conversations/${id}/updates`, c.token)).status, 404);
+  // Bobby waits with the current version; Alice's message answers him well before the 20 second timeout.
+  const started = Date.now();
+  const waiting = request(`/conversations/${id}/updates?since=${encodeURIComponent(first.data.version)}`, b.token);
+  await request(`/conversations/${id}/messages`, a.token, 'POST', { text: 'Heard the new album?', clientId: 'live-message-1' });
+  const woke = await waiting;
+  assert.ok(Date.now() - started < 5000); assert.notEqual(woke.data.version, first.data.version);
+  // Typing shows to the other member only, and stops when they send.
+  const typingWait = request(`/conversations/${id}/updates?since=${encodeURIComponent(woke.data.version)}`, a.token);
+  assert.equal((await request(`/conversations/${id}/typing`, b.token, 'POST', { typing: true })).status, 200);
+  assert.deepEqual((await typingWait).data.typing, [b.user.id]);
+  assert.deepEqual((await request(`/conversations/${id}/updates`, b.token)).data.typing, []);
+  const [message] = (await request(`/conversations/${id}/messages`, b.token)).data.messages;
+  await request(`/conversations/${id}/messages`, b.token, 'POST', { text: 'Twice already', clientId: 'live-message-2', replyTo: message.id });
+  assert.deepEqual((await request(`/conversations/${id}/updates`, a.token)).data.typing, []);
+  assert.equal((await request(`/conversations/${id}/messages`, b.token, 'POST', { text: 'x', clientId: 'live-message-3', replyTo: 'not-a-message' })).status, 400);
+  // Reading moves the receipt Alice sees; reading the same position again changes nothing.
+  await request(`/conversations/${id}/read`, b.token, 'POST', { sequence: 2 });
+  const seen = await request(`/conversations/${id}/messages`, a.token);
+  assert.equal(seen.data.reads.find((r) => r.userId === b.user.id).sequence, 2);
+  const settled = seen.data.version;
+  await request(`/conversations/${id}/read`, b.token, 'POST', { sequence: 2 });
+  assert.equal((await request(`/conversations/${id}/updates`, a.token)).data.version, settled);
+  const reply = seen.data.messages.at(-1);
+  assert.equal(reply.replyTo.id, message.id); assert.equal(reply.replyTo.text, 'Heard the new album?'); assert.equal(reply.replyTo.sender, 'alice');
+  // One reaction per person, from the quick set; changing it replaces it.
+  assert.equal((await request(`/conversations/${id}/messages/${message.id}/reaction`, b.token, 'PUT', { emoji: '🍕' })).status, 400);
+  assert.equal((await request(`/conversations/${id}/messages/${message.id}/reaction`, c.token, 'PUT', { emoji: '🔥' })).status, 404);
+  await request(`/conversations/${id}/messages/${message.id}/reaction`, b.token, 'PUT', { emoji: '❤️' });
+  await request(`/conversations/${id}/messages/${message.id}/reaction`, b.token, 'PUT', { emoji: '🔥' });
+  await request(`/conversations/${id}/messages/${message.id}/reaction`, a.token, 'PUT', { emoji: '🔥' });
+  let reacted = (await request(`/conversations/${id}/messages`, a.token)).data.messages[0].reactions;
+  assert.deepEqual(reacted, [{ emoji: '🔥', count: 2, mine: true }]);
+  await request(`/conversations/${id}/messages/${message.id}/reaction`, a.token, 'PUT', { emoji: null });
+  reacted = (await request(`/conversations/${id}/messages`, a.token)).data.messages[0].reactions;
+  assert.deepEqual(reacted, [{ emoji: '🔥', count: 1, mine: false }]);
+  // Removing a message clears its reactions and the quote of it.
+  await request(`/conversations/${id}/messages/${message.id}`, a.token, 'DELETE');
+  const after = (await request(`/conversations/${id}/messages`, a.token)).data.messages;
+  assert.deepEqual(after[0].reactions, []); assert.equal(after[1].replyTo.deleted, true); assert.equal(after[1].replyTo.text, '');
+});
+
 test('groups enforce membership and ownership; leaving transfers ownership and revokes access', async (t) => {
   const { request, account } = await fixture(t); const a = await account('alice'), b = await account('bobby'), c = await account('carol');
   const r = await request('/conversations', a.token, 'POST', { kind: 'group', name: 'Album friends', handles: ['bobby', 'carol'] }); assert.equal(r.status, 201);

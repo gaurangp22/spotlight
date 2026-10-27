@@ -28,10 +28,39 @@ export function expansionRoutes({ db, key, profile, validateItem, getPost, postJ
     return { id: c.id, kind: c.kind, name: c.kind === 'direct' ? members.find((u) => u.id !== userId)?.name || 'Conversation' : c.name, ownerId: c.owner_id, members: members.map(profile), unread: unread.n,
       lastMessage: latest ? { sender: latest.name, text: latest.deleted ? 'Message removed' : latest.text.slice(0, 120) || 'Shared music', createdAt: latest.created_at } : null };
   }
-  async function messageJSON(row, viewer) {
+  /** `reactions` are this page's reaction rows; `replies` the messages it quotes, by id. */
+  async function messageJSON(row, viewer, { reactions = [], replies = new Map() } = {}) {
     let post = null;
     if (row.post_id && !row.deleted) { try { post = await postJSON(await getPost(row.post_id, viewer), viewer); } catch (e) { if (e.status !== 404) throw e; } }
-    return { id: row.id, sequence: row.sequence, sender: profile({ ...row, id: row.sender_id }), text: row.deleted ? '' : row.text, item: !row.deleted && row.item ? JSON.parse(row.item) : null, post, deleted: !!row.deleted, createdAt: row.created_at };
+    const quoted = row.reply_to && !row.deleted ? replies.get(row.reply_to) : null;
+    const counts = new Map();
+    if (!row.deleted) for (const r of reactions) if (r.message_id === row.id) { const entry = counts.get(r.emoji) || { emoji: r.emoji, count: 0, mine: false }; entry.count++; entry.mine ||= r.user_id === viewer; counts.set(r.emoji, entry); }
+    return { id: row.id, sequence: row.sequence, sender: profile({ ...row, id: row.sender_id }), text: row.deleted ? '' : row.text, item: !row.deleted && row.item ? JSON.parse(row.item) : null, post, deleted: !!row.deleted, createdAt: row.created_at,
+      replyTo: quoted ? { id: quoted.id, senderId: quoted.sender_id, sender: quoted.name, text: quoted.deleted ? '' : quoted.text.slice(0, 160), itemTitle: !quoted.deleted && quoted.item ? JSON.parse(quoted.item).title : null, deleted: !!quoted.deleted } : null,
+      reactions: [...counts.values()].sort((a, b) => b.count - a.count) };
+  }
+
+  // Live chat. Each conversation has a version that moves whenever anything in it changes: a message, a
+  // removal, a reaction, a read, or someone starting or stopping typing. Clients long-poll /updates with
+  // the version they last saw and get an answer as soon as it moves. This lives in memory, so it assumes
+  // one API process; a restart changes the boot id and every waiting client simply reloads once.
+  const WAIT_MS = 20000, TYPING_MS = 6000, REACTIONS = ['❤️', '🔥', '😂', '😮', '😢', '👍'];
+  const boot = randomUUID().slice(0, 8), live = new Map();
+  const room = (id) => { let r = live.get(id); if (!r) { r = { version: 0, waiters: new Set(), typing: new Map() }; live.set(id, r); } return r; };
+  const versionOf = (id) => `${boot}.${room(id).version}`;
+  function bump(id) { const r = room(id); r.version++; for (const wake of r.waiters) wake(); r.waiters.clear(); }
+  function stopTyping(id, userId) { if (room(id).typing.delete(userId)) bump(id); }
+  function waitForChange(id) {
+    return new Promise((resolve) => {
+      const r = room(id);
+      const wake = () => { clearTimeout(timer); resolve(); };
+      const timer = setTimeout(() => { r.waiters.delete(wake); resolve(); }, WAIT_MS);
+      r.waiters.add(wake);
+    });
+  }
+  async function liveState(id, viewer) {
+    const reads = await db.all('SELECT user_id,last_read FROM conversation_members WHERE conversation_id=? AND user_id<>?', id, viewer);
+    return { version: versionOf(id), typing: [...room(id).typing.keys()].filter((uid) => uid !== viewer), reads: reads.map((r) => ({ userId: r.user_id, sequence: r.last_read })) };
   }
   const handle = async ({ path, method, body, user, url, send, rate, req }) => {
     const done = (data, status = 200) => { send(data, status); return true; };
@@ -170,7 +199,18 @@ export function expansionRoutes({ db, key, profile, validateItem, getPost, postJ
       await db.run('INSERT INTO message_reports VALUES (?,?,?,?,?,0)', randomUUID(), viewer, report[2], text(body.reason, 'Reason', 3, 300), new Date().toISOString());
       return done({ ok: true }, 201);
     }
-    const route = path.match(/^\/api\/conversations\/([a-zA-Z0-9-]+)(?:\/(messages|read|leave|members)(?:\/([a-zA-Z0-9-]+))?)?$/);
+    const reaction = path.match(/^\/api\/conversations\/([a-zA-Z0-9-]+)\/messages\/([a-zA-Z0-9-]+)\/reaction$/);
+    if (reaction && method === 'PUT') {
+      signed(); await member(reaction[1], viewer); rate(`reaction:${viewer}`, 120, 60000);
+      const emoji = body.emoji ?? null;
+      if (emoji !== null && !REACTIONS.includes(emoji)) fail(400, 'Choose one of the quick reactions.');
+      if (!await db.get('SELECT 1 FROM messages WHERE id=? AND conversation_id=? AND deleted=0', reaction[2], reaction[1])) fail(404, 'This message is unavailable.');
+      if (emoji === null) await db.run('DELETE FROM message_reactions WHERE message_id=? AND user_id=?', reaction[2], viewer);
+      else await db.run('INSERT INTO message_reactions VALUES (?,?,?) ON CONFLICT(message_id,user_id) DO UPDATE SET emoji=excluded.emoji', reaction[2], viewer, emoji);
+      bump(reaction[1]);
+      return done({ ok: true });
+    }
+    const route = path.match(/^\/api\/conversations\/([a-zA-Z0-9-]+)(?:\/(messages|read|leave|members|typing|updates)(?:\/([a-zA-Z0-9-]+))?)?$/);
     if (!route) return false;
     signed(); const [, id, action, messageId] = route;
     // Leaving remains possible after blocking another participant.
@@ -180,17 +220,36 @@ export function expansionRoutes({ db, key, profile, validateItem, getPost, postJ
       const next = await db.get('SELECT user_id FROM conversation_members WHERE conversation_id=? AND user_id<>? ORDER BY user_id LIMIT 1', id, viewer);
       if (!next) await db.run('DELETE FROM conversations WHERE id=?', id);
       else await db.batch([{ sql: 'UPDATE conversations SET owner_id=CASE WHEN owner_id=? THEN ? ELSE owner_id END WHERE id=?', args: [viewer, next.user_id, id] }, { sql: 'DELETE FROM conversation_members WHERE conversation_id=? AND user_id=?', args: [id, viewer] }]);
+      stopTyping(id, viewer); bump(id);
       return done({ ok: true });
     }
     const c = await member(id, viewer);
     if (!action && method === 'GET') return done({ conversation: await threadJSON(c, viewer) });
     if (action === 'members' && method === 'DELETE') {
       if (c.kind !== 'group' || c.owner_id !== viewer || !messageId || messageId === viewer) fail(403, 'Only the group owner can remove another member.');
-      await db.run('DELETE FROM conversation_members WHERE conversation_id=? AND user_id=?', id, messageId); return done({ ok: true });
+      await db.run('DELETE FROM conversation_members WHERE conversation_id=? AND user_id=?', id, messageId); stopTyping(id, messageId); bump(id); return done({ ok: true });
+    }
+    if (action === 'updates' && method === 'GET') {
+      rate(`updates:${viewer}`, 240, 60000);
+      if ((url.searchParams.get('since') || '') === versionOf(id)) await waitForChange(id);
+      return done(await liveState(id, viewer));
+    }
+    if (action === 'typing' && method === 'POST') {
+      rate(`typing:${viewer}`, 60, 60000);
+      if (body.typing === false) { stopTyping(id, viewer); return done({ ok: true }); }
+      const r = room(id), until = Date.now() + TYPING_MS, fresh = !r.typing.has(viewer);
+      r.typing.set(viewer, until);
+      // Typing ends on its own if the phone goes quiet, without waiting for anyone to ask.
+      setTimeout(() => { if (r.typing.get(viewer) === until) stopTyping(id, viewer); }, TYPING_MS).unref?.();
+      if (fresh) bump(id);
+      return done({ ok: true });
     }
     if (action === 'read' && method === 'POST') {
       const seq = Number(body.sequence); if (!Number.isInteger(seq) || seq < 0) fail(400, 'Invalid read position.');
-      await db.run('UPDATE conversation_members SET last_read=max(last_read,min(?,coalesce((SELECT max(sequence) FROM messages WHERE conversation_id=?),0))) WHERE conversation_id=? AND user_id=?', seq, id, id, viewer);
+      const target = 'min(?,coalesce((SELECT max(sequence) FROM messages WHERE conversation_id=?),0))';
+      // Only a read that moves forward wakes the others, so two open chats can't wake each other forever.
+      const moved = await db.run(`UPDATE conversation_members SET last_read=${target} WHERE conversation_id=? AND user_id=? AND last_read<${target}`, seq, id, id, viewer, seq, id);
+      if (moved.rowsAffected) bump(id);
       return done({ ok: true });
     }
     if (action === 'messages' && method === 'GET') {
@@ -198,7 +257,11 @@ export function expansionRoutes({ db, key, profile, validateItem, getPost, postJ
       const before = Math.max(0, Number(url.searchParams.get('before')) || 0);
       const records = await db.all(`SELECT m.*,u.name,u.handle,u.avatar FROM messages m JOIN users u ON u.id=m.sender_id WHERE m.conversation_id=? AND ${blocked('m.sender_id')} ${after !== null ? 'AND m.sequence>?' : before ? 'AND m.sequence<?' : ''} ORDER BY m.sequence ${after !== null ? 'ASC' : 'DESC'} LIMIT 51`, id, viewer, viewer, ...(after !== null ? [after] : before ? [before] : []));
       const more = records.length > 50; records.splice(50); if (after === null) records.reverse();
-      return done({ messages: await Promise.all(records.map((r) => messageJSON({ ...r, sender_profile_id: r.sender_id }, viewer))), hasMore: more });
+      const ids = records.map((r) => r.id), quotedIds = [...new Set(records.map((r) => r.reply_to).filter(Boolean))];
+      const marks = (list) => list.map(() => '?').join(',');
+      const reactions = ids.length ? await db.all(`SELECT message_id,user_id,emoji FROM message_reactions WHERE message_id IN (${marks(ids)})`, ...ids) : [];
+      const replies = new Map(quotedIds.length ? (await db.all(`SELECT m.id,m.sender_id,m.text,m.item,m.deleted,u.name FROM messages m JOIN users u ON u.id=m.sender_id WHERE m.conversation_id=? AND m.id IN (${marks(quotedIds)})`, id, ...quotedIds)).map((r) => [r.id, r]) : []);
+      return done({ messages: await Promise.all(records.map((r) => messageJSON({ ...r, sender_profile_id: r.sender_id }, viewer, { reactions, replies }))), hasMore: more, ...await liveState(id, viewer) });
     }
     if (action === 'messages' && method === 'POST') {
       rate(`message:${viewer}`, 60, 60000);
@@ -206,20 +269,30 @@ export function expansionRoutes({ db, key, profile, validateItem, getPost, postJ
       const item = body.item ? validateItem(body.item) : null;
       if (!value && !item && !body.postId) fail(400, 'Write a message or share a pick.');
       if (body.postId) await getPost(text(body.postId, 'Post', 1, 100), viewer);
+      const replyTo = body.replyTo ? text(body.replyTo, 'Reply', 1, 100) : null;
+      if (replyTo && !await db.get('SELECT 1 FROM messages WHERE id=? AND conversation_id=?', replyTo, id)) fail(400, 'The message you replied to is unavailable.');
       if (c.kind === 'direct') { const target = await db.get('SELECT u.allow_messages FROM users u JOIN conversation_members m ON m.user_id=u.id WHERE m.conversation_id=? AND u.id<>?', id, viewer); if (!target?.allow_messages) fail(403, 'This person has turned off messages.'); }
-      const result = await db.run(`INSERT INTO messages (id,conversation_id,sender_id,sequence,client_id,text,item,post_id,created_at)
-        SELECT ?,?,?,coalesce((SELECT max(sequence) FROM messages WHERE conversation_id=?),0)+1,?,?,?,?,?
+      const result = await db.run(`INSERT INTO messages (id,conversation_id,sender_id,sequence,client_id,text,item,post_id,created_at,reply_to)
+        SELECT ?,?,?,coalesce((SELECT max(sequence) FROM messages WHERE conversation_id=?),0)+1,?,?,?,?,?,?
         WHERE EXISTS(SELECT 1 FROM conversation_members WHERE conversation_id=? AND user_id=?)
         AND NOT EXISTS(SELECT 1 FROM conversation_members x JOIN blocks b ON ((b.user_id=? AND b.blocked_id=x.user_id) OR (b.blocked_id=? AND b.user_id=x.user_id)) WHERE x.conversation_id=?)
         AND EXISTS(SELECT 1 FROM conversations c WHERE c.id=? AND (c.kind<>'direct' OR EXISTS(SELECT 1 FROM conversation_members x JOIN users u ON u.id=x.user_id WHERE x.conversation_id=c.id AND x.user_id<>? AND u.allow_messages=1)))
-        ON CONFLICT(conversation_id,sender_id,client_id) DO NOTHING`, randomUUID(), id, viewer, id, clientId, value, item ? JSON.stringify(item) : null, body.postId || null, new Date().toISOString(), id, viewer, viewer, viewer, id, id, viewer);
+        ON CONFLICT(conversation_id,sender_id,client_id) DO NOTHING`, randomUUID(), id, viewer, id, clientId, value, item ? JSON.stringify(item) : null, body.postId || null, new Date().toISOString(), replyTo, id, viewer, viewer, viewer, id, id, viewer);
       if (!await db.get('SELECT id FROM messages WHERE conversation_id=? AND sender_id=? AND client_id=?', id, viewer, clientId)) fail(404, 'This conversation changed. Your message was not sent.');
-      if (result.rowsAffected) { const recipients = await db.all('SELECT user_id FROM conversation_members WHERE conversation_id=? AND user_id<>?', id, viewer); for (const recipient of recipients) await push.enqueue(recipient.user_id, viewer, 'message', null, id); }
+      if (result.rowsAffected) {
+        room(id).typing.delete(viewer); bump(id);
+        const recipients = await db.all('SELECT user_id FROM conversation_members WHERE conversation_id=? AND user_id<>?', id, viewer); for (const recipient of recipients) await push.enqueue(recipient.user_id, viewer, 'message', null, id);
+      }
       return done({ ok: true }, 201);
     }
-    if (action === 'messages' && messageId && method === 'DELETE') { await db.run("UPDATE messages SET deleted=1,text='',item=NULL,post_id=NULL WHERE id=? AND conversation_id=? AND sender_id=?", messageId, id, viewer); return done({ ok: true }); }
+    if (action === 'messages' && messageId && method === 'DELETE') {
+      const removed = await db.run("UPDATE messages SET deleted=1,text='',item=NULL,post_id=NULL WHERE id=? AND conversation_id=? AND sender_id=?", messageId, id, viewer);
+      if (removed.rowsAffected) { await db.run('DELETE FROM message_reactions WHERE message_id=?', messageId); bump(id); }
+      return done({ ok: true });
+    }
     return false;
   };
-  handle.close = () => {};
+  // Answer anyone still waiting so the server can close.
+  handle.close = () => { for (const r of live.values()) { for (const wake of r.waiters) wake(); r.waiters.clear(); } };
   return handle;
 }

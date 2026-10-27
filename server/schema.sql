@@ -160,10 +160,15 @@ CREATE TABLE IF NOT EXISTS messages (
  id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
  sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, sequence INTEGER NOT NULL,
  client_id TEXT NOT NULL, text TEXT NOT NULL, item TEXT, post_id TEXT REFERENCES posts(id) ON DELETE SET NULL,
- created_at TEXT NOT NULL, deleted INTEGER NOT NULL DEFAULT 0,
+ created_at TEXT NOT NULL, deleted INTEGER NOT NULL DEFAULT 0, reply_to TEXT,
  UNIQUE(conversation_id,sequence), UNIQUE(conversation_id,sender_id,client_id)
 );
 CREATE INDEX IF NOT EXISTS messages_thread ON messages(conversation_id,sequence);
+CREATE TABLE IF NOT EXISTS message_reactions (
+ message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+ user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, emoji TEXT NOT NULL,
+ PRIMARY KEY(message_id,user_id)
+);
 CREATE TABLE IF NOT EXISTS message_reports (
  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE, reason TEXT NOT NULL,

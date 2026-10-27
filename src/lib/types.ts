@@ -87,4 +87,8 @@ export type ServerConfig = {
   catalog: { artist: boolean; movie: boolean; show: boolean; book: boolean };
 };
 export type Conversation = { id: string; kind: 'direct' | 'group'; name: string; ownerId: string; members: Profile[]; unread: number; lastMessage?: { sender: string; text: string; createdAt: string } | null };
-export type Message = { id: string; sequence: number; sender: Profile; text: string; item: MusicItem | null; post: Ranking | null; deleted: boolean; createdAt: string };
+export type Reaction = { emoji: string; count: number; mine: boolean };
+export type MessageQuote = { id: string; senderId: string; sender: string; text: string; itemTitle: string | null; deleted: boolean };
+export type Message = { id: string; sequence: number; sender: Profile; text: string; item: MusicItem | null; post: Ranking | null; deleted: boolean; createdAt: string; replyTo?: MessageQuote | null; reactions?: Reaction[] };
+/** What changes live in a chat besides its messages: who is typing and how far each member has read. */
+export type ChatLive = { version: string; typing: string[]; reads: { userId: string; sequence: number }[] };

@@ -76,6 +76,7 @@ export async function openDatabase({ url = process.env.TURSO_DATABASE_URL, token
       if (!userColumns.includes(name)) await batch([{ sql: `ALTER TABLE users ADD COLUMN ${name} ${definition}`, args: [] }]);
     }
     if ((await columnsOf('comments')).length && !(await columnsOf('comments')).includes('parent_id')) await batch([{ sql: 'ALTER TABLE comments ADD COLUMN parent_id TEXT REFERENCES comments(id) ON DELETE SET NULL', args: [] }]);
+    if ((await columnsOf('messages')).length && !(await columnsOf('messages')).includes('reply_to')) await batch([{ sql: 'ALTER TABLE messages ADD COLUMN reply_to TEXT', args: [] }]);
     if ((await columnsOf('email_otps')).length && !(await columnsOf('email_otps')).includes('purpose')) await batch([{ sql: "ALTER TABLE email_otps ADD COLUMN purpose TEXT NOT NULL DEFAULT 'signin'", args: [] }]);
   }
   const schema = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8');
