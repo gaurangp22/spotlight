@@ -64,7 +64,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Riffs uses your photos only when you choose a profile photo or a mood board image.",
+          "photosPermission": "Riffs uses your photos only when you choose a profile photo, a mood board image, or a photo or video for a review.",
           "cameraPermission": "Riffs uses the camera only while you record a video review.",
           "microphonePermission": "Riffs uses the microphone only if you turn on sound for a video review."
         }

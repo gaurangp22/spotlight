@@ -3,6 +3,8 @@
 //   frame, so only its contents' orientation matters; CGImage contents render upright in this setup.
 // - The track's preferredTransform is re-anchored to the origin, which covers front and back cameras
 //   in any orientation, including mirrored front-camera transforms.
+// - Every clip is centre-cropped to 9:16 (gallery videos can be any shape) by shifting that transform and
+//   rendering at the cropped size.
 
 import AVFoundation
 import ExpoModulesCore
@@ -69,8 +71,13 @@ public class VideoOverlayModule: Module {
 
     // The displayed frame is the natural size after the capture transform, moved back to the origin.
     let displayed = CGRect(origin: .zero, size: naturalSize).applying(transform)
-    let size = CGSize(width: abs(displayed.width).rounded(), height: abs(displayed.height).rounded())
-    let anchored = transform.concatenating(CGAffineTransform(translationX: -displayed.minX, y: -displayed.minY))
+    let full = CGSize(width: abs(displayed.width), height: abs(displayed.height))
+    // Centre-crop to 9:16 so gallery videos of any shape match the card as previewed (contentFit="cover").
+    let size = full.width / full.height > 9.0 / 16.0
+      ? CGSize(width: (full.height * 9 / 16).rounded(), height: full.height.rounded())
+      : CGSize(width: full.width.rounded(), height: (full.width * 16 / 9).rounded())
+    let crop = CGPoint(x: ((full.width - size.width) / 2).rounded(), y: ((full.height - size.height) / 2).rounded())
+    let anchored = transform.concatenating(CGAffineTransform(translationX: -displayed.minX - crop.x, y: -displayed.minY - crop.y))
 
     let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
     layerInstruction.setTransform(anchored, at: .zero)
