@@ -13,14 +13,14 @@ import { PickedMedia, pickMedia } from '../lib/pickMedia';
 import { saveVideoToLibrary } from '../lib/saveVideo';
 import { MusicItem } from '../lib/types';
 import { useApp } from '../store/AppContext';
-import { goBack, Screen } from '../ui/components';
+import { goBack, Loading, Screen } from '../ui/components';
 import { useTask } from '../ui/forms';
 import { haptic } from '../ui/haptics';
 import { MusicPicker } from '../ui/MusicPicker';
 import { ReviewCard } from '../ui/reelCards';
 import { Backdrop } from '../ui/reelMedia';
 import { LayoutControls, LayoutGestures, useCardLayout } from '../ui/videoLayout';
-import { Artwork, Button, Card, EmptyState, IconButton, Ionicons, SectionHeader, T, Tap, TextField } from '../ui/primitives';
+import { Artwork, Button, Card, EmptyState, IconButton, Ionicons, SectionHeader, Segmented, T, Tap, TextField } from '../ui/primitives';
 import { curve, font, radius, space, useTheme } from '../ui/theme';
 
 const MAX_SECONDS = 60;
@@ -33,12 +33,17 @@ export default function VideoReviewScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const screen = useWindowDimensions();
-  const params = useLocalSearchParams<{ itemId?: string }>();
-  const { user, itemFor, ratingFor, spotifyConnected, setNotice } = useApp();
+  const params = useLocalSearchParams<{ itemId?: string; reactTo?: string }>();
+  const { user, itemFor, ratingFor, spotifyConnected, setNotice, allRankings, loadPost } = useApp();
   const { busy, run } = useTask();
-  const start = params.itemId ? itemFor(params.itemId) : undefined;
-  const [item, setItem] = useState<MusicItem | undefined>(start);
+  // Reacting to someone else's public review: their card goes in the video, with your score under it.
+  const original = params.reactTo ? allRankings.find((post) => post.id === params.reactTo) : undefined;
+  const reacting = !!params.reactTo;
+  const start = original?.items[0] ?? (params.itemId ? itemFor(params.itemId) : undefined);
+  const [picked, setItem] = useState<MusicItem | undefined>(start);
+  const item = original?.items[0] ?? picked;
   const [score, setScore] = useState(() => (start ? ratingFor(start.id)?.score : undefined) ?? 8);
+  const [showMine, setShowMine] = useState(true);
   const [caption, setCaption] = useState('');
   const [layout, setLayout] = useCardLayout('review');
   const [picking, setPicking] = useState(false);
@@ -68,12 +73,27 @@ export default function VideoReviewScreen() {
     const timer = setInterval(() => setElapsed((v) => Math.min(MAX_SECONDS, v + 1)), 1000);
     return () => clearInterval(timer);
   }, [recording]);
+  // Opened from a link before the review was in memory: fetch it.
+  const reactTo = params.reactTo;
+  useEffect(() => { if (reactTo && !original) loadPost(reactTo).catch((e) => setNotice(errorMessage(e))); }, [reactTo, original, loadPost, setNotice]);
 
   if (Platform.OS === 'web' || !isAvailable) return <Screen back title="Video review">
     <Card style={{ marginTop: space.xl }}><EmptyState icon="videocam-outline" title="Video reviews are recorded in the Riffs app on your phone"
       text={Platform.OS === 'web' ? 'Open Riffs on your phone to film yourself with your rating and caption, then post it to Instagram.' : 'Update to the latest version of Riffs to record video reviews.'}
       action={<Button label="Back" variant="secondary" inline onPress={goBack} />} /></Card>
   </Screen>;
+  // Other people only end up in a video when their review is already public.
+  if (reacting && (!original || original.visibility !== 'public')) return <Screen back title="React on video">
+    {original ? <Card style={{ marginTop: space.xl }}><EmptyState icon="lock-closed-outline" title="This review isn’t public"
+      text="You can only film a reaction to a review everyone can see." action={<Button label="Back" variant="secondary" inline onPress={goBack} />} /></Card>
+      : <Loading label="Loading review…" />}
+  </Screen>;
+
+  /** The card in the video: your own review, or theirs with your score under it. */
+  const reelCard = (target: MusicItem, width: number) => original
+    ? <ReviewCard item={target} score={original.score ?? 0} take={original.subtitle || ''} name={original.author} handle={original.handle} avatar={original.avatar} width={width} layout={layout}
+      reply={showMine ? { name: user?.name || 'You', handle: user?.handle || '@you', avatar: user?.avatar, score } : undefined} />
+    : <ReviewCard item={target} score={score} take={caption} name={user?.name || 'You'} handle={user?.handle || '@you'} avatar={user?.avatar} width={width} layout={layout} />;
 
   const openCamera = () => run(async () => {
     const permission = cameraPermission?.granted ? cameraPermission : await requestCamera();
@@ -139,32 +159,36 @@ export default function VideoReviewScreen() {
       : { mimeType: 'video/mp4', UTI: 'public.mpeg-4', dialogTitle: 'Post your video review' });
   });
 
-  if (stage === 'setup') return <Screen back title="Video review"
+  if (stage === 'setup') return <Screen back title={original ? 'React on video' : 'Video review'}
     footer={<View style={{ gap: space.sm }}>
       {!item && <T v="footnote" tone="secondary" center>Choose what you’re reviewing to start recording.</T>}
       <Button label="Open camera" icon="videocam" disabled={!item} loading={busy} onPress={() => void openCamera()} />
       <Button label="Use a photo or video you have" icon="images-outline" variant="secondary" disabled={!item || busy} onPress={() => void fromGallery()} />
     </View>}>
-    <T v="title1" style={{ marginTop: space.sm }}>Film your take</T>
-    <T v="subhead" tone="secondary" style={{ marginTop: space.xs }}>Flip the camera and record your reaction. Your score and your take sit on a card in the video — post it anywhere.</T>
+    <T v="title1" style={{ marginTop: space.sm }}>{original ? `React to ${original.author}` : 'Film your take'}</T>
+    <T v="subhead" tone="secondary" style={{ marginTop: space.xs }}>{original
+      ? `${original.handle}’s review sits on a card in the video while you react to it. Add the score you’d give it, then post it anywhere.`
+      : 'Flip the camera and record your reaction. Your score and your take sit on a card in the video — post it anywhere.'}</T>
 
-    <SectionHeader title="Reviewing" />
+    <SectionHeader title={original ? 'Their review' : 'Reviewing'} />
     {item ? <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
       <Artwork item={item} size={56} />
       <View style={{ flex: 1, gap: 2 }}>
-        <T v="caption" tone="secondary">{categories[item.kind].label}</T>
+        <T v="caption" tone="secondary">{original ? original.score === undefined ? `${original.handle}’s review` : `${original.handle} gave it ${formatScore(original.score)}` : categories[item.kind].label}</T>
         <T v="headline" numberOfLines={2}>{item.title}</T>
-        <T v="footnote" tone="secondary" numberOfLines={1}>{item.artist}</T>
+        <T v="footnote" tone="secondary" numberOfLines={1}>{original?.subtitle ? `“${original.subtitle}”` : item.artist}</T>
       </View>
-      <Button label="Change" size="sm" variant="secondary" inline onPress={() => setPicking(true)} />
+      {!original && <Button label="Change" size="sm" variant="secondary" inline onPress={() => setPicking(true)} />}
     </Card> : <Card onPress={() => setPicking(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
       <View style={{ width: 56, height: 56, borderRadius: radius.md, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center', ...curve }}><Ionicons name="search" size={24} color={c.accent} /></View>
       <View style={{ flex: 1 }}><T v="headline">Choose a song, album, or artist</T><T v="footnote" tone="secondary">Anything you can rate</T></View>
       <Ionicons name="chevron-forward" size={18} color={c.tertiary} />
     </Card>}
 
-    <SectionHeader title="Your rating" detail={item && ratingFor(item.id) ? `You rated it ${formatScore(ratingFor(item.id)!.score)}` : undefined} />
-    <Card style={{ gap: space.lg }}>
+    <SectionHeader title={original ? 'Your score' : 'Your rating'} detail={item && ratingFor(item.id) ? `You rated it ${formatScore(ratingFor(item.id)!.score)}` : undefined} />
+    {original && <Segmented value={showMine ? 'mine' : 'theirs'} style={{ marginBottom: space.md }} onChange={(v) => setShowMine(v === 'mine')}
+      options={[{ value: 'mine', label: 'Add my score', icon: 'add-circle-outline' }, { value: 'theirs', label: 'Just theirs', icon: 'person-outline' }]} />}
+    {(!original || showMine) && <Card style={{ gap: space.lg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <IconButton icon="remove" label="Lower score by half a point" size={48} disabled={score <= 0} onPress={() => { haptic.select(); setScore((v) => Math.max(0, v - 0.5)); }} />
         <View accessible accessibilityLabel={`Score ${formatScore(score)} out of 10`} style={{ alignItems: 'center' }}>
@@ -179,15 +203,17 @@ export default function VideoReviewScreen() {
           <T v="callout" weight="semibold" style={{ color: score === value ? '#FFFFFF' : c.text }}>{value}</T>
         </Tap>)}
       </View>
-    </Card>
+    </Card>}
 
-    <SectionHeader title="Your take" />
-    <TextField label="Shown inside the card" value={caption} onChangeText={setCaption} maxLength={80} placeholder="perfection" hint={`${caption.length}/80`} />
+    {!original && <>
+      <SectionHeader title="Your take" />
+      <TextField label="Shown inside the card" value={caption} onChangeText={setCaption} maxLength={80} placeholder="perfection" hint={`${caption.length}/80`} />
+    </>}
 
     {item && <>
       <SectionHeader title="Preview" />
       <View style={{ alignSelf: 'center', width: 180, height: 320, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: '#1E1D1B', ...curve }}>
-        <ReviewCard item={item} score={score} take={caption} name={user?.name || 'You'} handle={user?.handle || '@you'} avatar={user?.avatar} width={180} layout={layout} />
+        {reelCard(item, 180)}
       </View>
     </>}
     <T v="footnote" tone="secondary" center style={{ marginTop: space.xl }}>Recorded and made on your phone. Nothing is uploaded unless you share it.</T>
@@ -199,7 +225,7 @@ export default function VideoReviewScreen() {
   // Camera and preview share one dark stage with the overlay drawn on top of it.
   const overlayLayer = item && <ViewShot ref={overlay} options={{ format: 'png', quality: 1, result: 'tmpfile', width: 1080, height: 1920 }}
     style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent' }]}>
-    <View collapsable={false} style={StyleSheet.absoluteFill}><ReviewCard item={item} score={score} take={caption} name={user?.name || 'You'} handle={user?.handle || '@you'} avatar={user?.avatar} width={stageWidth} layout={layout} /></View>
+    <View collapsable={false} style={StyleSheet.absoluteFill}>{reelCard(item, stageWidth)}</View>
   </ViewShot>;
 
   return <View style={{ flex: 1, backgroundColor: '#000000', paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, space.md) }}>

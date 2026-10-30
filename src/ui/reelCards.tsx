@@ -11,7 +11,27 @@ import { CardLayout, cardTransform } from './videoLayout';
 // dark ink, and a score ring — readable over any face or room.
 const GLASS = 'rgba(246,246,248,0.9)', INK = '#111113', MUTED = '#6E6E73', GOLD = '#C99700';
 const shadowText = (k: number) => ({ textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 6 * k, textShadowOffset: { width: 0, height: 1 } });
-const mark = require('../../assets/brand/riffs-mark-black.png');
+const marks = { dark: require('../../assets/brand/riffs-mark-black.png'), light: require('../../assets/brand/riffs-mark-white.png') };
+const wordmark = require('../../assets/brand/riffs-wordmark.png');
+
+/** Mark plus the RIFFS wordmark: a logo alone doesn't tell viewers which app made the video. */
+function Lockup({ k, height = 20, light = false }: { k: number; height?: number; light?: boolean }) {
+  const h = height * k;
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: h * 0.22 }}>
+    <Image source={light ? marks.light : marks.dark} style={{ width: h, height: h }} contentFit="contain" />
+    <Image source={wordmark} tintColor={light ? '#FFFFFF' : INK} style={{ height: h * 0.62, width: h * 0.62 * 600 / 280 }} contentFit="contain" />
+  </View>;
+}
+
+/** The line under every card that says where to go, kept up high and clear of Instagram's caption and buttons. */
+function Tagline({ k, text }: { k: number; text: string }) {
+  return <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.semibold, fontSize: 12.5 * k, color: '#FFFFFF', marginTop: 8 * k, marginLeft: 4 * k }, shadowText(k)]}>
+    {text} · <Text style={{ fontFamily: font.heavy }}>riffs.app</Text>
+  </Text>;
+}
+
+/** The person on camera reacting to someone else's review, with the score they'd give it instead. */
+export type ReelReply = { name: string; handle: string; avatar?: string; score: number };
 
 /** A coloured ring with the score inside — the score treatment shared by every Riffs video. */
 export function ScoreRing({ score, size, k = 1 }: { score: number; size: number; k?: number }) {
@@ -28,15 +48,19 @@ function Byline({ name, handle, avatar, k, size = 26 }: { name: string; handle: 
   </View>;
 }
 
-/** One rating, as a frosted card in the upper third of the frame. The take sits inside the card as a quote. */
-export function ReviewCard({ item, score, take, name, handle, avatar, width, layout }: { item: MusicItem; score: number; take: string; name: string; handle: string; avatar?: string; width: number; layout?: CardLayout }) {
+/**
+ * One rating, as a frosted card in the upper third of the frame. The take sits inside the card as a quote.
+ * With `reply` the card is someone else's review, and the person on camera adds their own score under it.
+ */
+export function ReviewCard({ item, score, take, name, handle, avatar, width, layout, reply }: { item: MusicItem; score: number; take: string; name: string; handle: string; avatar?: string; width: number; layout?: CardLayout; reply?: ReelReply }) {
   const k = width / 360;
   const sub = item.kind === 'song' && item.album ? `${item.artist} · ${item.album}` : `${item.artist} · ${categories[item.kind].label}`;
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { paddingHorizontal: 18 * k, paddingTop: 150 * k }]}>
-    <View style={{ backgroundColor: GLASS, borderRadius: 18 * k, padding: 14 * k, gap: 12 * k, transform: cardTransform(layout, width, width * 16 / 9) }}>
+    <View style={{ transform: cardTransform(layout, width, width * 16 / 9) }}>
+    <View style={{ backgroundColor: GLASS, borderRadius: 18 * k, padding: 14 * k, gap: 12 * k }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Byline name={name} handle={handle} avatar={avatar} k={k} />
-        <Image source={mark} style={{ width: 24 * k, height: 24 * k }} contentFit="contain" />
+        <Lockup k={k} />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 * k }}>
         <Artwork item={item} size={86 * k} rounded={8 * k} />
@@ -47,6 +71,16 @@ export function ReviewCard({ item, score, take, name, handle, avatar, width, lay
         <ScoreRing score={score} size={62 * k} k={k} />
       </View>
       {!!take.trim() && <Text maxFontSizeMultiplier={1} numberOfLines={3} style={{ fontFamily: font.medium, fontStyle: 'italic', fontSize: 15 * k, lineHeight: 20 * k, color: INK }}>“{take.trim()}”</Text>}
+      {reply && <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(0,0,0,0.18)', paddingTop: 10 * k }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 * k }}>
+          <Avatar size={26 * k} name={reply.name} uri={reply.avatar} seed={reply.handle} />
+          <Text maxFontSizeMultiplier={1} style={{ fontFamily: font.semibold, fontSize: 12.5 * k, color: INK }}>{reply.handle}</Text>
+          <Text maxFontSizeMultiplier={1} style={{ fontFamily: font.medium, fontSize: 11.5 * k, color: MUTED }}>would give it</Text>
+        </View>
+        <ScoreRing score={reply.score} size={44 * k} k={k} />
+      </View>}
+    </View>
+    <Tagline k={k} text={reply ? 'what would you give it?' : 'rate it yourself'} />
     </View>
   </View>;
 }
@@ -69,8 +103,8 @@ export function CountdownCard({ items, scores, notes, title, name, handle, avata
     </View>
     <Text maxFontSizeMultiplier={1} numberOfLines={2} style={[{ fontFamily: font.heavy, fontSize: 25 * k, lineHeight: 29 * k, letterSpacing: -0.7 * k, color: '#FFFFFF', marginTop: 8 * k }, shadowText(k)]}>{title || 'My ranking'}</Text>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 * k, marginTop: 2 * k, marginBottom: 12 * k }}>
-      <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.semibold, fontSize: 12 * k, color: '#FFFFFFE6' }, shadowText(k)]}>on Riffs</Text>
-      <Image source={require('../../assets/brand/riffs-mark-white.png')} style={{ width: 14 * k, height: 14 * k }} contentFit="contain" />
+      <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.semibold, fontSize: 12 * k, color: '#FFFFFFE6' }, shadowText(k)]}>ranked on</Text>
+      <Lockup k={k} height={16} light />
     </View>
     <View style={{ backgroundColor: GLASS, borderRadius: 18 * k, paddingVertical: 6 * k, paddingHorizontal: 8 * k }}>
       {items.map((item, index) => {
@@ -102,6 +136,7 @@ export function CountdownCard({ items, scores, notes, title, name, handle, avata
         </View>;
       })}
     </View>
+    <Tagline k={k} text="rank yours" />
     </View>
   </View>;
 }

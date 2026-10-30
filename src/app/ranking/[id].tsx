@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { api, errorMessage } from '../../lib/api';
-import { activeKinds, categories } from '../../lib/categories';
+import { activeKinds, categories, formatScore } from '../../lib/categories';
 import { displayDate } from '../../lib/dates';
 import { postLink, shareLink } from '../../lib/links';
 import { useApp } from '../../store/AppContext';
@@ -147,6 +147,10 @@ export default function RankingScreen() {
       {canContribute && <Button label="Add to pod" icon="add" size="md" style={{ flex: 1.6 }} onPress={() => user ? setAdding(true) : router.push('/auth')} />}
     </View>
 
+    {reviewed && !owned && !ranking.isSample && ranking.visibility === 'public' && <ListGroup style={{ marginTop: space.lg }}>
+      <ListRow icon="videocam" iconColor="#FF2D55" title="React on video" subtitle={`Film yourself reacting to ${ranking.handle}’s ${ranking.score === undefined ? 'review' : formatScore(ranking.score)}`}
+        onPress={() => user ? router.push({ pathname: '/video', params: { reactTo: ranking.id } }) : router.push('/auth')} />
+    </ListGroup>}
     {owned && !isMood && !isReview && !isPod && !isTake && ranking.items.length >= 2 && <ListGroup style={{ marginTop: space.lg }}>
       <ListRow icon="videocam" iconColor="#FF2D55" title="Film a countdown video" subtitle={`Reveal your top ${Math.min(ranking.items.length, 10)} on camera`} onPress={() => router.push({ pathname: '/countdown', params: { postId: ranking.id } })} />
     </ListGroup>}
