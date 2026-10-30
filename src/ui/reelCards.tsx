@@ -14,10 +14,11 @@ const shadowText = (k: number) => ({ textShadowColor: 'rgba(0,0,0,0.45)', textSh
 const marks = { dark: require('../../assets/brand/riffs-mark-black.png'), light: require('../../assets/brand/riffs-mark-white.png') };
 const wordmark = require('../../assets/brand/riffs-wordmark.png');
 
-/** Mark plus the RIFFS wordmark: a logo alone doesn't tell viewers which app made the video. */
+/** "on" plus the mark and RIFFS wordmark, the same on every video: a logo alone doesn't tell viewers which app made it. */
 function Lockup({ k, height = 20, light = false }: { k: number; height?: number; light?: boolean }) {
   const h = height * k;
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: h * 0.22 }}>
+    <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.semibold, fontSize: h * 0.6, color: light ? '#FFFFFFE6' : MUTED }, light && shadowText(k)]}>on</Text>
     <Image source={light ? marks.light : marks.dark} style={{ width: h, height: h }} contentFit="contain" />
     <Image source={wordmark} tintColor={light ? '#FFFFFF' : INK} style={{ height: h * 0.62, width: h * 0.62 * 600 / 280 }} contentFit="contain" />
   </View>;
@@ -102,8 +103,7 @@ export function CountdownCard({ items, scores, notes, title, name, handle, avata
       <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.semibold, fontSize: 13 * k, color: '#FFFFFF' }, shadowText(k)]}>{handle}</Text>
     </View>
     <Text maxFontSizeMultiplier={1} numberOfLines={2} style={[{ fontFamily: font.heavy, fontSize: 25 * k, lineHeight: 29 * k, letterSpacing: -0.7 * k, color: '#FFFFFF', marginTop: 8 * k }, shadowText(k)]}>{title || 'My ranking'}</Text>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 * k, marginTop: 2 * k, marginBottom: 12 * k }}>
-      <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.semibold, fontSize: 12 * k, color: '#FFFFFFE6' }, shadowText(k)]}>ranked on</Text>
+    <View style={{ flexDirection: 'row', marginTop: 2 * k, marginBottom: 12 * k }}>
       <Lockup k={k} height={16} light />
     </View>
     <View style={{ backgroundColor: GLASS, borderRadius: 18 * k, paddingVertical: 6 * k, paddingHorizontal: 8 * k }}>
