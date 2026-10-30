@@ -14,6 +14,6 @@ Store links come from environment variables at build time. Each button says "Com
 - `NEXT_PUBLIC_IOS_URL`: App Store listing
 - `NEXT_PUBLIC_ANDROID_URL`: Play Store listing or APK
 - `NEXT_PUBLIC_WEB_APP_URL`: optional "Open in browser" button
-- `NEXT_PUBLIC_SITE_URL`: canonical URL for social previews (default `https://riffs.app`)
+- `NEXT_PUBLIC_SITE_URL`: canonical URL for social previews (set it once you have a domain; defaults to `http://localhost:3000`)
 
 Brand images in `public/` and the icons in `app/` are copies of `assets/brand/` in the app. Regenerate them with `node scripts/brand-from-logo.cjs` and copy them again.

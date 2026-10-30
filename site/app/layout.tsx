@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 const anton = Anton({ subsets: ['latin'], weight: '400', variable: '--font-display', display: 'swap' });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://riffs.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: 'Riffs — your music taste deserves a mic',
   description: 'Rate your favourite tracks, drop album reviews, film countdown videos of your rankings, and find the people whose taste matches yours.',
   openGraph: {

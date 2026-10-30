@@ -27,7 +27,7 @@ function Lockup({ k, height = 20, light = false }: { k: number; height?: number;
 /** The line under every card that says where to go, kept up high and clear of Instagram's caption and buttons. */
 function Tagline({ k, text }: { k: number; text: string }) {
   return <Text maxFontSizeMultiplier={1} style={[{ fontFamily: font.semibold, fontSize: 12.5 * k, color: '#FFFFFF', marginTop: 8 * k, marginLeft: 4 * k }, shadowText(k)]}>
-    {text} · <Text style={{ fontFamily: font.heavy }}>riffs.app</Text>
+    {text} on <Text style={{ fontFamily: font.heavy }}>Riffs</Text>
   </Text>;
 }
 
@@ -81,7 +81,7 @@ export function ReviewCard({ item, score, take, name, handle, avatar, width, lay
         <ScoreRing score={reply.score} size={44 * k} k={k} />
       </View>}
     </View>
-    <Tagline k={k} text={reply ? 'what would you give it?' : 'rate it yourself'} />
+    <Tagline k={k} text={reply ? 'give yours' : 'rate it yourself'} />
     </View>
   </View>;
 }

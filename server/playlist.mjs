@@ -3,7 +3,7 @@ import { fail, text } from './security.mjs';
 // Pods hold up to 500 songs. Spotify's public player only lists the first 100, so longer playlists need the
 // server's Spotify app credentials (SPOTIFY_CLIENT_ID/SECRET), which read every track without anyone logging in.
 const LIMIT = 500, EMBED_LIMIT = 100;
-const BROWSER = { 'user-agent': 'Mozilla/5.0 (compatible; RiffsBot/1.0; +https://riffs.app)', 'accept-language': 'en' };
+const BROWSER = { 'user-agent': 'Mozilla/5.0 (compatible; RiffsBot/1.0)', 'accept-language': 'en' };
 
 /** Reads the JSON a public page embeds in a <script> tag, or fails with a message the person can act on. */
 function embeddedJson(html, pattern, message) {
