@@ -6,6 +6,7 @@ import { api, errorMessage } from '../lib/api';
 import { displayDate } from '../lib/dates';
 import { MusicItem, Profile, Ranking, Rating, SharedArtist, TasteMatch, TasteTwins } from '../lib/types';
 import { useApp } from '../store/AppContext';
+import { GlassTile } from './glass';
 import { useTask } from './forms';
 import { Artwork, Avatar, BotBadge, Button, Card, IconButton, Ionicons, SectionHeader, Segmented, T } from './primitives';
 import { canPreview, usePreview } from './preview';
@@ -28,16 +29,16 @@ export function TrackPill({ item }: { item: MusicItem }) {
   const preview = usePreview();
   const playable = canPreview(item);
   const playing = preview.item?.id === item.id && preview.playing;
-  return <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.fill, padding: space.sm, paddingRight: space.xs, borderRadius: radius.md, gap: space.sm, borderWidth: 1, borderColor: c.border, ...curve }}>
+  return <GlassTile item={item} style={{ flexDirection: 'row', alignItems: 'center', padding: space.sm, paddingRight: space.xs, borderRadius: radius.md, gap: space.sm }}>
     <Pressable accessibilityRole="button" accessibilityLabel={`View ${item.title} by ${item.artist}`} onPress={() => { rememberItem(item); router.push(`/item/${encodeURIComponent(item.id)}`); }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, flex: 1, minHeight: 52 }}>
       <Artwork item={item} size={52} rounded={10} />
-      <View style={{ flex: 1, gap: 2 }}><T v="callout" weight="semibold" numberOfLines={1}>{item.title}</T><T v="footnote" tone="secondary" numberOfLines={1}>{item.artist}</T></View>
+      <View style={{ flex: 1, gap: 2 }}><T v="callout" weight="semibold" numberOfLines={1} style={{ color: '#FFFFFF' }}>{item.title}</T><T v="footnote" numberOfLines={1} style={{ color: 'rgba(255,255,255,0.72)' }}>{item.artist}</T></View>
     </Pressable>
     {playable ? <Pressable accessibilityRole="button" accessibilityLabel={`${playing ? 'Pause' : 'Preview'} ${item.title}`} onPress={() => preview.toggle(item)} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
       <Ionicons name={playing ? 'pause' : 'play'} size={18} color={c.onAccent} style={{ marginLeft: playing ? 0 : 2 }} />
     </Pressable>
-      : item.externalUrl ? <IconButton icon="open-outline" label={`Listen to ${item.title}`} size={44} filled={false} tone="secondary" onPress={() => void Linking.openURL(item.externalUrl!).catch((e) => setNotice(errorMessage(e)))} /> : null}
-  </View>;
+      : item.externalUrl ? <IconButton icon="open-outline" label={`Listen to ${item.title}`} size={44} filled={false} tone="white" onPress={() => void Linking.openURL(item.externalUrl!).catch((e) => setNotice(errorMessage(e)))} /> : null}
+  </GlassTile>;
 }
 
 /** Like, reply, send to a friend, and share — the Equals action row. */

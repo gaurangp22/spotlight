@@ -85,6 +85,9 @@ test('item pages average only the ratings a viewer may see', async (t) => {
   const follower = (await request('/items/album-1', { token: carol.token })).data;
   assert.equal(follower.count, 2);
   assert.equal(follower.average, 8.4);
+  assert.equal(follower.distribution.length, 11);
+  assert.equal(follower.distribution.reduce((sum, n) => sum + n, 0), 2);
+  assert.equal(follower.distribution[10], 1);
   assert.equal((await request('/items/bad%20id')).status, 400);
   // Profiles expose only visible ratings.
   assert.equal((await request('/people/bob')).data.ratings.length, 0);

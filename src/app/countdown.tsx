@@ -2,7 +2,6 @@ import { CameraType, CameraView, useCameraPermissions, useMicrophonePermissions 
 import { useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +9,7 @@ import ViewShot from 'react-native-view-shot';
 import { canComposeTimed, composeTimed } from '../../modules/video-overlay';
 import { formatScore } from '../lib/categories';
 import { errorMessage } from '../lib/api';
+import { PickedMedia, pickMedia } from '../lib/pickMedia';
 import { saveVideoToLibrary } from '../lib/saveVideo';
 import { MusicItem } from '../lib/types';
 import { useApp } from '../store/AppContext';
@@ -19,16 +19,12 @@ import { haptic } from '../ui/haptics';
 import { MusicPicker } from '../ui/MusicPicker';
 import { Button, Card, EmptyState, IconButton, Ionicons, SectionHeader, T, TextField } from '../ui/primitives';
 import { CountdownCard } from '../ui/reelCards';
+import { Backdrop } from '../ui/reelMedia';
 import { LayoutControls, LayoutGestures, useCardLayout } from '../ui/videoLayout';
 import { font, noOutline, radius, space, useTheme } from '../ui/theme';
 
 const MAX_SECONDS = 90, MAX_ITEMS = 10;
 type Stage = 'setup' | 'camera' | 'preview';
-
-function Clip({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri, (p) => { p.loop = true; p.play(); });
-  return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />;
-}
 
 const seconds = (value: number) => `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 60))));
@@ -56,12 +52,14 @@ export default function CountdownScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [reveals, setReveals] = useState<number[]>([]);
   const [shown, setShown] = useState(0);
-  const [clip, setClip] = useState<string | null>(null);
+  const [clip, setClip] = useState<PickedMedia | null>(null);
   const [output, setOutput] = useState<string | null>(null);
   const [cameraPermission, requestCamera] = useCameraPermissions();
   const [, requestMicrophone] = useMicrophonePermissions();
   const camera = useRef<CameraView>(null);
   const overlay = useRef<React.ComponentRef<typeof ViewShot>>(null);
+  // The photo and card together, captured as one image when a photo is picked instead of a video.
+  const still = useRef<React.ComponentRef<typeof ViewShot>>(null);
   const startedAt = useRef(0);
   const discard = useRef(false);
 
@@ -98,13 +96,22 @@ export default function CountdownScreen() {
     haptic.press(); setElapsed(0); setReveals([]); setShown(0); setRecording(true); discard.current = false; startedAt.current = Date.now();
     try {
       const result = await camera.current.recordAsync({ maxDuration: MAX_SECONDS });
-      if (result?.uri && !discard.current) { setClip(result.uri); setOutput(null); setStage('preview'); haptic.success(); }
+      if (result?.uri && !discard.current) { setClip({ uri: result.uri, kind: 'video' }); setOutput(null); setStage('preview'); haptic.success(); }
     } catch (error) {
       haptic.warn();
       setNotice(/no valid data|too short|stopped before/i.test(errorMessage(error)) ? 'That was too quick to save. Hold on for at least a second.' : errorMessage(error));
     } finally { setRecording(false); }
   };
   const stop = () => { haptic.press(); camera.current?.stopRecording(); };
+  const fromGallery = () => run(async () => {
+    const picked = await pickMedia(MAX_SECONDS);
+    if (!picked) return;
+    // Nobody tapped Reveal on a clip they already had, so picks appear evenly across it with #1 near the end.
+    // A photo shows the whole ranking at once.
+    const length = picked.seconds || items.length * 3;
+    setReveals(items.map((_, index) => (picked.kind === 'photo' ? 0 : (length * (index + 1)) / (items.length + 1))));
+    setShown(items.length); setClip(picked); setOutput(null); setStage('preview');
+  });
   const reveal = () => {
     if (!recording || shown >= items.length) return;
     haptic.select();
@@ -115,21 +122,30 @@ export default function CountdownScreen() {
   /** Captures one card per reveal, then burns them in so each appears at the moment it was revealed. */
   const produce = async () => {
     if (output) return output;
+    if (clip?.kind === 'photo') {
+      if (!still.current?.capture) throw new Error('Pick a photo first.');
+      setShown(items.length); await nextFrame();
+      const image = await still.current.capture();
+      setOutput(image);
+      return image;
+    }
     if (!clip || !overlay.current?.capture) throw new Error('Record your video first.');
     const frames: { uri: string; start: number }[] = [];
     for (let count = 0; count <= reveals.length; count++) {
       setShown(count); await nextFrame();
       frames.push({ uri: await overlay.current.capture(), start: count === 0 ? 0 : reveals[count - 1] });
     }
-    const video = await composeTimed(clip, frames);
+    const video = await composeTimed(clip.uri, frames);
     setOutput(video);
     return video;
   };
-  const save = () => run(async () => { const video = await produce(); await saveVideoToLibrary(video); haptic.success(); setNotice('Saved to your photos.'); });
+  const save = () => run(async () => { const file = await produce(); await saveVideoToLibrary(file, clip?.kind === 'photo' ? 'photo' : 'video'); haptic.success(); setNotice('Saved to your photos.'); });
   const share = () => run(async () => {
-    const video = await produce();
+    const file = await produce();
     if (!await Sharing.isAvailableAsync()) throw new Error('Sharing is unavailable on this device.');
-    await Sharing.shareAsync(video, { mimeType: 'video/mp4', UTI: 'public.mpeg-4', dialogTitle: 'Post your ranking video' });
+    await Sharing.shareAsync(file, clip?.kind === 'photo'
+      ? { mimeType: 'image/jpeg', UTI: 'public.jpeg', dialogTitle: 'Post your ranking' }
+      : { mimeType: 'video/mp4', UTI: 'public.mpeg-4', dialogTitle: 'Post your ranking video' });
   });
 
   const name = user?.name || 'You', handle = user?.handle || '@you';
@@ -138,6 +154,7 @@ export default function CountdownScreen() {
     footer={<View style={{ gap: space.sm }}>
       {items.length < 2 && <T v="footnote" tone="secondary" center>Add at least two songs to film a countdown.</T>}
       <Button label="Open camera" icon="videocam" disabled={items.length < 2} loading={busy} onPress={() => void openCamera()} />
+      <Button label="Use a photo or video you have" icon="images-outline" variant="secondary" disabled={items.length < 2 || busy} onPress={() => void fromGallery()} />
     </View>}>
     <T v="title1" style={{ marginTop: space.sm }}>Count it down on camera</T>
     <T v="subhead" tone="secondary" style={{ marginTop: space.xs }}>Film your reaction and tap to reveal each pick, from #{Math.max(items.length, 2)} up to #1. Add a score and a line for each — they appear as you reveal.</T>
@@ -174,12 +191,17 @@ export default function CountdownScreen() {
   return <View style={{ flex: 1, backgroundColor: '#000000', paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, space.md) }}>
     <StatusBar style="light" />
     <View style={{ width: stageWidth, height: stageHeight, alignSelf: 'center', borderRadius: stageWidth < screen.width ? radius.lg : 0, overflow: 'hidden', backgroundColor: '#111111' }}>
-      {stage === 'camera' ? <CameraView ref={camera} style={StyleSheet.absoluteFill} facing={facing} mode="video" mute={!sound} videoQuality="1080p"
-        onCameraReady={() => setReady(true)} onMountError={(e) => setNotice(e.message)} />
-        : clip ? <Clip uri={clip} /> : null}
-      <ViewShot ref={overlay} options={{ format: 'png', quality: 1, result: 'tmpfile', width: 1080, height: 1920 }} style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent' }]}>
+      <ViewShot ref={still} options={{ format: 'jpg', quality: 0.92, result: 'tmpfile', width: 1080, height: 1920 }} style={StyleSheet.absoluteFill}>
         <View collapsable={false} style={StyleSheet.absoluteFill}>
-          <CountdownCard items={items} scores={scores} notes={lines} title={title} name={name} handle={handle} avatar={user?.avatar} revealed={stage === 'preview' && !busy ? reveals.length : shown} width={stageWidth} layout={layout} />
+          {/* Front-camera clips are saved mirrored, the way the preview showed them, so nothing flips after recording. */}
+          {stage === 'camera' ? <CameraView ref={camera} style={StyleSheet.absoluteFill} facing={facing} mirror={facing === 'front'} mode="video" mute={!sound} videoQuality="1080p"
+            onCameraReady={() => setReady(true)} onMountError={(e) => setNotice(e.message)} />
+            : clip ? <Backdrop media={clip} /> : null}
+          <ViewShot ref={overlay} options={{ format: 'png', quality: 1, result: 'tmpfile', width: 1080, height: 1920 }} style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent' }]}>
+            <View collapsable={false} style={StyleSheet.absoluteFill}>
+              <CountdownCard items={items} scores={scores} notes={lines} title={title} name={name} handle={handle} avatar={user?.avatar} revealed={stage === 'preview' && !busy ? reveals.length : shown} width={stageWidth} layout={layout} />
+            </View>
+          </ViewShot>
         </View>
       </ViewShot>
       <LayoutGestures layout={layout} onChange={setLayout} width={stageWidth} height={stageHeight} enabled={!recording && !busy} />
@@ -195,10 +217,15 @@ export default function CountdownScreen() {
       {stage === 'camera' ? <View style={{ gap: space.md }}>
         {!recording && <LayoutControls layout={layout} onChange={setLayout} />}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xl }}>
+        {!recording && <Pressable accessibilityRole="button" accessibilityLabel="Use a photo or video from your gallery" disabled={busy}
+          onPress={() => void fromGallery()} style={styles.side}>
+          <Ionicons name="images-outline" size={22} color="#FFFFFF" />
+        </Pressable>}
         <Pressable accessibilityRole="button" accessibilityLabel={recording ? 'Stop recording' : 'Start recording'} disabled={!ready}
           onPress={() => (recording ? stop() : void record())} style={[styles.shutter, !ready && { opacity: 0.4 }]}>
           <View style={recording ? styles.stopSquare : styles.recordDot} />
         </Pressable>
+        {!recording && <View style={{ width: 48 }} />}
         {recording && <Pressable accessibilityRole="button" accessibilityLabel={done ? 'All picks revealed' : `Reveal number ${items.length - shown}`} disabled={done} onPress={reveal}
           style={[styles.reveal, { backgroundColor: done ? 'rgba(255,255,255,0.15)' : c.accentFill }]}>
           <Ionicons name={done ? 'checkmark' : 'eye'} size={20} color={done ? '#FFFFFF' : c.onAccent} />
@@ -223,6 +250,7 @@ const styles = StyleSheet.create({
   timer: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, minHeight: 30, borderRadius: radius.pill, backgroundColor: 'rgba(0,0,0,0.55)' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3B30' },
   timerText: { fontFamily: font.semibold, fontSize: 13, color: '#FFFFFF', fontVariant: ['tabular-nums'] },
+  side: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.15)' },
   shutter: { width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   recordDot: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#FF3B30' },
   stopSquare: { width: 26, height: 26, borderRadius: 6, backgroundColor: '#FF3B30' },

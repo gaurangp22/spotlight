@@ -709,8 +709,11 @@ export function createApi({ db, key = randomBytes(32), fetcher = fetch } = {}) {
         if (!ITEM_ID.test(itemId)) fail(400, 'Invalid item ID.');
         const rows = await db.all(`SELECT p.*, u.handle, u.name, u.avatar, r.score FROM ratings r JOIN posts p ON p.id=r.post_id JOIN users u ON u.id=p.user_id WHERE r.item_id=? AND ${visibleSQL} ORDER BY p.updated_at DESC LIMIT 100`, itemId, ...viewerArgs(user?.id));
         const average = rows.length ? Math.round(rows.reduce((sum, r) => sum + r.score, 0) / rows.length * 10) / 10 : null;
+        // How many visible ratings land on each whole point, 0 to 10, for the item page's chart.
+        const distribution = Array(11).fill(0);
+        for (const r of rows) distribution[Math.max(0, Math.min(10, Math.round(r.score)))]++;
         const pods = await db.all(`SELECT p.*, u.handle, u.name, u.avatar FROM posts p JOIN users u ON u.id=p.user_id WHERE p.kind='pod' AND instr(p.items, ?) > 0 AND ${visibleSQL} ORDER BY p.updated_at DESC LIMIT 20`, `"id":${JSON.stringify(itemId)}`, ...viewerArgs(user?.id));
-        return send({ item: rows[0] ? JSON.parse(rows[0].items)[0] : null, average, count: rows.length,
+        return send({ item: rows[0] ? JSON.parse(rows[0].items)[0] : null, average, count: rows.length, distribution,
           reviews: await Promise.all(rows.map((r) => postJSON(r, user?.id))), pods: await Promise.all(pods.map((r) => postJSON(r, user?.id))) });
       }
       const contributeRoute = path.match(/^\/api\/posts\/([a-zA-Z0-9-]+)\/items(?:\/([^/]{1,200}))?$/);

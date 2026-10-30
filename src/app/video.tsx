@@ -2,7 +2,6 @@ import { CameraType, CameraView, useCameraPermissions, useMicrophonePermissions 
 import { useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +9,7 @@ import ViewShot from 'react-native-view-shot';
 import { compose, isAvailable } from '../../modules/video-overlay';
 import { allKinds, categories, formatScore, scoreColor } from '../lib/categories';
 import { errorMessage } from '../lib/api';
+import { PickedMedia, pickMedia } from '../lib/pickMedia';
 import { saveVideoToLibrary } from '../lib/saveVideo';
 import { MusicItem } from '../lib/types';
 import { useApp } from '../store/AppContext';
@@ -18,6 +18,7 @@ import { useTask } from '../ui/forms';
 import { haptic } from '../ui/haptics';
 import { MusicPicker } from '../ui/MusicPicker';
 import { ReviewCard } from '../ui/reelCards';
+import { Backdrop } from '../ui/reelMedia';
 import { LayoutControls, LayoutGestures, useCardLayout } from '../ui/videoLayout';
 import { Artwork, Button, Card, EmptyState, IconButton, Ionicons, SectionHeader, T, Tap, TextField } from '../ui/primitives';
 import { curve, font, radius, space, useTheme } from '../ui/theme';
@@ -25,11 +26,6 @@ import { curve, font, radius, space, useTheme } from '../ui/theme';
 const MAX_SECONDS = 60;
 const quickScores = [10, 9, 8, 7, 6, 5];
 type Stage = 'setup' | 'camera' | 'preview';
-
-function Clip({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri, (p) => { p.loop = true; p.play(); });
-  return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />;
-}
 
 const seconds = (value: number) => `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
 
@@ -52,12 +48,14 @@ export default function VideoReviewScreen() {
   const [ready, setReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [clip, setClip] = useState<string | null>(null);
+  const [clip, setClip] = useState<PickedMedia | null>(null);
   const [output, setOutput] = useState<string | null>(null);
   const [cameraPermission, requestCamera] = useCameraPermissions();
   const [, requestMicrophone] = useMicrophonePermissions();
   const camera = useRef<CameraView>(null);
   const overlay = useRef<React.ComponentRef<typeof ViewShot>>(null);
+  // The photo and card together, captured as one image when a photo is picked instead of a video.
+  const still = useRef<React.ComponentRef<typeof ViewShot>>(null);
   // Set when the camera is closed mid-recording, so the clip that finishes saving is thrown away.
   const discard = useRef(false);
 
@@ -99,39 +97,53 @@ export default function VideoReviewScreen() {
     haptic.press(); setElapsed(0); setRecording(true); discard.current = false;
     try {
       const result = await camera.current.recordAsync({ maxDuration: MAX_SECONDS });
-      if (result?.uri && !discard.current) { setClip(result.uri); setOutput(null); setStage('preview'); haptic.success(); }
+      if (result?.uri && !discard.current) { setClip({ uri: result.uri, kind: 'video' }); setOutput(null); setStage('preview'); haptic.success(); }
     } catch (error) {
       haptic.warn();
       setNotice(/no valid data|too short|stopped before/i.test(errorMessage(error)) ? 'That was too quick to save. Hold on for at least a second.' : errorMessage(error));
     } finally { setRecording(false); }
   };
   const stop = () => { haptic.press(); camera.current?.stopRecording(); };
+  const fromGallery = () => run(async () => {
+    const picked = await pickMedia(MAX_SECONDS);
+    if (!picked) return;
+    setClip(picked); setOutput(null); setStage('preview');
+  });
 
-  /** Burns the card onto the clip once, then reuses the file for both Save and Share. */
+  /** Burns the card onto the clip once (or captures photo and card together), then reuses the file for both Save and Share. */
   const produce = async () => {
     if (output) return output;
+    if (clip?.kind === 'photo') {
+      if (!still.current?.capture) throw new Error('Pick a photo first.');
+      const image = await still.current.capture();
+      setOutput(image);
+      return image;
+    }
     if (!clip || !overlay.current?.capture) throw new Error('Record your review first.');
     const card = await overlay.current.capture();
-    const video = await compose(clip, card);
+    const video = await compose(clip.uri, card);
     setOutput(video);
     return video;
   };
   const save = () => run(async () => {
-    const video = await produce();
-    await saveVideoToLibrary(video);
+    const file = await produce();
+    await saveVideoToLibrary(file, clip?.kind === 'photo' ? 'photo' : 'video');
     haptic.success();
-    setNotice('Saved to your photos. In Instagram, tap Add audio to put music on it.');
+    setNotice(clip?.kind === 'photo' ? 'Saved to your photos.' : 'Saved to your photos. In Instagram, tap Add audio to put music on it.');
   });
   const share = () => run(async () => {
-    const video = await produce();
+    const file = await produce();
     if (!await Sharing.isAvailableAsync()) throw new Error('Sharing is unavailable on this device.');
-    await Sharing.shareAsync(video, { mimeType: 'video/mp4', UTI: 'public.mpeg-4', dialogTitle: 'Post your video review' });
+    await Sharing.shareAsync(file, clip?.kind === 'photo'
+      ? { mimeType: 'image/jpeg', UTI: 'public.jpeg', dialogTitle: 'Post your review' }
+      : { mimeType: 'video/mp4', UTI: 'public.mpeg-4', dialogTitle: 'Post your video review' });
   });
 
   if (stage === 'setup') return <Screen back title="Video review"
     footer={<View style={{ gap: space.sm }}>
       {!item && <T v="footnote" tone="secondary" center>Choose what you’re reviewing to start recording.</T>}
       <Button label="Open camera" icon="videocam" disabled={!item} loading={busy} onPress={() => void openCamera()} />
+      <Button label="Use a photo or video you have" icon="images-outline" variant="secondary" disabled={!item || busy} onPress={() => void fromGallery()} />
     </View>}>
     <T v="title1" style={{ marginTop: space.sm }}>Film your take</T>
     <T v="subhead" tone="secondary" style={{ marginTop: space.xs }}>Flip the camera and record your reaction. Your score and your take sit on a card in the video — post it anywhere.</T>
@@ -193,10 +205,15 @@ export default function VideoReviewScreen() {
   return <View style={{ flex: 1, backgroundColor: '#000000', paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, space.md) }}>
     <StatusBar style="light" />
     <View style={{ width: stageWidth, height: stageHeight, alignSelf: 'center', borderRadius: stageWidth < screen.width ? radius.lg : 0, overflow: 'hidden', backgroundColor: '#111111' }}>
-      {stage === 'camera' ? <CameraView ref={camera} style={StyleSheet.absoluteFill} facing={facing} mode="video" mute={!sound} videoQuality="1080p"
-        onCameraReady={() => setReady(true)} onMountError={(e) => setNotice(e.message)} />
-        : clip ? <Clip uri={clip} /> : null}
-      {overlayLayer}
+      <ViewShot ref={still} options={{ format: 'jpg', quality: 0.92, result: 'tmpfile', width: 1080, height: 1920 }} style={StyleSheet.absoluteFill}>
+        <View collapsable={false} style={StyleSheet.absoluteFill}>
+          {/* Front-camera clips are saved mirrored, the way the preview showed them, so nothing flips after recording. */}
+          {stage === 'camera' ? <CameraView ref={camera} style={StyleSheet.absoluteFill} facing={facing} mirror={facing === 'front'} mode="video" mute={!sound} videoQuality="1080p"
+            onCameraReady={() => setReady(true)} onMountError={(e) => setNotice(e.message)} />
+            : clip ? <Backdrop media={clip} /> : null}
+          {overlayLayer}
+        </View>
+      </ViewShot>
       <LayoutGestures layout={layout} onChange={setLayout} width={stageWidth} height={stageHeight} enabled={!recording && !busy} />
       <View style={styles.topBar}>
         <IconButton icon="close" label="Close" onPress={() => { if (recording) { discard.current = true; stop(); } setStage('setup'); }} size={40} tone="white" filled={false} />
@@ -214,10 +231,17 @@ export default function VideoReviewScreen() {
     <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space.xl }}>
       {stage === 'camera' ? <View style={{ alignItems: 'center', gap: space.sm }}>
         {!recording && <LayoutControls layout={layout} onChange={setLayout} />}
-        <Pressable accessibilityRole="button" accessibilityLabel={recording ? 'Stop recording' : 'Start recording'} disabled={!ready}
-          onPress={() => (recording ? stop() : void record())} style={[styles.shutter, !ready && { opacity: 0.4 }]}>
-          <View style={recording ? styles.stopSquare : styles.recordDot} />
-        </Pressable>
+        <View style={styles.shutterRow}>
+          {recording ? <View style={[styles.side, { backgroundColor: 'transparent' }]} /> : <Pressable accessibilityRole="button" accessibilityLabel="Use a photo or video from your gallery" disabled={busy}
+            onPress={() => void fromGallery()} style={styles.side}>
+            <Ionicons name="images-outline" size={22} color="#FFFFFF" />
+          </Pressable>}
+          <Pressable accessibilityRole="button" accessibilityLabel={recording ? 'Stop recording' : 'Start recording'} disabled={!ready}
+            onPress={() => (recording ? stop() : void record())} style={[styles.shutter, !ready && { opacity: 0.4 }]}>
+            <View style={recording ? styles.stopSquare : styles.recordDot} />
+          </Pressable>
+          <View style={[styles.side, { backgroundColor: 'transparent' }]} />
+        </View>
         <Text style={styles.hint}>{recording ? 'Tap to stop' : ready ? 'Drag or pinch the card to place it, then record' : 'Starting camera…'}</Text>
       </View> : <View style={{ gap: space.sm }}>
         {!busy && <LayoutControls layout={layout} onChange={setLayout} />}
@@ -239,6 +263,8 @@ const styles = StyleSheet.create({
   timer: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, minHeight: 30, borderRadius: radius.pill, backgroundColor: 'rgba(0,0,0,0.55)' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3B30' },
   timerText: { fontFamily: font.semibold, fontSize: 13, color: '#FFFFFF', fontVariant: ['tabular-nums'] },
+  shutterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xl },
+  side: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.15)' },
   shutter: { width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   recordDot: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FF3B30' },
   stopSquare: { width: 28, height: 28, borderRadius: 6, backgroundColor: '#FF3B30' },
